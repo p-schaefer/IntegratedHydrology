@@ -1,5 +1,6 @@
 ---
 title: "IntegratedHydrology: Integrated hydrology tools for environmental science"
+always_allow_html: true
 output: 
   github_document:
     pandoc_args: --webtex
@@ -94,6 +95,7 @@ library(sf)
 library(viridis)
 library(whitebox)
 library(mapview)
+library(IntegratedHydrology)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -122,9 +124,9 @@ hydro_out<-process_hydrology(
   verbose=F
 )
 
-mapview(hydro_out$subbasins,zcol="link_id")+
-  mapview(hydro_out$stream_lines,zcol="link_id")+
-  mapview(hydro_out$links,zcol="link_id")
+mapview(hydro_out$subbasins,zcol="link_id",legend=F)+
+  mapview(hydro_out$stream_lines,zcol="link_id",legend=F)+
+  mapview(hydro_out$links,zcol="link_id",legend=F)
 
 ```
 
