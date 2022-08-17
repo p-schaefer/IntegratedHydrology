@@ -7,7 +7,7 @@
 #' @param save_dir character. File path to write resulting .zip file.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
-#' @param verbose logical. If \code{FALSE}, the function will not print output messages.
+#' @param verbose logical. If \code{FALSE}, the function will not print output prints.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
@@ -73,23 +73,30 @@ process_hydrology<-function(
 
   # Process flow dirrection -------------------------------------------------
   ## Generate d8 pointer
-  if (verbose) message("Generating d8 pointer")
+  if (verbose) print("Generating d8 pointer")
   wbt_d8_pointer(
     dem="dem_final.tif",
     output="dem_d8.tif"
   )
 
   ## Generate d8 flow accumulation in units of cells
-  if (verbose) message("Generating d8 flow accumulation")
+  if (verbose) print("Generating d8 flow accumulation")
   wbt_d8_flow_accumulation(
     input = "dem_d8.tif",
     output = "dem_accum_d8.tif",
     out_type = "cells",
     pntr=T
   )
+  wbt_d8_flow_accumulation(
+    input = "dem_d8.tif",
+    output = "dem_accum_d8.tif",
+    out_type = "sca",
+    pntr=T
+  )
+
 
   ## Generate streams with a stream initiation threshold
-  if (verbose) message("Extracting Streams")
+  if (verbose) print("Extracting Streams")
   wbt_extract_streams(
     flow_accum = "dem_accum_d8.tif",
     output = "dem_streams_d8.tif",
@@ -97,14 +104,14 @@ process_hydrology<-function(
   )
 
   # Generate subbasin polygons ----------------------------------------------
-  if (verbose) message("Generating subbasins")
+  if (verbose) print("Generating subbasins")
   wbt_subbasins(
     d8_pntr="dem_d8.tif",
     streams="dem_streams_d8.tif",
     output="Subbasins.tif"
   )
 
-  if (verbose) message("Converting subbasins to polygons")
+  if (verbose) print("Converting subbasins to polygons")
   subb<-rast(file.path(temp_dir,"Subbasins.tif"))
   subb<-as.polygons(subb,dissolve = TRUE)
   subb<-st_as_sf(subb) %>%
@@ -114,7 +121,7 @@ process_hydrology<-function(
   write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
   # Attribute Stream network ------------------------------------------------
-  if (verbose) message("Calculating stream link attributes")
+  if (verbose) print("Calculating stream link attributes")
 
   wbt_stream_link_identifier(
     d8_pntr= "dem_d8.tif",
@@ -148,11 +155,6 @@ process_hydrology<-function(
     output="trib_id.tif"
   )
 
-  # wbt_topological_stream_order(
-  #   streams =  "dem_streams_d8.tif",
-  #   d8_pntr =  "dem_d8.tif",
-  #   output =  "StOrd_Topo.tif"
-  # )
   wbt_hack_stream_order(
     streams =  "dem_streams_d8.tif",
     d8_pntr =  "dem_d8.tif",
@@ -174,12 +176,12 @@ process_hydrology<-function(
     output =  "StOrd_Shr.tif"
   )
 
-  # wbt_stream_slope_continuous(
-  #   d8_pntr= "dem_d8.tif",
-  #   streams= "dem_streams_d8.tif",
-  #   dem= "dem_final.tif",
-  #   output="Stream_Slope.tif"
-  # )
+  wbt_stream_slope_continuous(
+    d8_pntr= "dem_d8.tif",
+    streams= "dem_streams_d8.tif",
+    dem= "dem_final.tif",
+    output="Stream_Slope.tif"
+  )
   # # convert above to % change, %slope= tan(Angle in degrees*pi/180)*100
 
   wbt_length_of_upstream_channels(
@@ -207,7 +209,7 @@ process_hydrology<-function(
   write_rds(strm,file.path(temp_dir, "strm_link_id.rds"))
 
   # Generate point attributions ---------------------------------------------
-  if (verbose) message("Extracting stream link attributes")
+  if (verbose) print("Extracting stream link attributes")
 
   id1<-rast(file.path(temp_dir,"link_id.tif"))
   id2<-as.points(id1)
@@ -218,14 +220,14 @@ process_hydrology<-function(
     rast(file.path(temp_dir,"link_length.tif")),
     rast(file.path(temp_dir,"link_slope.tif")),
     rast(file.path(temp_dir,"trib_id.tif")),
-    #rast(file.path(temp_dir,"StOrd_Topo.tif")),
+    rast(file.path(temp_dir,"USChanLen_Total.tif")),
+    rast(file.path(temp_dir,"USChanLen_Furthest.tif")),
+    rast(file.path(temp_dir,"dem_final.tif")),
     rast(file.path(temp_dir,"StOrd_Hack.tif")),
     rast(file.path(temp_dir,"StOrd_Str.tif")),
     rast(file.path(temp_dir,"StOrd_Hort.tif")),
     rast(file.path(temp_dir,"StOrd_Shr.tif")),
-    #rast(file.path(temp_dir,"Stream_Slope.tif")),
-    rast(file.path(temp_dir,"USChanLen_Total.tif")),
-    rast(file.path(temp_dir,"USChanLen_Furthest.tif"))
+    rast(file.path(temp_dir,"Stream_Slope.tif"))
   )
 
 
@@ -244,9 +246,9 @@ process_hydrology<-function(
 
   names(id4)<-abbreviate(names(id4),10)
 
-  id5<-bind_cols(id21,id4)
+  final_points<-bind_cols(id21,id4)
 
-  links<-id5 %>%
+  links<-final_points %>%
     group_by(link_id) %>%
     filter(USChnLn_Fr==max(USChnLn_Fr)) %>%
     ungroup()
@@ -262,9 +264,9 @@ process_hydrology<-function(
   d8_pntr=rast(file.path(temp_dir, "dem_d8.tif"))
 
   # Upstream ----------------------------------------------------------
-  if (verbose) message("Identifying Upstream Links")
+  if (verbose) print("Identifying Upstream Links")
 
-  nodes<-id5 %>%
+  nodes<-final_points %>%
     filter(link_class==4) %>%
     select(ID) %>%
     arrange(ID) %>%
@@ -327,9 +329,9 @@ process_hydrology<-function(
 
 
   # Downstream -----------------------------------------------------------
-  if (verbose) message("Identifying Downstream Links")
+  if (verbose) print("Identifying Downstream Links")
 
-  nodes<-id5 %>%
+  nodes<-final_points %>%
     group_by(link_id) %>%
     filter(USChnLn_Fr==max(USChnLn_Fr)) %>%
     ungroup() %>%
@@ -394,7 +396,7 @@ process_hydrology<-function(
 
 
   # Putting it all together -------------------------------------------------
-
+browser()
   final_links<-links %>%
     full_join(final_us) %>%
     full_join(final_ds)
@@ -405,7 +407,7 @@ process_hydrology<-function(
   if (check_link_id | check_id) warning("Some link_id's and/or ID's are duplicated, this may indicate an issue with the upstream/downstream IDs")
 
   final_lines<-strm %>%
-    left_join(id5 %>%
+    left_join(final_points %>%
                 as_tibble() %>%
                 filter(grepl("Link",link_type)) %>%
                 select(link_id,trib_id,link_lngth,link_slope,USChnLn_Tt,USChnLn_Fr,StOrd_Hack,StOrd_Str,StOrd_Hort,StOrd_Shr) %>%
@@ -422,16 +424,16 @@ process_hydrology<-function(
 
   write_sf(final_links,file.path(temp_dir,"stream_links.shp"))
   write_sf(final_lines,file.path(temp_dir,"stream_lines.shp"))
-  write_sf(id5,file.path(temp_dir,"stream_points.shp"))
+  write_sf(final_points,file.path(temp_dir,"stream_points.shp"))
 
 
   # Trace Flow Paths --------------------------------------------------------
-  if (verbose) message("Tracing Flow Paths")
+  if (verbose) print("Tracing Flow Paths")
 
-  ds_flowpaths<-trace_ds_flowpath(final_lines)
-  us_flowpaths<-trace_us_flowpath(final_lines)
+  ds_flowpaths<-trace_ds_flowpath(final_links)
+  us_flowpaths<-trace_us_flowpath(final_links)
 
-  if (verbose) message("Calculating Pairwise Distances")
+  if (verbose) print("Calculating Pairwise Distances")
   pwise_dist<-pairwise_dist(ds_flowpaths=ds_flowpaths,
                             us_flowpaths=us_flowpaths,
                             subbasins=subb)
@@ -445,7 +447,7 @@ process_hydrology<-function(
 
 
   # Generate Output ---------------------------------------------------------
-  if (verbose) message("Generating Output")
+  if (verbose) print("Generating Output")
 
   dist_list_out<-list(
     "dem_final.tif",
@@ -490,7 +492,7 @@ process_hydrology<-function(
         subbasins=subb,
         stream_lines=final_lines,
         links=final_links,
-        points=id5,
+        points=final_points,
         ds_flowpaths=ds_flowpaths,
         us_flowpaths=ds_flowpaths,
         pwise_dist=pwise_dist

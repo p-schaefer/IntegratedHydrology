@@ -11,6 +11,12 @@ trace_ds_flowpath<-function(
   unique_link_id<-unique(stream_lines$link_id)
   unique_link_id<-split(unique_link_id,unique_link_id)
 
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
+
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
@@ -29,6 +35,8 @@ trace_ds_flowpath<-function(
     out<-out[!is.na(out)]
     out<-tibble(link_id=out,
                 link_lngth=stream_lines$link_lngth[match(out,stream_lines$link_id)])
+
+    setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })
@@ -49,6 +57,12 @@ trace_us_flowpath<-function(
   unique_link_id<-unique(stream_lines$link_id)
   unique_link_id<-split(unique_link_id,unique_link_id)
 
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
+
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
@@ -68,6 +82,8 @@ trace_us_flowpath<-function(
     out<-tibble(link_id=out,
                 link_lngth=stream_lines$link_lngth[match(out,stream_lines$link_id)],
                 sbbsn_area=stream_lines$sbbsn_area[match(out,stream_lines$link_id)])
+
+    setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })

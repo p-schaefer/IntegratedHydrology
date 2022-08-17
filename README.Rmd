@@ -115,9 +115,11 @@ crs(toy_dem) <- "epsg:3161"
 
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+
 hydro_out<-process_hydrology(
   dem=toy_dem,
-  threshold=1000L,
+  threshold=5000L,  
   return_products=T,
   save_dir=save_dir,
   temp_dir=NULL, # location to store temporary files, may require significant space if processing a large DEM 
