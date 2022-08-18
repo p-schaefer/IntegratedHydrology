@@ -110,23 +110,94 @@ crs(toy_dem) <- "epsg:3161"
 
 [Back to top](#contents)
 
-### 3.2 Process DEM with `process_hydrology()`
-
-
+### 3.2 Process DEM with `process_flowdir()`
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-hydro_out<-process_hydrology(
+
+output_filename<-file.path(save_dir,"Processed_Hydrology.zip")
+
+hydro_out<-process_flowdir(
   dem=toy_dem,
-  threshold=1000L,
+  threshold=1000L,  
   return_products=T,
-  save_dir=save_dir,
-  temp_dir=NULL, # location to store temporary files, may require significant space if processing a large DEM 
+  output_filename=output_filename,
+  temp_dir=NULL, 
   verbose=F
 )
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out$stream_lines,zcol="link_id",legend=F)+
-  mapview(hydro_out$links,zcol="link_id",legend=F)
+hydro_out1<-generate_subbasins(
+    input=hydro_out,
+    return_products=T,
+    temp_dir=NULL,
+    verbose=F
+) 
+
+hydro_out2<-attrib_streamline(
+    input=hydro_out1,
+    return_products=T,
+    temp_dir=NULL,
+    verbose=F
+)
+
+points<-rast(hydro_out$dem_streams_d8.tif) %>% 
+  as.points() %>% 
+  st_as_sf() %>% 
+  filter(st_coordinates(.)[, 1] < 675000) %>% 
+  rename(Sites=dem_streams_d8) %>% 
+  .[c(10,12,50,100),] %>% 
+  mutate(Sites=row_number()) %>% 
+  st_jitter(5)
+
+hydro_out25<-insert_points(
+  input=hydro_out1,
+  points=points,
+  site_id_col="Sites",
+  snap_distance=10,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
+
+hydro_out3<-trace_flowpaths(
+    input=hydro_out25,
+    return_products=T,
+    temp_dir=NULL,
+    verbose=F
+)
+
+hydro_out4<-generate_pwisedist(
+    input=hydro_out3,
+    return_products=T,
+    temp_dir=NULL,
+    verbose=F
+)
+
+# hydro_out<-process_hydrology(
+#   dem=toy_dem,
+#   threshold=1000L,  
+#   return_products=T,
+#   save_dir=save_dir,
+#   temp_dir=NULL, # location to store temporary files, may require significant space if processing a large DEM 
+#   verbose=T
+# )
+
+mapview(hydro_out4$subbasins,zcol="link_id",legend=F)+
+  mapview(hydro_out1$subbasins)
+  mapview(hydro_out4$stream_lines,zcol="link_id",legend=F)+
+  mapview(hydro_out4$links,zcol="link_id",legend=F)+
+  mapview(hydro_out4$snapped_points,zcol="Sites",legend=F)
+
+```
+
+[Back to top](#contents)
+
+
+[Back to top](#contents)
+
+### 3.2 Process DEM with `process_flowdir()`
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
 
 ```
 

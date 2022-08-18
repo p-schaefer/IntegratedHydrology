@@ -30,7 +30,8 @@ Imports:
     tidyr,
     tidyselect,
     terra,
-    whitebox
+    whitebox,
+    units
 Suggests: 
     knitr, 
     rmarkdown

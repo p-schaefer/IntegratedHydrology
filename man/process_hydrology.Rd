@@ -24,7 +24,7 @@ process_hydrology(
 
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
 
-\item{verbose}{logical. If \code{FALSE}, the function will not print output messages.}
+\item{verbose}{logical. If \code{FALSE}, the function will not print output prints.}
 }
 \value{
 If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.

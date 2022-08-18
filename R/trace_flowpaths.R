@@ -1,20 +1,108 @@
 
+#' Title
+#'
+#' @param input
+#' @param return_products
+#' @param temp_dir
+#' @param verbose
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
+trace_flowpaths<-function(
+    input,
+    return_products=F,
+    temp_dir=NULL,
+    verbose=F
+){
+  require(sf)
+  require(terra)
+  require(whitebox)
+  require(tidyverse)
+
+  if (!is.logical(return_products)) stop("'return_products' must be logical")
+  if (!is.logical(verbose)) stop("'verbose' must be logical")
+
+  if (is.null(temp_dir)) temp_dir<-tempfile()
+  if (!dir.exists(temp_dir)) dir.create(temp_dir)
+  temp_dir<-normalizePath(temp_dir)
+
+  wbt_options(exe_path=wbt_exe_path(),
+              verbose=verbose,
+              wd=temp_dir)
+
+  terra::terraOptions(verbose = verbose,
+                      tempdir = temp_dir
+  )
+
+  zip_loc<-input$outfile
+  fl<-unzip(list=T,zip_loc)
+
+  final_lines<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+
+  ds_flowpaths<-trace_ds_flowpath(input=final_lines,verbose=verbose)
+  us_flowpaths<-trace_us_flowpath(input=final_lines,verbose=verbose)
+
+  saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"))
+  saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"))
+
+  dist_list_out<-list(
+    "ds_flowpaths.rds",
+    "us_flowpaths.rds"
+  )
+
+  dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
+
+  out_file<-zip_loc
+
+  if (verbose) print("Generating Output")
+
+  zip(out_file,
+      unlist(dist_list_out),
+      flags = '-r9Xjq'
+  )
+
+  output<-input
+
+  if (return_products){
+    output<-c(
+      list(ds_flowpaths=ds_flowpaths,
+           us_flowpaths=us_flowpaths),
+      output
+    )
+  }
+  file.remove(list.files(temp_dir,full.names = T))
+
+  return(output)
+
+}
+
 #' @export
 trace_ds_flowpath<-function(
-    stream_lines
+    input,
+    verbose=F
 ) {
   require(tidyverse)
 
-  stream_lines<-as_tibble(stream_lines)
-  stream_lines$link_id<-as.character(stream_lines$link_id)
+  input<-as_tibble(input)
+  input$link_id<-as.character(input$link_id)
 
-  unique_link_id<-unique(stream_lines$link_id)
+  unique_link_id<-unique(input$link_id)
   unique_link_id<-split(unique_link_id,unique_link_id)
+  if (verbose) print("Generating Downstream flowpaths")
+
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 2,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
 
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
-      ds_id <- stream_lines %>%
+      ds_id <- input %>%
         filter(link_id %in% out) %>%
         select(starts_with("dslink_id")) %>%
         unlist() %>%
@@ -28,10 +116,14 @@ trace_ds_flowpath<-function(
 
     out<-out[!is.na(out)]
     out<-tibble(link_id=out,
-                link_lngth=stream_lines$link_lngth[match(out,stream_lines$link_id)])
+                link_lngth=input$link_lngth[match(out,input$link_id)])
+
+    if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })
+
+  if (verbose) print("")
 
   return(unique_link_id)
 
@@ -39,20 +131,28 @@ trace_ds_flowpath<-function(
 
 #' @export
 trace_us_flowpath<-function(
-    stream_lines
+    input,
+    verbose=F
 ) {
   require(tidyverse)
 
-  stream_lines<-as_tibble(stream_lines)
-  stream_lines$link_id<-as.character(stream_lines$link_id)
+  input<-as_tibble(input)
+  input$link_id<-as.character(input$link_id)
 
-  unique_link_id<-unique(stream_lines$link_id)
+  unique_link_id<-unique(input$link_id)
   unique_link_id<-split(unique_link_id,unique_link_id)
+  if (verbose) print("Generating Upstream flowpaths")
+
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 2,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
 
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
-      ds_id <- stream_lines %>%
+      ds_id <- input %>%
         filter(link_id %in% out) %>%
         select(starts_with("uslink_id")) %>%
         unlist() %>%
@@ -66,80 +166,16 @@ trace_us_flowpath<-function(
 
     out<-out[!is.na(out)]
     out<-tibble(link_id=out,
-                link_lngth=stream_lines$link_lngth[match(out,stream_lines$link_id)],
-                sbbsn_area=stream_lines$sbbsn_area[match(out,stream_lines$link_id)])
+                link_lngth=input$link_lngth[match(out,input$link_id)],
+                sbbsn_area=input$sbbsn_area[match(out,input$link_id)])
+
+    if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })
 
+  if (verbose) print("")
+
   return(unique_link_id)
-}
-
-#' @export
-pairwise_dist<-function(
-    ds_flowpaths=NULL,
-    us_flowpaths=NULL,
-    stream_lines=NULL,
-    subbasins
-) {
-  require(tidyverse)
-
-  if (is.null(pairwise_dist) & is.null(ds_flowpaths)) stop("Either 'ds_flowpaths' or 'stream_lines' must be provided")
-  if (is.null(pairwise_dist) & is.null(us_flowpaths)) stop("Either 'us_flowpaths' or 'stream_lines' must be provided")
-
-  if (is.null(ds_flowpaths)) ds_flowpaths<-trace_ds_flowpath(stream_lines)
-  if (is.null(us_flowpaths)) us_flowpaths<-trace_us_flowpath(stream_lines)
-  us_catchment_areas<-lapply(us_flowpaths,function(x) sum(x$sbbsn_area,na.rm=T))
-
-  if (any(duplicated(names(ds_flowpaths)))) stop("'ds_flowpaths' cannot contain duplicate names")
-  if (any(duplicated(names(us_flowpaths)))) stop("'us_flowpaths' cannot contain duplicate names")
-  if (any(!names(ds_flowpaths) %in% subbasins$link_id)) stop("'ds_flowpaths' contains link_ds not present in 'subbasins'")
-  if (any(!names(us_flowpaths) %in% subbasins$link_id)) stop("'us_flowpaths' contains link_ds not present in 'subbasins'")
-  if (any(!names(ds_flowpaths) %in% names(us_flowpaths))) stop("'ds_flowpaths' contains link_ds not present in 'us_flowpaths'")
-  if (any(!names(us_flowpaths) %in% names(ds_flowpaths))) stop("'us_flowpaths' contains link_ds not present in 'ds_flowpaths'")
-
-  out_tbl<-tibble(
-    origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
-    destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths))) %>%
-    mutate(
-      directed_path_length=ds_flowpaths[origin]
-    ) %>%
-    mutate(directed_path_length=map2_dbl(directed_path_length,destination,
-                                         ~mutate(.x,is_target=link_id==.y) %>%
-                                           #.[-c(1),] %>% #The first row is always the origin
-                                           filter(!is.na(link_lngth)) %>%
-                                           mutate(link_lngth=cumsum(link_lngth)) %>%
-                                           filter(is_target) %>%
-                                           pull(link_lngth) %>%
-                                           ifelse(length(.)==0,0,.)
-    )) %>%
-    mutate(
-      origin_catchment=unlist(us_catchment_areas[origin]),
-      destination_catchment=unlist(us_catchment_areas[destination])
-    ) %>%
-    mutate(prop_shared_catchment=case_when(
-      directed_path_length>0 ~ origin_catchment/destination_catchment,
-      T ~ 0
-    )) %>%
-    select(-origin_catchment,-destination_catchment)
-
-  out_prop<-out_tbl %>%
-    select(-directed_path_length) %>%
-    mutate(origin=paste0("prop_link_id_",origin)) %>%
-    rename(link_id=destination) %>%
-    pivot_wider(names_from=origin,values_from=prop_shared_catchment)
-
-  out_dist<-out_tbl %>%
-    select(-prop_shared_catchment) %>%
-    mutate(origin=paste0("dist_link_id_",origin)) %>%
-    rename(link_id=destination) %>%
-    pivot_wider(names_from=origin,values_from=directed_path_length)
-
-  return(list(
-    long_pwise=out_tbl,
-    wide_prop_shared_catchment=out_prop,
-    wide_directed_path_length=out_dist
-  ))
-
 }
 
