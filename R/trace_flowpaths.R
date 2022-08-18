@@ -99,6 +99,12 @@ trace_ds_flowpath<-function(
                        width = 50,
                        char = "=")
 
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
+
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
@@ -119,6 +125,8 @@ trace_ds_flowpath<-function(
                 link_lngth=input$link_lngth[match(out,input$link_id)])
 
     if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
+
+    setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })
@@ -149,6 +157,12 @@ trace_us_flowpath<-function(
                        width = 50,
                        char = "=")
 
+  pb <- txtProgressBar(min = 0,
+                       max = length(unique_link_id),
+                       style = 3,    # Progress bar style (also available style = 1 and style = 2)
+                       width = 50,
+                       char = "=")
+
   unique_link_id<-lapply(unique_link_id,function(x){
     out<-x
     repeat {
@@ -170,6 +184,8 @@ trace_us_flowpath<-function(
                 sbbsn_area=input$sbbsn_area[match(out,input$link_id)])
 
     if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
+
+    setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
 
     return(out)
   })

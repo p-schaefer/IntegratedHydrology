@@ -89,7 +89,11 @@ process_hydrology<-function(
   )
   wbt_d8_flow_accumulation(
     input = "dem_d8.tif",
+<<<<<<< HEAD
     output = "dem_accum_d8_sca.tif",
+=======
+    output = "dem_accum_d8.tif",
+>>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
     out_type = "sca",
     pntr=T
   )
@@ -397,7 +401,11 @@ process_hydrology<-function(
 
 
   # Putting it all together -------------------------------------------------
+<<<<<<< HEAD
 #browser()
+=======
+browser()
+>>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
   final_links<-links %>%
     full_join(final_us) %>%
     full_join(final_ds)

@@ -126,17 +126,17 @@ hydro_out<-process_flowdir(
 )
 
 hydro_out1<-generate_subbasins(
-    input=hydro_out,
-    return_products=T,
-    temp_dir=NULL,
-    verbose=F
+  input=hydro_out,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
 ) 
 
 hydro_out2<-attrib_streamline(
-    input=hydro_out1,
-    return_products=T,
-    temp_dir=NULL,
-    verbose=F
+  input=hydro_out1,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
 )
 
 points<-rast(hydro_out$dem_streams_d8.tif) %>% 
@@ -153,23 +153,23 @@ hydro_out25<-insert_points(
   points=points,
   site_id_col="Sites",
   snap_distance=10,
-  return_products=T,
+  return_products=F,
   temp_dir=NULL,
   verbose=F
 )
 
 hydro_out3<-trace_flowpaths(
-    input=hydro_out25,
-    return_products=T,
-    temp_dir=NULL,
-    verbose=F
+  input=hydro_out25,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
 )
 
 hydro_out4<-generate_pwisedist(
-    input=hydro_out3,
-    return_products=T,
-    temp_dir=NULL,
-    verbose=F
+  input=hydro_out3,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
 )
 
 # hydro_out<-process_hydrology(
@@ -182,7 +182,6 @@ hydro_out4<-generate_pwisedist(
 # )
 
 mapview(hydro_out4$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out1$subbasins)
   mapview(hydro_out4$stream_lines,zcol="link_id",legend=F)+
   mapview(hydro_out4$links,zcol="link_id",legend=F)+
   mapview(hydro_out4$snapped_points,zcol="Sites",legend=F)
