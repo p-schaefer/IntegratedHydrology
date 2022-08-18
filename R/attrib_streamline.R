@@ -1,5 +1,4 @@
 
-<<<<<<< HEAD
 #' Title
 #'
 #' @param input
@@ -29,19 +28,12 @@ attrib_streamline<-function(
     return_products=F,
     temp_dir=NULL,
     verbose=F
-=======
-
-attrib_streamline<-function(
-    input,
-  extra_attrib=c("")
->>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
 ) {
   require(sf)
   require(terra)
   require(whitebox)
   require(tidyverse)
 
-<<<<<<< HEAD
   extra_attr<-match.arg(extra_attr,several.ok = T)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
@@ -429,8 +421,4 @@ attrib_streamline<-function(
   file.remove(list.files(temp_dir,full.names = T))
 
   return(output)
-=======
-
-
->>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
 }

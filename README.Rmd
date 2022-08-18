@@ -122,7 +122,7 @@ hydro_out<-process_flowdir(
   return_products=T,
   output_filename=output_filename,
   temp_dir=NULL, 
-  verbose=F
+  verbose=T
 )
 
 hydro_out1<-generate_subbasins(

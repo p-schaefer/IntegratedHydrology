@@ -1,5 +1,4 @@
 
-<<<<<<< HEAD
 #' Title
 #'
 #' @param input
@@ -18,18 +17,12 @@ generate_subbasins<-function(
     return_products=F,
     temp_dir=NULL,
     verbose=F
-=======
-
-attrib_streamline<-function(
-    input
->>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
 ) {
   require(sf)
   require(terra)
   require(whitebox)
   require(tidyverse)
 
-<<<<<<< HEAD
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
@@ -53,11 +46,6 @@ attrib_streamline<-function(
         exdir=temp_dir,
         overwrite=T,
         junkpaths=T)
-
-  # dem_d8<-rast(file.path("/vsizip",zip_loc,"dem_d8.tif"))
-  # writeRaster(dem_d8,file.path(temp_dir,"dem_d8.tif"),overwrite=T,gdal="COMPRESS=NONE")
-  # dem_d8_streams<-rast(file.path("/vsizip",zip_loc,"dem_streams_d8.tif"))
-  # writeRaster(dem_d8_streams,file.path(temp_dir,"dem_streams_d8.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
   # Generate subbasin polygons ----------------------------------------------
   if (verbose) print("Generating subbasins")
@@ -104,8 +92,4 @@ attrib_streamline<-function(
   file.remove(list.files(temp_dir,full.names = T))
 
   return(output)
-=======
-
-
->>>>>>> c50188ded16dc12e032435fcda4ceaffb482418d
 }
