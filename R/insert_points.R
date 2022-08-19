@@ -28,11 +28,17 @@ insert_points<-function(
   require(whitebox)
   require(tidyverse)
 
+  if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
+
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
   points<-hydroweight::process_input(points,input_name="points")
   points<-st_as_sf(points)
+
+  if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
+  if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
+  if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
@@ -79,6 +85,9 @@ insert_points<-function(
   # Add a catch for points that overlap links exactly
 
   if (verbose) print("Inserting Points")
+
+
+  # Adjusts flow tracers in segment containing points -----------------------
   new_data<-snapped_points %>%
     select(any_of(site_id_col),link_id) %>%
     group_by(link_id) %>%
@@ -95,7 +104,7 @@ insert_points<-function(
           stream_links %>%
             filter(link_id==l_id) %>%
             select(geometry) %>%
-            mutate(UID=paste0("pour_point_",l_id)) %>%
+            mutate(UID=paste0("pour_point_A1B2C3_",l_id)) %>%
             setNames(c("geometry",site_id_col))
         )
 
@@ -136,52 +145,62 @@ insert_points<-function(
         select(link_id,sbbsn_area,any_of(site_id_col), geometry) %>%
         st_intersection(Subbasins_poly %>% filter(link_id == l_id) %>% select(geometry))
 
+      catch_poly[grepl("pour_point_A1B2C3_",catch_poly%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
       return(catch_poly)
     })) %>%
     mutate(new_points=map(new_subbasins, function(x) {
       # Split points by sampling points ----------------------------------
 
-      x %>%
+      out<-x %>%
         select(-sbbsn_area) %>%
         rename(link_id_new=link_id) %>%
-        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1) %>%
-        split(.$link_id_new) %>%
-        map(st_intersection,stream_points) %>%
-        map(select,-link_id ) %>%
-        map(rename, link_id=link_id_new) %>%
-        bind_rows()
+        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
+
+      out2<-stream_points %>%
+        filter(link_id == min(out$link_id_new)) %>%
+        select(geometry) %>%
+        st_join(out,join=st_nearest_feature)
+
+      out2[grepl("pour_point_A1B2C3_",out2%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+      return(out2)
     }
     )) %>%
     mutate(new_lines=map(new_subbasins, function(x) {
       # Split lines by sampling points ----------------------------------
 
-      out<-x %>%
+      trg_strm<-stream_lines %>%
+        filter(link_id == min(x$link_id))
+
+      out <- x %>%
         select(-sbbsn_area) %>%
         rename(link_id_new=link_id) %>%
-        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1) %>%
-        split(.$link_id_new) %>%
-        map(st_intersection,stream_lines %>% filter(link_id == min(x$link_id))) %>%
-        map(select,-link_id ) %>%
-        bind_rows() %>%
+        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
+
+      out2 <- st_intersection(trg_strm,out)
+      missing_pieces<-st_difference(trg_strm %>% select(geometry),x %>% select(geometry) %>% st_union())
+
+      missing_pieces<-st_join(missing_pieces,out2,join=st_nearest_feature)
+
+      out3<-bind_rows(
+        out2 %>% select(link_id_new),
+        missing_pieces %>% select(link_id_new)
+      ) %>%
+        group_by(link_id_new) %>%
+        summarize() %>%
+        select(geometry) %>%
+        st_join(out2,join=st_nearest_feature) %>%
         mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
         mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
         mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
-        rename(link_id=link_id_new)
+        select(-link_id) %>%
+        rename(link_id=link_id_new) %>%
+        select(any_of(colnames(trg_strm)),everything())
 
-      out<-out %>%
-        bind_rows(
-          stream_lines %>%
-            filter(link_id %in% (out %>%
-                                   as_tibble() %>%
-                                   filter(link_id==max(link_id)) %>%
-                                   select(starts_with("uslink_id")) %>%
-                                   unlist() %>%
-                                   .[!is.na(.)])
-            ) %>%
-            mutate(dslink_id1=max(x$link_id))
-        )
+      out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
-      return(out)
+      return(out3)
     }
     )) %>%
     mutate(new_links=map2(data,new_lines, function(pnts,lns){
@@ -191,19 +210,9 @@ insert_points<-function(
         as_tibble() %>%
         filter(!if_any(any_of(site_id_col),is.na))
 
-      us_IDs<- lns_target%>%
-        filter(link_id==max(link_id)) %>%
-        select(starts_with("uslink_id")) %>%
-        unlist() %>%
-        .[!is.na(.)]
-
-      replace_us<-stream_links %>% # these will replace existing points
-        filter(link_id %in% us_IDs) %>%
-        mutate(dslink_id1=max(lns_target$link_id))
-
       replace_target<-stream_links %>%
         filter(link_id %in% min(lns_target$link_id)) %>%
-        mutate(uslink_id1=max(lns_target$link_id)) %>%
+        mutate(uslink_id1=min(lns_target$link_id[-c(1)])) %>%
         mutate(across(c(starts_with("uslink_id"),-uslink_id1),~NA))
 
       add_links<-pnts %>%
@@ -228,11 +237,81 @@ insert_points<-function(
         select(-link_id) %>%
         rename(link_id=link_id_new)
 
-      return(bind_rows(replace_us,replace_target,add_links))
+      out3<-bind_rows(replace_target,add_links)
+      out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+      return(out3)
     }
 
     )
     )
+
+  # Add to master data
+
+  new_lines<-new_data %>%
+    ungroup() %>%
+    select(new_lines) %>%
+    unnest(new_lines) %>%
+    st_as_sf()
+
+  stream_lines<-stream_lines %>%
+    filter(!link_id %in% new_lines$link_id) %>%
+    bind_rows(new_lines)
+
+  new_links<-new_data %>%
+    ungroup() %>%
+    select(new_links) %>%
+    unnest(new_links) %>%
+    st_as_sf()
+
+  stream_links<-stream_links %>%
+    filter(!link_id %in% new_links$link_id) %>%
+    bind_rows(new_links)
+
+  # Fix flow tracers upstream of sampling points -------------------------------
+
+  new_data<-new_data %>%
+    mutate(new_lines=map(new_lines, function(lns) {
+
+      out<-lns %>%
+        bind_rows(
+          stream_lines %>%
+            filter(link_id %in% (lns %>%
+                                   as_tibble() %>%
+                                   filter(link_id==max(link_id)) %>%
+                                   select(starts_with("uslink_id")) %>%
+                                   unlist() %>%
+                                   .[!is.na(.)])
+            ) %>%
+            mutate(dslink_id1=max(lns$link_id))
+        )
+
+      out[grepl("pour_point_A1B2C3_",out%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+      return(out)
+
+    })) %>%
+    mutate(new_links=map2(data,new_lines, function(pnts,lns) {
+      lns_target<-lns %>%
+        as_tibble() %>%
+        filter(!if_any(any_of(site_id_col),is.na))
+
+      us_IDs<- lns_target%>% # This needs to be a separate loop
+        filter(link_id==max(link_id)) %>%
+        select(starts_with("uslink_id")) %>%
+        unlist() %>%
+        .[!is.na(.)]
+
+      replace_us<-stream_links %>% # these will replace existing points
+        filter(link_id %in% us_IDs) %>%
+        mutate(dslink_id1=max(lns_target$link_id))
+
+      replace_us[grepl("pour_point_A1B2C3_",replace_us%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+      return(replace_us)
+    }))
+
+  #browser()
 
   if (verbose) print("Generating Output")
 

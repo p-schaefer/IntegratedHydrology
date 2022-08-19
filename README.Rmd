@@ -81,10 +81,13 @@ if (F){
 
 ### 3.1 Generate toy terrain dataset and sampling points
 
-We begin by bringing in our toy digital elevation model and using it to
-generate terrain products. Burning stream networks into the DEM is not yet
-available within IntegratedHydrology, as there are several caveats associated with
-this process. See [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
+Begin by bringing in the digital elevation model and using it to
+generate terrain products. The DEM must be processed in a way to remove depressions.
+Whitebox offers methods for breaching and filling DEMs to remove depressions. These tools
+must be run before applying IntegratedHydrology tools. 
+
+Another factor to consider at this step is whether to burn stream vectors into the DEM.
+Whitebox's wbt_fillburn() tool allows for this, but  there are several caveats associated with this process. See [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
 
 
 ```{r, message = FALSE, error = FALSE, warning = FALSE}
@@ -129,6 +132,13 @@ toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
 
 ### 3.2 Process DEM with `process_flowdir()`
 
+The process_flowdir() function starts the workflow and creates an output zip file which stores results.
+It is important that functions are not run repeatedly with the same output file, as later
+steps overwrite results from previous iterations.
+
+This function generates d8 pointer, flow accumulation, and stream layers from the specified DEM, 
+and flow accumulation threshold.
+
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 output_filename<-file.path(save_dir,"Processed_Hydrology.zip")
@@ -142,6 +152,20 @@ hydro_out<-process_flowdir(
   verbose=T
 )
 
+flow_accum<-log(rast(hydro_out$dem_accum_d8.tif))
+
+plot(flow_accum,main="ln-Flow Accumulation")
+
+```
+
+[Back to top](#contents)
+
+### 3.3 Generate Subbasins 'generate_subbasins()'
+
+The generate_subbasins() generates subbasins for each reach identified in process_flowdir()
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
 hydro_out1<-generate_subbasins(
   input=hydro_out,
   return_products=T,
@@ -149,14 +173,57 @@ hydro_out1<-generate_subbasins(
   verbose=F
 ) 
 
-hydro_out2<-attrib_streamline( # fix mssing line segment here: hydro_out2$stream_lines
+# Note polygons are identified with 'link_id' field which matches stream segments generated below
+
+mapview(hydro_out1$subbasins,zcol="link_id")
+
+```
+
+[Back to top](#contents)
+
+### 3.4 Generate Attributed Stream Lines `attrib_streamline()'
+
+
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+hydro_out2<-attrib_streamline( 
   input=hydro_out1,
+  extra_attr=c( # Additional attributes to calculate and add to outputs
+      "link_slope",
+      "cont_slope",
+      "USChnLn_To",
+      "Elevation",
+      "StOrd_Hack",
+      "StOrd_Str",
+      "StOrd_Hort",
+      "StOrd_Shr"
+    ),
   return_products=T,
   temp_dir=NULL,
   verbose=F
 )
 
-points<-rast(hydro_out$dem_streams_d8.tif) %>% 
+# hydro_out2$links # Points containing pour points for each subbasins and upstream and downstream 'link_id's and 'extra_attr' fields
+
+# hydro_out2$points # Points containing all points along the stream line, attributed with 'extra_attr' 
+
+# hydro_out2$stream_lines # line segments for each subbasin, as well as and upstream and downstream 'link_id's and 'extra_attr' fields
+
+mapview(hydro_out2$stream_lines,zcol="link_id")
+
+
+```
+
+[Back to top](#contents)
+
+### 3.5 Insert Sampling Points into Stream Layer
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+# Generate some artificial sampling points
+
+points<-rast(hydro_out2$dem_streams_d8.tif) %>% 
   as.points() %>% 
   st_as_sf() %>% 
   filter(st_coordinates(.)[, 1] < 675000) %>% 
@@ -165,15 +232,32 @@ points<-rast(hydro_out$dem_streams_d8.tif) %>%
   mutate(Sites=row_number()) %>% 
   st_jitter(5)
 
-hydro_out25<-insert_points(
-  input=hydro_out1,
+hydro_out25<-insert_points( 
+  input=hydro_out2,
   points=points,
-  site_id_col="Sites",
+  site_id_col="Sites", # Column in points layer that corresponds to unique IDs that will be available in data products
   snap_distance=10,
   return_products=T,
   temp_dir=NULL,
   verbose=F
 )
+
+# Segments get split at sampling points, with the most downstream segment retaining the original 'link_id' and 
+# upstream segments getting increasingly larger decimal numbers
+
+mapview(hydro_out25$subbasins,zcol="link_id",legend=F)+
+  mapview(hydro_out25$stream_lines,zcol="link_id",legend=F)+
+  mapview(hydro_out25$links,zcol="link_id",legend=F)+
+  mapview(hydro_out25$snapped_points,zcol="Sites",legend=F,color="red")
+
+
+```
+
+[Back to top](#contents)
+
+### 3.6 Trace Flow Paths
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 hydro_out3<-trace_flowpaths(
   input=hydro_out25,
@@ -189,20 +273,6 @@ hydro_out4<-generate_pwisedist(
   verbose=F
 )
 
-# hydro_out<-process_hydrology(
-#   dem=toy_dem,
-#   threshold=1000L,  
-#   return_products=T,
-#   save_dir=save_dir,
-#   temp_dir=NULL, # location to store temporary files, may require significant space if processing a large DEM 
-#   verbose=T
-# )
-
-mapview(hydro_out4$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out2$stream_lines)+
-  mapview(hydro_out4$stream_lines,zcol="link_id",legend=F)+
-  mapview(hydro_out4$links,zcol="link_id",legend=F)+
-  mapview(hydro_out4$snapped_points,zcol="Sites",legend=F)
 
 ```
 
