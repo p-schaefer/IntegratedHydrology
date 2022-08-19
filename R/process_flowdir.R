@@ -47,7 +47,7 @@ process_flowdir<-function(
                       tempdir = temp_dir
   )
 
-  dem<-hydroweight::process_input(dem,input_name="dem")
+  dem<-hydroweight::process_input(dem,input_name="dem",working_dir=temp_dir)
   if (!inherits(dem,"SpatRaster")) stop("dem must be a class 'SpatRaster'")
   target_crs<-crs(dem)
 
