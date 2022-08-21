@@ -18,20 +18,22 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1
-Depends:
-    R (>= 4.0)
 Remotes:
     p-schaefer/hydroweight
 Imports:
-    devtools,
+    units,
+Depends:
+    R (>= 4.0),
     dplyr,
+    furrr,
+    progressr,
+    purrr,
     sf,
     stringr,
     tidyr,
     tidyselect,
     terra,
     whitebox,
-    units
 Suggests: 
     knitr, 
     rmarkdown

@@ -6,8 +6,13 @@
 \usage{
 process_hydrology(
   dem,
+  output_filename,
   threshold,
-  save_dir,
+  extra_attr = c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack",
+    "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
+  points = NULL,
+  snap_distance = NULL,
+  site_id_col = NULL,
   return_products = F,
   temp_dir = NULL,
   verbose = F
@@ -16,9 +21,9 @@ process_hydrology(
 \arguments{
 \item{dem}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.}
 
-\item{threshold}{numeric. Threshold in flow accumulation values for channelization.}
+\item{output_filename}{character. File path to write resulting .zip file.}
 
-\item{save_dir}{character. File path to write resulting .zip file.}
+\item{threshold}{numeric. Threshold in flow accumulation values for channelization.}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
 

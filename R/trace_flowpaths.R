@@ -17,10 +17,10 @@ trace_flowpaths<-function(
     temp_dir=NULL,
     verbose=F
 ){
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -84,7 +84,7 @@ trace_ds_flowpath<-function(
     input,
     verbose=F
 ) {
-  require(tidyverse)
+  # require(tidyverse)
 
   input<-as_tibble(input)
   input$link_id<-as.character(input$link_id)
@@ -99,7 +99,7 @@ trace_ds_flowpath<-function(
                        width = 50,
                        char = "=")
 
-  unique_link_id<-lapply(unique_link_id,function(x){
+  unique_link_id<-future_map(unique_link_id,function(x){
     out<-x
     repeat {
       ds_id <- input %>%
@@ -134,7 +134,7 @@ trace_us_flowpath<-function(
     input,
     verbose=F
 ) {
-  require(tidyverse)
+  # require(tidyverse)
 
   input<-as_tibble(input)
   input$link_id<-as.character(input$link_id)
@@ -149,7 +149,7 @@ trace_us_flowpath<-function(
                        width = 50,
                        char = "=")
 
-  unique_link_id<-lapply(unique_link_id,function(x){
+  unique_link_id<-future_map(unique_link_id,function(x){
     out<-x
     repeat {
       ds_id <- input %>%

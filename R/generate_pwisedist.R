@@ -17,11 +17,6 @@ generate_pwisedist<-function(
     temp_dir=NULL,
     verbose=F
 ){
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
-
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
@@ -90,7 +85,7 @@ pairwise_dist_fn<-function(
     stream_lines=NULL,
     verbose=F
 ) {
-  require(tidyverse)
+  # require(tidyverse)
 
   if (is.null(stream_lines) & is.null(ds_flowpaths)) stop("Either 'ds_flowpaths' or 'stream_lines' must be provided")
   if (is.null(stream_lines) & is.null(us_flowpaths)) stop("Either 'us_flowpaths' or 'stream_lines' must be provided")
@@ -105,20 +100,30 @@ pairwise_dist_fn<-function(
   if (any(!names(us_flowpaths) %in% names(ds_flowpaths))) stop("'us_flowpaths' contains link_ds not present in 'ds_flowpaths'")
 
   if (verbose) print("Generating Pairwise Distances")
+
+  pl_fn<-function(.x,.y,p){
+    out<-mutate(.x,is_target=link_id==.y) %>%
+      filter(!is.na(link_lngth)) %>%
+      mutate(link_lngth=cumsum(link_lngth)) %>%
+      filter(is_target) %>%
+      pull(link_lngth) %>%
+      ifelse(length(.)==0,0,.)
+
+    p()
+
+    return(out)
+  }
+
+  with_progress({
+    p <- progressor(steps = length(ds_flowpaths)*length(ds_flowpaths))
+
   out_tbl<-tibble(
     origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
     destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths))) %>%
     mutate(
       directed_path_length=ds_flowpaths[origin]
     ) %>%
-    mutate(directed_path_length=map2_dbl(directed_path_length,destination,
-                                         ~mutate(.x,is_target=link_id==.y) %>%
-                                           filter(!is.na(link_lngth)) %>%
-                                           mutate(link_lngth=cumsum(link_lngth)) %>%
-                                           filter(is_target) %>%
-                                           pull(link_lngth) %>%
-                                           ifelse(length(.)==0,0,.)
-    )) %>%
+    mutate(directed_path_length=future_map2_dbl(directed_path_length,destination,pl_fn,p)) %>%
     mutate(
       origin_catchment=unlist(us_catchment_areas[origin]),
       destination_catchment=unlist(us_catchment_areas[destination])
@@ -128,6 +133,7 @@ pairwise_dist_fn<-function(
       T ~ 0
     )) %>%
     select(-origin_catchment,-destination_catchment)
+  })
 
   out_prop<-out_tbl %>%
     select(-directed_path_length) %>%

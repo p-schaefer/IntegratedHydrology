@@ -29,10 +29,10 @@ attrib_streamline<-function(
     temp_dir=NULL,
     verbose=F
 ) {
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   extra_attr<-match.arg(extra_attr,several.ok = T)
 
@@ -167,7 +167,7 @@ attrib_streamline<-function(
   st_crs(strm)<-crs(dem_final)
   colnames(strm)[2]<-"link_id"
 
-  write_rds(strm,file.path(temp_dir, "strm_link_id.rds"))
+  saveRDS(strm,file.path(temp_dir, "strm_link_id.rds"))
 
   # Generate point attributions ---------------------------------------------
   if (verbose) print("Extracting stream link attributes")

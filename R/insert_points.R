@@ -23,10 +23,10 @@ insert_points<-function(
     temp_dir=NULL,
     verbose=F
 ) {
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
 
@@ -38,6 +38,7 @@ insert_points<-function(
 
   if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
   if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
+  if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
@@ -355,6 +356,10 @@ insert_points<-function(
     bind_rows(new_links)
 
   write_sf(stream_links,file.path(temp_dir,"stream_links.shp"))
+
+  snapped_points<-snapped_points %>%
+    rename(orig_link_id=link_id) %>%
+    st_join(stream_lines %>% select(link_id))
 
   # polygons replace at target
 

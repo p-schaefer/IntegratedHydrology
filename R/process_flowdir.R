@@ -23,10 +23,10 @@ process_flowdir<-function(
     verbose=F
 ) {
 
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
 
@@ -38,6 +38,8 @@ process_flowdir<-function(
   temp_dir<-normalizePath(temp_dir)
   output_filename<-normalizePath(output_filename,mustWork =F)
   if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
+
+  if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
   wbt_options(exe_path=wbt_exe_path(),
               verbose=verbose,

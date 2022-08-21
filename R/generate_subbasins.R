@@ -18,10 +18,10 @@ generate_subbasins<-function(
     temp_dir=NULL,
     verbose=F
 ) {
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")

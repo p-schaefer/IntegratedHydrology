@@ -3,8 +3,8 @@
 #' #' \code{IntegratedHydrology::process_hydrology()} processes a DEM into various geospatial analysis products.
 #'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
+#' @param output_filename character. File path to write resulting .zip file.
 #' @param threshold numeric. Threshold in flow accumulation values for channelization.
-#' @param save_dir character. File path to write resulting .zip file.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical. If \code{FALSE}, the function will not print output prints.
@@ -60,10 +60,10 @@ process_hydrology<-function(
     verbose=F
 ) {
 
-  require(sf)
-  require(terra)
-  require(whitebox)
-  require(tidyverse)
+  # require(sf)
+  # require(terra)
+  # require(whitebox)
+  # require(tidyverse)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
@@ -87,7 +87,7 @@ process_hydrology<-function(
 
   extra_attr<-match.arg(extra_attr,several.ok = T)
 
-
+  if (verbose) print("Processing Flow Direction")
   hydro_out<-process_flowdir(
     dem=dem,
     threshold=threshold,
@@ -97,6 +97,7 @@ process_hydrology<-function(
     verbose=verbose
   )
 
+  if (verbose) print("Generate Subbasins")
   hydro_out<-generate_subbasins(
     input=hydro_out,
     return_products=return_products,
@@ -104,6 +105,7 @@ process_hydrology<-function(
     verbose=verbose
   )
 
+  if (verbose) print("Attribute Streamlines")
   hydro_out<-attrib_streamline(
     input=hydro_out,
     extra_attr=extra_attr,
@@ -113,6 +115,7 @@ process_hydrology<-function(
   )
 
   if (!is.null(points)) {
+    if (verbose) print("Inserting Sampling Points")
     hydro_out<-insert_points(
       input=hydro_out,
       points=points,
@@ -124,6 +127,7 @@ process_hydrology<-function(
     )
   }
 
+  if (verbose) print("Tracing Flowpaths")
   hydro_out<-trace_flowpaths(
     input=hydro_out,
     return_products=return_products,
@@ -131,6 +135,7 @@ process_hydrology<-function(
     verbose=verbose
   )
 
+  if (verbose) print("Generating Pairwise Distances")
   hydro_out<-generate_pwisedist(
     input=hydro_out,
     return_products=return_products,
