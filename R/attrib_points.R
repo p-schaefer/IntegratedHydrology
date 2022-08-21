@@ -1,5 +1,4 @@
 
-
 #' Title
 #'
 #' @param input
@@ -51,21 +50,16 @@ attrib_points<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
 
   fl<-unzip(list=T,zip_loc)
+  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
 
-  loi_rasts_exists<-c("numeric_rasters.tif","cat_rasters.tif")
-  if (!any(loi_rasts_exists %in% fl$Name)) stop("No 'loi' present in input, please run 'process_loi()' first")
-  loi_rasts_exists<-fl$Name[grepl("numeric_rasters|cat_rasters",fl$Name)]
-  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",zip_loc,.))
-  names(loi_rasts_exists)<-c("numeric_rasters","cat_rasters")
+  # Get site name column ----------------------------------------------------
+  if (any(grepl("snapped_points",fl)) & !all_reaches){
+    site_id_col<-colnames(read_sf(file.path("/vsizip",zip_loc,"snapped_points.shp")))[[1]]
+  } else {
+    site_id_col<-"link_id"
+  }
 
-  loi_rasts_exists_names<-map(loi_rasts_exists,~rast(.) %>% names())
-
-  loi_rasts<-map(loi_rasts_exists,rast)
-  loi_rasts_names<-map(loi,names) %>% unlist()
-  names(loi_rasts_names)<-loi_rasts_names
-
-  target_crs<-crs(loi_rasts[[1]])
-
+  # Setup remove_region -----------------------------------------------------
   remove_region<-hydroweight::process_input(remove_region,input_name="remove_region")
   if (!is.null(remove_region)){
     if (inherits(remove_region,"SpatRaster")) {
@@ -78,14 +72,26 @@ attrib_points<-function(
     }
   }
 
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
+  browser()
 
-  if (any(grepl("snapped_points",fl)) & !all_reaches){
-    site_id_col<-colnames(read_sf(file.path("/vsizip",zip_loc,"snapped_points.shp")))[[1]]
-  } else {
-    site_id_col<-"link_id"
-  }
+  # Setup loi  --------------------------------------------------------------
+  loi_rasts_exists<-c("numeric_rasters.tif","cat_rasters.tif")
+  if (!any(loi_rasts_exists %in% fl$Name)) stop("No 'loi' present in input, please run 'process_loi()' first")
+  loi_rasts_exists<-fl$Name[grepl("numeric_rasters|cat_rasters",fl$Name)]
+  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",zip_loc,.))
+  names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
 
+  loi_rasts_exists_names<-map(loi_rasts_exists,~rast(.) %>% names())
+  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
+  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count")))
+
+  loi_rasts<-map(loi_rasts_exists,rast)
+  loi_rasts_names<-map(loi,names) %>% unlist()
+  names(loi_rasts_names)<-loi_rasts_names
+
+  target_crs<-crs(loi_rasts[[1]])
+
+  # Setup spec table if missing ---------------------------------------------
   if (is.null(spec)){
     spec<-tibble(uid=all_points %>%
                    select(site_id_col) %>%
@@ -93,7 +99,7 @@ attrib_points<-function(
                    pull(1)
     ) %>%
       setNames(site_id_col) %>%
-      mutate(loi=list(loi_rasts_names))
+      mutate(loi=list(loi_rasts_exists_names))
   }
 
   if (!any(colnames(spec) %in% "loi")) stop("'spec' must have a column named 'loi'")
@@ -103,6 +109,10 @@ attrib_points<-function(
   incorrect_loi<-incorrect_loi[!incorrect_loi %in% loi_rasts_names]
   if (length(incorrect_loi)>0) stop(paste0("'spec$loi' contains names not in specified loi:", paste0(incorrect_loi,collapse = ", ")))
 
+
+
+
+
   # Assemble Output Table ---------------------------------------------------
 
   if (target_streamseg) {
@@ -111,8 +121,8 @@ attrib_points<-function(
     target_O<-all_points
   }
 
-  with_progress({
-    p <- progressor(steps = nrow(spec))
+  # with_progress({
+  #   p <- progressor(steps = nrow(spec))
 
     out<-spec %>%
       setNames(c("UID","loi")) %>%
@@ -127,11 +137,13 @@ attrib_points<-function(
                                       select(geometry) %>%
                                       rename(clip_region=geometry))) %>%
       unnest(clip_region) %>%
-      mutate(attrib=future_pmap(list(uid=UID,
+      mutate(attrib=pmap(list(uid=UID,
                                      target_O=target_O,
                                      clip_region=clip_region,
                                      loi_cols=loi),
                                 function(uid,target_O,clip_region,loi_cols) {
+                                  browser()
+
                                   save_file<-file.path(temp_dir,paste0(uid,"_inv_distances.zip"))
 
                                   cr<-st_as_sf(tibble(UID=uid,geometry=st_geometry(clip_region)),crs=crs(target_crs))
@@ -160,28 +172,39 @@ attrib_points<-function(
                                     distance_weights<-NULL
                                   }
 
-                                  attr_out<-pmap(list(loi_nms=names(loi_rasts_exists),
+                                  attr_out<-pmap(list(loi_nms=as.list(names(loi_rasts_exists)) %>% setNames(names(loi_rasts_exists)),
                                                       loi_path=loi_rasts_exists,
                                                       loi_lyr_nms=loi_rasts_exists_names),
                                                  function(loi_nms,loi_path,loi_lyr_nms){
-                                                   out<-hydroweight::hydroweight_attributes(
-                                                     loi=loi_path,
-                                                     loi_columns = loi_cols[loi_cols %in% loi_lyr_nms],
-                                                     loi_numeric=grepl("numeric_rasters",loi_nms),
-                                                     loi_numeric_stats = loi_numeric_stats,
-                                                     roi=cr,
-                                                     roi_uid=uid,
-                                                     roi_uid_col=site_id_col,
-                                                     distance_weights=save_file,
-                                                     remove_region=remove_region,
-                                                     return_products = return_products
-                                                   )
+                                                   browser()
 
-                                                   names(out$return_products)<-paste0(names(out$return_products),"_",loi_nms)
+                                                   # Add another loop for each unique set of stats
+
+                                                   loi_cols_group<-map_chr(loi_cols,paste0,collapse="")
+                                                   loi_cols_group<-split(names(loi_cols_group),loi_cols_group)
+
+                                                   out<-map(loi_cols_group,function(gp){
+                                                     browser()
+                                                     out<-hydroweight::hydroweight_attributes(
+                                                       loi=loi_path,
+                                                       loi_columns = names(loi_cols)[names(loi_cols) %in% gp],
+                                                       loi_numeric=grepl("numeric_rasters",loi_nms),
+                                                       loi_numeric_stats = loi_cols[names(loi_cols) %in% gp][[1]],
+                                                       roi=cr,
+                                                       roi_uid=uid,
+                                                       roi_uid_col=site_id_col,
+                                                       distance_weights=save_file,
+                                                       remove_region=remove_region,
+                                                       return_products = return_products
+                                                     )
+
+                                                     names(out$return_products)<-paste0(names(out$return_products),"_",loi_nms)
+                                                   })
+
+
 
                                                    return(out)
-                                                 }) #%>%
-                                  #reduce(left_join,by=site_id_col)
+                                                 })
 
                                   out<-list(
                                     attr=map(attr_out,~.$attribute_table) %>% reduce(left_join,by=site_id_col),
@@ -189,13 +212,13 @@ attrib_points<-function(
                                     weighted_attr=unlist(unlist(map(attr_out,~.$return_products),recursive = F),recursive = F)
                                   )
 
-                                  p()
+                                  #p()
 
                                   return(out)
 
                                 })
       )
-  })
+  # })
 
   out<-out %>%
     select(-target_O,-loi,-clip_region,-UID) %>%

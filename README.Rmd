@@ -299,6 +299,7 @@ loi<-list(numb=rast(hydro_out_comp$numb_inputs),
 
 loi_names<-lapply(loi,names) %>% unlist()
 names(loi_names)<-loi_names
+loi_names<-map(loi_names,~c("distwtd_mean",  "mean",  "min", "max"))
 
 # A 'spec' table can be given to calculate attributes at only select sampling points,
 # and/or to only calculate a subset of attributes from select sampling points
@@ -307,6 +308,8 @@ specification_table<-tibble(
   loi=list(loi_names)
 )
 specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:5)]
+specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
+
 
 final_attributes_sub<-attrib_points(
   input=hydro_out_comp,
