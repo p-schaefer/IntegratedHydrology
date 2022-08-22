@@ -41,10 +41,7 @@ process_hydrology<-function(
     verbose=F
 ) {
 
-  # require(sf)
-  # require(terra)
-  # require(whitebox)
-  # require(tidyverse)
+  # install.packages("archive")
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")

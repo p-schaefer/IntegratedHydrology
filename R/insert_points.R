@@ -90,7 +90,12 @@ insert_points<-function(
     group_by(x,y) %>%
     summarize(across(everything(),head,1)) %>%
     select(-x,-y) %>%
-    st_join(stream_lines %>% select(link_id))
+    st_join(stream_lines %>% select(link_id),join=nngeo::st_nn, maxdist = snap_distance )
+
+  if (any(is.na(snapped_points$link_id))) warning("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") )
+
+  snapped_points<-snapped_points %>%
+    filter(!is.na(link_id))
 
   write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))
 
@@ -104,7 +109,7 @@ insert_points<-function(
     select(any_of(site_id_col),link_id) %>%
     group_by(link_id) %>%
     nest() %>%
-    mutate(new_subbasins=map2(link_id,data,function(l_id,pnt){
+    mutate(new_subbasins=future_map2(link_id,data,function(l_id,pnt){
 
       # Split subbasins by sampling points ----------------------------------
 
@@ -161,7 +166,7 @@ insert_points<-function(
 
       return(catch_poly)
     })) %>%
-    mutate(new_points=map(new_subbasins, function(x) {
+    mutate(new_points=future_map(new_subbasins, function(x) {
       # Split points by sampling points ----------------------------------
 
       out<-x %>%
@@ -179,7 +184,7 @@ insert_points<-function(
       return(out2)
     }
     )) %>%
-    mutate(new_lines=map(new_subbasins, function(x) {
+    mutate(new_lines=future_map(new_subbasins, function(x) {
       # Split lines by sampling points ----------------------------------
 
       trg_strm<-stream_lines %>%
@@ -215,7 +220,7 @@ insert_points<-function(
       return(out3)
     }
     )) %>%
-    mutate(new_links=map2(data,new_lines, function(pnts,lns){
+    mutate(new_links=future_map2(data,new_lines, function(pnts,lns){
       # Split links by sampling points ----------------------------------
 
       lns_target<-lns %>%
@@ -283,7 +288,7 @@ insert_points<-function(
   # Fix flow tracers upstream of sampling points -------------------------------
 
   new_data<-new_data %>%
-    mutate(new_lines=map(new_lines, function(lns) {
+    mutate(new_lines=future_map(new_lines, function(lns) {
 
       out<-lns %>%
         bind_rows(
@@ -303,7 +308,7 @@ insert_points<-function(
       return(out)
 
     })) %>%
-    mutate(new_links=map2(data,new_lines, function(pnts,lns) {
+    mutate(new_links=future_map2(data,new_lines, function(pnts,lns) {
       lns_target<-lns %>%
         as_tibble() %>%
         filter(!if_any(any_of(site_id_col),is.na))

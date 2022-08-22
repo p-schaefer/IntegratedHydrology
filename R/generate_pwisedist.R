@@ -117,22 +117,22 @@ pairwise_dist_fn<-function(
   with_progress({
     p <- progressor(steps = length(ds_flowpaths)*length(ds_flowpaths))
 
-  out_tbl<-tibble(
-    origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
-    destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths))) %>%
-    mutate(
-      directed_path_length=ds_flowpaths[origin]
-    ) %>%
-    mutate(directed_path_length=future_map2_dbl(directed_path_length,destination,pl_fn,p)) %>%
-    mutate(
-      origin_catchment=unlist(us_catchment_areas[origin]),
-      destination_catchment=unlist(us_catchment_areas[destination])
-    ) %>%
-    mutate(prop_shared_catchment=case_when(
-      directed_path_length>0 ~ origin_catchment/destination_catchment,
-      T ~ 0
-    )) %>%
-    select(-origin_catchment,-destination_catchment)
+    out_tbl<-tibble(
+      origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
+      destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths))) %>%
+      mutate(
+        directed_path_length=ds_flowpaths[origin]
+      ) %>%
+      mutate(directed_path_length=future_map2_dbl(directed_path_length,destination,pl_fn,p)) %>%
+      mutate(
+        origin_catchment=unlist(us_catchment_areas[origin]),
+        destination_catchment=unlist(us_catchment_areas[destination])
+      ) %>%
+      mutate(prop_shared_catchment=case_when(
+        directed_path_length>0 ~ origin_catchment/destination_catchment,
+        T ~ 0
+      )) %>%
+      select(-origin_catchment,-destination_catchment)
   })
 
   out_prop<-out_tbl %>%
