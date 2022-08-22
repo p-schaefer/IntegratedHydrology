@@ -26,12 +26,12 @@ ihydro: Integrated hydrology tools for environmental science
     -   <a
         href="#35-calculate-weighted-spatial-summaries-at-sampleing-points-attrib_points"
         id="toc-35-calculate-weighted-spatial-summaries-at-sampleing-points-attrib_points">3.5
-        Calculate weighted spatial summaries at sampleing points
+        Calculate (weighted) spatial summaries at sampleing points
         <code>attrib_points()</code></a>
     -   <a
         href="#36-calculate-weighted-spatial-summaries-at-each-reach-attrib_points"
         id="toc-36-calculate-weighted-spatial-summaries-at-each-reach-attrib_points">3.6
-        Calculate weighted spatial summaries at each reach
+        Calculate (weighted) spatial summaries at each reach
         <code>attrib_points()</code></a>
 -   <a href="#40-generate-individual-geospatial-analysis-products"
     id="toc-40-generate-individual-geospatial-analysis-products">4.0
@@ -75,7 +75,7 @@ connectivity between reaches established.
 
 Typically, sampling data is available at points along the stream
 network. If the specific information about the location of these points
-is to preserved (i.e., if samples are upstream and downstream of a
+is to be preserved (i.e., if samples are upstream and downstream of a
 particular effluent outflow, but along the same stream reach), they must
 be incorporated into the network. Once that is done, factors of interest
 on the landscape (e.g., landcover, soils, geology, climate, etc.) must
@@ -117,7 +117,7 @@ for increased speed (if enough memory is available), and is quick at
 removing internal intermediate files to keep hard drives from filling up
 too fast.
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ## 2.0 System setup and installation
 
@@ -155,7 +155,7 @@ if (F){
 }
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ## 3.0 Prepare DEM and Sampling Points for for analysis
 
@@ -222,7 +222,7 @@ wbt_breach_depressions(
 toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 3.2 Generate predictor layers
 
@@ -301,7 +301,7 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 3.3 Generate complete geospatial analysis products with `process_hydrology()`
 
@@ -358,7 +358,7 @@ mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 3.4 Add layers of interest to complete geospatial analysis products with `process_loi()`
 
@@ -384,9 +384,9 @@ hydro_out_comp<-process_loi(
 )
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
-### 3.5 Calculate weighted spatial summaries at sampleing points `attrib_points()`
+### 3.5 Calculate (weighted) spatial summaries at sampleing points `attrib_points()`
 
 ``` r
 
@@ -439,9 +439,9 @@ final_attributes_sub %>%
 #> #   ⁸​ruggedness_index_HAiFLS_distwtd_mean
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
-### 3.6 Calculate weighted spatial summaries at each reach `attrib_points()`
+### 3.6 Calculate (weighted) spatial summaries at each reach `attrib_points()`
 
 ``` r
 
@@ -478,7 +478,7 @@ final_attributes_all
 #> #   var_1_HAiFLO_distwtd_sd <dbl>, …
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ## 4.0 Generate individual geospatial analysis products
 
@@ -508,10 +508,10 @@ hydro_out<-process_flowdir(
 #> [1] "Generating d8 pointer"
 #> d8_pointer - Elapsed Time (excluding I/O): 0.2s
 #> [1] "Generating d8 flow accumulation"
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.136s
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.125s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.142s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.138s
 #> [1] "Extracting Streams"
-#> extract_streams - Elapsed Time (excluding I/O): 0.2s
+#> extract_streams - Elapsed Time (excluding I/O): 0.1s
 #> [1] "Generating Output"
 
 flow_accum<-log(rast(hydro_out$dem_accum_d8.tif))
@@ -521,7 +521,7 @@ plot(flow_accum,main="ln-Flow Accumulation")
 
 <img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 4.2 Generate Subbasins `generate_subbasins()`
 
@@ -544,7 +544,7 @@ mapview(hydro_out1$subbasins,zcol="link_id")
 
 <img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 4.3 Generate Attributed Stream Lines `attrib_streamline()`
 
@@ -578,7 +578,7 @@ mapview(hydro_out2$stream_lines,zcol="link_id")
 
 <img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 4.4 Insert Sampling Points into Stream Layer `insert_points()`
 
@@ -616,7 +616,7 @@ mapview(hydro_out25$subbasins,zcol="link_id",legend=F)+
 
 <img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 ### 4.5 Trace flow paths `trace_flowpaths()` and generate pairwise distances `generate_pwisedist()`
 
@@ -640,4 +640,4 @@ hydro_out4<-generate_pwisedist(
 )
 ```
 
-[Back to top](#contents)
+[Back to top](#Introduction)
