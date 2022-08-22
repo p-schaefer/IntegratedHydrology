@@ -1,7 +1,6 @@
 ihydro: Integrated hydrology tools for environmental science
 ================
 
--   <a href="#contents" id="toc-contents">Contents</a>
 -   <a href="#10-introduction" id="toc-10-introduction">1.0 Introduction</a>
 -   <a href="#20-system-setup-and-installation"
     id="toc-20-system-setup-and-installation">2.0 System setup and
@@ -18,21 +17,22 @@ ihydro: Integrated hydrology tools for environmental science
         href="#33-generate-complete-geospatial-analysis-products-with-process_hydrology"
         id="toc-33-generate-complete-geospatial-analysis-products-with-process_hydrology">3.3
         Generate complete geospatial analysis products with
-        ‘process_hydrology()’</a>
+        <code>process_hydrology()</code></a>
     -   <a
         href="#34-add-layers-of-interest-to-complete-geospatial-analysis-products-with-process_loi"
         id="toc-34-add-layers-of-interest-to-complete-geospatial-analysis-products-with-process_loi">3.4
         Add layers of interest to complete geospatial analysis products with
-        ‘process_loi()’</a>
+        <code>process_loi()</code></a>
     -   <a
         href="#35-calculate-weighted-spatial-summaries-at-sampleing-points-attrib_points"
         id="toc-35-calculate-weighted-spatial-summaries-at-sampleing-points-attrib_points">3.5
         Calculate weighted spatial summaries at sampleing points
-        ‘attrib_points()’</a>
+        <code>attrib_points()</code></a>
     -   <a
         href="#36-calculate-weighted-spatial-summaries-at-each-reach-attrib_points"
         id="toc-36-calculate-weighted-spatial-summaries-at-each-reach-attrib_points">3.6
-        Calculate weighted spatial summaries at each reach ‘attrib_points()’</a>
+        Calculate weighted spatial summaries at each reach
+        <code>attrib_points()</code></a>
 -   <a href="#40-generate-individual-geospatial-analysis-products"
     id="toc-40-generate-individual-geospatial-analysis-products">4.0
     Generate individual geospatial analysis products</a>
@@ -41,34 +41,81 @@ ihydro: Integrated hydrology tools for environmental science
         <code>process_flowdir()</code></a>
     -   <a href="#42-generate-subbasins-generate_subbasins"
         id="toc-42-generate-subbasins-generate_subbasins">4.2 Generate Subbasins
-        ‘generate_subbasins()’</a>
+        <code>generate_subbasins()</code></a>
     -   <a href="#43-generate-attributed-stream-lines-attrib_streamline"
         id="toc-43-generate-attributed-stream-lines-attrib_streamline">4.3
-        Generate Attributed Stream Lines `attrib_streamline()’</a>
-    -   <a href="#44-insert-sampling-points-into-stream-layer"
-        id="toc-44-insert-sampling-points-into-stream-layer">4.4 Insert Sampling
-        Points into Stream Layer</a>
-    -   <a href="#45-trace-flow-paths" id="toc-45-trace-flow-paths">4.5 Trace
-        Flow Paths</a>
+        Generate Attributed Stream Lines <code>attrib_streamline()</code></a>
+    -   <a href="#44-insert-sampling-points-into-stream-layer-insert_points"
+        id="toc-44-insert-sampling-points-into-stream-layer-insert_points">4.4
+        Insert Sampling Points into Stream Layer
+        <code>insert_points()</code></a>
+    -   <a
+        href="#45-trace-flow-paths-trace_flowpaths-and-generate-pairwise-distances-generate_pwisedist"
+        id="toc-45-trace-flow-paths-trace_flowpaths-and-generate-pairwise-distances-generate_pwisedist">4.5
+        Trace flow paths <code>trace_flowpaths()</code> and generate pairwise
+        distances <code>generate_pwisedist()</code></a>
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-
-## Contents
-
--   [1.0 Introduction](#10-introduction)
--   [2.0 System setup and
-    installation](#20-system-setup-and-installation)
--   [3.0 Prepare DEM and Sampling Points for for
-    analysis](#30-inverse-distance-weighted-rasters-using-hydroweight)
--   [3.1 Generate toy terrain dataset and sampling
-    points](#31-generate-toy-terrain-dataset)
--   [3.2 Process DEM with `process_hydrology()`](#32-generate-targets)
 
 ## 1.0 Introduction
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="75%" style="display: block; margin: auto;" />
 
-Add Introduction!
+Aquatic environmental scientists are often tasked with relating
+landscape factors to observed responses in streams, rivers and lakes.
+The computational workflow for conducting these investigations is
+complex. Simply describing how water flows and accumulates across the
+landscape can be a challenge itself, but for aquatic scientists it is
+only the first step. The stream network must then be extracted from the
+landscape, and reaches (a.k.a. segments; i.e., stretches of river
+between two confluences) identified and given unique identifiers. These
+reaches must then be attributed to be informative (e.g., slope, stream
+order, upstream channel length, etc.); and upstream-downstream
+connectivity between reaches established.
+
+Typically, sampling data is available at points along the stream
+network. If the specific information about the location of these points
+is to preserved (i.e., if samples are upstream and downstream of a
+particular effluent outflow, but along the same stream reach), they must
+be incorporated into the network. Once that is done, factors of interest
+on the landscape (e.g., landcover, soils, geology, climate, etc.) must
+be related to the reach (or sampling points). This alone can be complex
+as the spatial configuration of these factors relative to flow direction
+and accumulation are important. The ***ihydro*** package uses the
+***hydroweight*** package to calculate these attributes.
+
+The complexity of this workflow can be a rate limiting step in the
+scope, content, quality, and applicability of aquatic environmental
+scientist investigations. The ***ihydro*** package offers tools and
+workflows to simplify these complex steps. It is capable of handling all
+above computation steps, leaving researchers the task of identifying
+layers of interest and modeling with (potentially) large numbers of
+predictors.
+
+The ***ihydro*** package also implements a novel form of describing
+spatial autocorrelation among sites. Due to the linear nature of flow in
+streams and rivers, autocorrelation tends to be asymmetric, with
+downstream sites potentially more similar to upstream sites when they
+are flow connected, than not flow connected (regardless of spatial
+proximity). ***ihydro*** produces an asymmetric matrix that describes
+the relationships between sampling points based on the proportions of an
+upstream catchment that is shared with a target site. Proportion of
+shared upstream catchment (rather than in-stream distance) is a more
+relevant measure of spatial autocorrelation in streams because it
+accounts for differences in catchment areas between points. For example,
+if water chemistry samples are taken from a large 6th order stream, and
+a upstream small 1st order tributary we would expect the small tributary
+to have only a small impact on the larger stream. Hence autocorrelation
+should be low because the tributary is not contributing much flow to the
+large stream. If using in-stream distances, the assumed autocorrelation
+may be high because the physical distance is small, but this would be
+incorrect.
+
+***ihydro*** stores its geospatial products in a file for easy of
+retrieval and plotting in external software. It can be run in parallel
+for increased speed (if enough memory is available), and is quick at
+removing internal intermediate files to keep hard drives from filling up
+too fast.
 
 [Back to top](#contents)
 
@@ -121,8 +168,8 @@ remove depressions. These tools must be run before applying ihydro
 tools.
 
 Another factor to consider at this step is whether to burn stream
-vectors into the DEM. Whitebox’s wbt_fillburn() tool allows for this,
-but there are several caveats associated with this process. See
+vectors into the DEM; tool allows for this, but there are several
+caveats associated with this process. See
 [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
 
 ``` r
@@ -256,7 +303,7 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 [Back to top](#contents)
 
-### 3.3 Generate complete geospatial analysis products with ‘process_hydrology()’
+### 3.3 Generate complete geospatial analysis products with `process_hydrology()`
 
 ``` r
 
@@ -313,7 +360,7 @@ mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
 
 [Back to top](#contents)
 
-### 3.4 Add layers of interest to complete geospatial analysis products with ‘process_loi()’
+### 3.4 Add layers of interest to complete geospatial analysis products with `process_loi()`
 
 ``` r
 
@@ -339,7 +386,7 @@ hydro_out_comp<-process_loi(
 
 [Back to top](#contents)
 
-### 3.5 Calculate weighted spatial summaries at sampleing points ‘attrib_points()’
+### 3.5 Calculate weighted spatial summaries at sampleing points `attrib_points()`
 
 ``` r
 
@@ -394,7 +441,7 @@ final_attributes_sub %>%
 
 [Back to top](#contents)
 
-### 3.6 Calculate weighted spatial summaries at each reach ‘attrib_points()’
+### 3.6 Calculate weighted spatial summaries at each reach `attrib_points()`
 
 ``` r
 
@@ -461,8 +508,8 @@ hydro_out<-process_flowdir(
 #> [1] "Generating d8 pointer"
 #> d8_pointer - Elapsed Time (excluding I/O): 0.2s
 #> [1] "Generating d8 flow accumulation"
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.142s
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.128s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.136s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.125s
 #> [1] "Extracting Streams"
 #> extract_streams - Elapsed Time (excluding I/O): 0.2s
 #> [1] "Generating Output"
@@ -476,9 +523,9 @@ plot(flow_accum,main="ln-Flow Accumulation")
 
 [Back to top](#contents)
 
-### 4.2 Generate Subbasins ‘generate_subbasins()’
+### 4.2 Generate Subbasins `generate_subbasins()`
 
-The generate_subbasins() generates subbasins for each reach identified
+The `generate_subbasins()` generates subbasins for each reach identified
 in process_flowdir()
 
 ``` r
@@ -499,7 +546,7 @@ mapview(hydro_out1$subbasins,zcol="link_id")
 
 [Back to top](#contents)
 
-### 4.3 Generate Attributed Stream Lines \`attrib_streamline()’
+### 4.3 Generate Attributed Stream Lines `attrib_streamline()`
 
 ``` r
 
@@ -533,7 +580,7 @@ mapview(hydro_out2$stream_lines,zcol="link_id")
 
 [Back to top](#contents)
 
-### 4.4 Insert Sampling Points into Stream Layer
+### 4.4 Insert Sampling Points into Stream Layer `insert_points()`
 
 ``` r
 
@@ -571,7 +618,7 @@ mapview(hydro_out25$subbasins,zcol="link_id",legend=F)+
 
 [Back to top](#contents)
 
-### 4.5 Trace Flow Paths
+### 4.5 Trace flow paths `trace_flowpaths()` and generate pairwise distances `generate_pwisedist()`
 
 ``` r
 
