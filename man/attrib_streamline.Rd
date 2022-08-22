@@ -2,7 +2,7 @@
 % Please edit documentation in R/attrib_streamline.R
 \name{attrib_streamline}
 \alias{attrib_streamline}
-\title{Title}
+\title{Generate and attribute stream line and points along the lines}
 \usage{
 attrib_streamline(
   input,
@@ -14,8 +14,19 @@ attrib_streamline(
 )
 }
 \arguments{
-\item{verbose}{}
+\item{input}{resulting object from \code{generate_subbasins()}}
+
+\item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
+
+\item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{verbose}{logical.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Generate and attribute stream line and points along the lines
 }

@@ -1,5 +1,5 @@
-Package: IntegratedHydrology
-Title: Implements integrated hydrology tools for environmental science
+Package: ihydro
+Title: Integrated hydrology tools for aquatic environmental science
 Version: 0.0.1
 Authors@R: c( 
     person(given = "Patrick",
@@ -7,12 +7,13 @@ Authors@R: c(
            email = c("ecopulseanalytics@gmail.com"),
            role = c("aut", "cre")) 
     )
-Description: Implements tools to simplify workflows associated with geospatial
+Description: Implements workflows associated with geospatial
     analysis of aquatic systems. Uses user defined Digital Elevation
     Models (DEM) to produce attributed stream line vectors, catchment and subcatchment 
-    polygones, and pairwise distances among stream segments. 
-URL: https://github.com/p-schaefer/IntegratedHydrology 
-BugReports: https://github.com/p-schaefer/IntegratedHydrology/issues 
+    polygones, and pairwise distances among stream segments. Sampling points 
+    may be inserted to stream network. 
+URL: https://github.com/p-schaefer/ihydro 
+BugReports: https://github.com/p-schaefer/ihydro/issues 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -22,6 +23,7 @@ Remotes:
     p-schaefer/hydroweight
 Imports:
     units,
+    rlang,
 Depends:
     R (>= 4.0),
     dplyr,

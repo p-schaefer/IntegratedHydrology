@@ -1,14 +1,15 @@
 
-#' Title
+#' Inserts sampling points into vector layers, splitting lines, points, and catchments at insertion points
 #'
-#' @param input
-#' @param points
-#' @param snap_distance
-#' @param return_products
-#' @param temp_dir
-#' @param verbose
+#' @param input resulting object from `attrib_streamline()`
+#' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
+#' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
+#' @param snap_distance integer. Maximum distance which points will be snapped to stream lines in map units
+#' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
+#' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
+#' @param verbose logical. If \code{FALSE}, the function will not print output prints.
 #'
-#' @return
+#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples
@@ -32,15 +33,9 @@ insert_points<-function(
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
-
-  points<-hydroweight::process_input(points,input_name="points")
-  points<-st_as_sf(points)
-
   if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
   if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
   if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
-  if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
-
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
@@ -54,7 +49,7 @@ insert_points<-function(
   )
 
   zip_loc<-input$outfile
-  fl<-unzip(list=T,zip_loc)
+  fl<-unzip(list=T,zip_loc,overwrite = T,junkpaths =F)
 
   if (verbose) print("Extracting Data")
   unzip(zip_loc,
@@ -64,6 +59,16 @@ insert_points<-function(
         junkpaths=T)
 
   stream_links<-read_sf(file.path(temp_dir,"stream_links.shp"))
+  points<-hydroweight::process_input(points,target = stream_links,input_name="points")
+
+  points<-st_as_sf(points) %>%
+    group_by(!!rlang::sym(site_id_col)) %>%
+    summarize(across(geometry,st_centroid)) %>%
+    ungroup()
+
+  if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
+
+
   stream_points<-read_sf(file.path(temp_dir,"stream_points.shp"))
   Subbasins_poly<-read_sf(file.path(temp_dir,"Subbasins_poly.shp"))
   stream_lines<-read_sf(file.path(temp_dir,"stream_lines.shp"))
@@ -79,6 +84,12 @@ insert_points<-function(
   )
 
   snapped_points<-read_sf(file.path(temp_dir,"snapped_sample_points.shp")) %>%
+    st_set_crs(st_crs(stream_lines)) %>%
+    mutate(x=st_coordinates(geometry)[,1],
+           y=st_coordinates(geometry)[,2]) %>%
+    group_by(x,y) %>%
+    summarize(across(everything(),head,1)) %>%
+    select(-x,-y) %>%
     st_join(stream_lines %>% select(link_id))
 
   write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))

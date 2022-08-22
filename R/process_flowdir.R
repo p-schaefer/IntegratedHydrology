@@ -1,14 +1,16 @@
 
-#' Title
+#' Process flow direction/accumulation and extracts streams from DEM
 #'
-#' @param dem
-#' @param threshold
-#' @param output_filename
-#' @param return_products
-#' @param temp_dir
-#' @param verbose
+#' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
+#' @param threshold integer. Flow accumulation threshold for stream initiation.
+#' @param output_filename character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.
+#' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
+#' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
+#' @param verbose logical.
 #'
-#' @return
+#' @seealso [whitebox::wbt_d8_pointer], [whitebox::wbt_d8_flow_accumulation], [whitebox::wbt_extract_streams]
+#'
+#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples

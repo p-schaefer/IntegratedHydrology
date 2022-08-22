@@ -1,13 +1,13 @@
 
-#' Title
+#' Generate and attribute stream line and points along the lines
 #'
-#' @param input
-#' @param extra_attr
-#' @param return_products
-#' @param temp_dir
-#' @param verbose
+#' @param input resulting object from `generate_subbasins()`
+#' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
+#' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
+#' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
+#' @param verbose logical.
 #'
-#' @return
+#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples

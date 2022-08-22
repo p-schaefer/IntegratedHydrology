@@ -2,7 +2,7 @@
 % Please edit documentation in R/insert_points.R
 \name{insert_points}
 \alias{insert_points}
-\title{Title}
+\title{Inserts sampling points into vector layers, splitting lines, points, and catchments at insertion points}
 \usage{
 insert_points(
   input,
@@ -15,8 +15,23 @@ insert_points(
 )
 }
 \arguments{
-\item{verbose}{}
+\item{input}{resulting object from \code{attrib_streamline()}}
+
+\item{points}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.}
+
+\item{site_id_col}{character. Variable name in \code{points} that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same \code{site_id_col}, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.}
+
+\item{snap_distance}{integer. Maximum distance which points will be snapped to stream lines in map units}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
+
+\item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
+
+\item{verbose}{logical. If \code{FALSE}, the function will not print output prints.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Inserts sampling points into vector layers, splitting lines, points, and catchments at insertion points
 }

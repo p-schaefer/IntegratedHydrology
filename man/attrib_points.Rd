@@ -2,7 +2,7 @@
 % Please edit documentation in R/attrib_points.R
 \name{attrib_points}
 \alias{attrib_points}
-\title{Title}
+\title{Attributes stream segments/sampling points with layers of interest (loi)}
 \usage{
 attrib_points(
   input,
@@ -12,11 +12,14 @@ attrib_points(
   loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min",
     "max", "sum", "cell_count"),
   OS_combine = F,
+  dw_dir = NULL,
   target_streamseg = F,
   buffer = 30,
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
+  tolerance = 1e-06,
+  catch_buffer = 0.001,
   return_products = F,
   remove_region = NULL,
   temp_dir = NULL,
@@ -24,8 +27,41 @@ attrib_points(
 )
 }
 \arguments{
-\item{verbose}{}
+\item{input}{output from \code{process_loi()} run on \code{process_hydrology()}}
+
+\item{spec}{table containing which sampling points (and/or stream segments) to attribute. Must contain a column with the same \code{site_id_col} used in \code{process_hydrology()}, and \code{loi} column containing a named list of loi \code{variable_names}, and associated \code{loi_numeric_stats} for each. See example.}
+
+\item{all_reaches}{logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points and subbasin pour points). Warning, can be very slow.}
+
+\item{weighting_scheme}{character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")}
+
+\item{loi_numeric_stats}{character. One or more of c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count"). Those without distwtd_ are simple "lumped" statistics.}
+
+\item{OS_combine}{logical. Should target_O and target_S be merged as targets for iEucS, iFLS, and/or HAiFLS? Use \code{TRUE} or \code{FALSE}. This allows cells surrounding \code{target_O} to flow directly into \code{target_O} rather than be forced through \code{target_S}.}
+
+\item{dw_dir}{character. File path for stored \code{hydroweight::hydroweight()} outputs, if separately calculated. Note file names must match format of \code{paste0(`site_id_col`,"_inv_distances.zip")}.}
+
+\item{target_streamseg}{logical. If \code{TRUE}, \code{target_O} is considered the entire stream segment, else \code{target_O} is just the most downstream sampling point}
+
+\item{buffer}{numeric. Amount to buffer the catchment (in meters) when calculating \code{hydroweight::hydroweight()}. \code{hydroweight::hydroweight()} sometimes misses point \code{target_O} values unless buffered. Doesn't affect attribute values}
+
+\item{inv_function}{function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.}
+
+\item{tolerance}{numeric. Tolerance values used for \code{sf::st_snap} in meters in \code{get_catchment()}.}
+
+\item{catch_buffer}{numeric. Tolerance values used for \code{sf::st_buffer} in meters in \code{get_catchment()}.}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
+
+\item{remove_region}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/lu.shp"), \code{sf}, \code{SpatVector}, \code{PackedSpatVector}, \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster}. Regions to remove when summarizing the attributes (e.g., remove lake from catchment)}
+
+\item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
+
+\item{verbose}{logical.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Attributes stream segments/sampling points with layers of interest (loi)
 }

@@ -2,13 +2,22 @@
 % Please edit documentation in R/trace_flowpaths.R
 \name{trace_flowpaths}
 \alias{trace_flowpaths}
-\title{Title}
+\title{Generate upstream and downstream flow direction lists originating from each subbasin (and sampling point)}
 \usage{
 trace_flowpaths(input, return_products = F, temp_dir = NULL, verbose = F)
 }
 \arguments{
-\item{verbose}{}
+\item{input}{resulting object from \code{attrib_streamline()} or \code{insert_points()}}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
+
+\item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{verbose}{logical.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Generate upstream and downstream flow direction lists originating from each subbasin (and sampling point)
 }

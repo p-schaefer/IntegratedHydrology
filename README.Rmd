@@ -1,8 +1,9 @@
 ---
-title: "IntegratedHydrology: Integrated hydrology tools for environmental science"
+title: "ihydro: Integrated hydrology tools for environmental science"
 always_allow_html: true
 output: 
   github_document:
+    toc: true
     pandoc_args: --webtex
 editor_options: 
   markdown: 
@@ -31,7 +32,7 @@ knitr::opts_chunk$set(
 ## 1.0 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '75%', fig.align = 'center'}
-#knitr::include_graphics("man/figures/README-unnamed-chunk-6-1.png")
+knitr::include_graphics("man/figures/README-unnamed-chunk-6-1.png")
 ```
 
 Add Introduction!
@@ -40,7 +41,7 @@ Add Introduction!
 
 ## 2.0 System setup and installation
 
-*WhiteboxTools* and *whitebox* are required for ***IntegratedHydrology***. See
+*WhiteboxTools* and *whitebox* are required for ***ihydro***. See
 [whiteboxR](https://github.com/giswqs/whiteboxR) or below for
 installation.
 
@@ -84,7 +85,7 @@ if (F){
 Begin by bringing in the digital elevation model and using it to
 generate terrain products. The DEM must be processed in a way to remove depressions.
 Whitebox offers methods for breaching and filling DEMs to remove depressions. These tools
-must be run before applying IntegratedHydrology tools. 
+must be run before applying ihydro tools. 
 
 Another factor to consider at this step is whether to burn stream vectors into the DEM.
 Whitebox's wbt_fillburn() tool allows for this, but  there are several caveats associated with this process. See [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
@@ -93,17 +94,21 @@ Whitebox's wbt_fillburn() tool allows for this, but  there are several caveats a
 ```{r, message = FALSE, error = FALSE, warning = FALSE}
 ## Load libraries
 library(viridis)
-library(IntegratedHydrology)
+library(ihydro)
 library(mapview)
+library(furrr)
+library(whitebox)
+library(terra)
+library(sf)
+library(dplyr)
 
-# Many function in 'IntegratedHydrology' can be run in parallel internally. However it’s important to remember that
+# Many function in 'ihydro' can be run in parallel internally. However it’s important to remember that
 # data has to be passed back and forth between the workers. This means that whatever performance gain you might have
 # gotten from your parallelization can be crushed by moving large amounts of data around. In general, passing objects
 # as file paths will be faster than passing whole sf or terra objects. Not returning products directly will also speed
 # up function processing time dramatically. Products can always be retrieved/read in directly from the output .zip
 # file.
-
-plan(multisession, workers = 2)
+if (T) plan(multisession, workers = 2)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -181,7 +186,7 @@ output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
 
 loi_combined<-process_loi(
   dem=toy_dem,
-  numb_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     ruggedness=file.path(save_dir, "ruggedness_index.tif"),
     lulc_numbpoly=lulc_p
   ),
@@ -199,12 +204,14 @@ loi_combined<-process_loi(
   verbose=T
 )
 
-plot(rast(loi_combined$cat_inputs),type="classes",col=viridis(1))
+# All layers have been transformed to rasters with 1 indicating presence, and NA for absence
+plot(rast(loi_combined$cat_inputs),type="classes",col="darkgreen")
 
 ```
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-plot(rast(loi_combined$numb_inputs),type="continuous")
+# Numeric Rasters
+plot(rast(loi_combined$num_inputs),type="continuous")
 
 ```
 
@@ -243,21 +250,21 @@ hydro_out_comp<-process_hydrology(
 point_catchments<-get_catchment( # retrieve sampling point catchment
   input=hydro_out_comp,
   site_id_col="Sites",
-  target_sites=c("2","4")
+  target_points=c("1","2","3","4")
 )
 
 subbasin_catchments<-get_catchment( # retrieve reach catchment
   input=hydro_out_comp,
   site_id_col=NULL,
-  target_sites=c("19")
+  target_points=c("19")
 )
 
-mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out_comp$stream_lines,zcol="link_id",legend=F)+
-  mapview(hydro_out_comp$links,zcol="link_id",legend=F)+
-  mapview(hydro_out_comp$snapped_points,zcol="Sites",legend=F,color="red")+
-  mapview(point_catchments,legend=F, color = "cyan", col.regions = "white", lwd = 3,alpha=0.8)+
-  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 3,alpha=0.8)
+mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
+  mapview(hydro_out_comp$stream_lines,zcol="link_id",legend=F,layer.name="")+
+  mapview(hydro_out_comp$links,zcol="link_id",legend=F,layer.name="")+
+  mapview(hydro_out_comp$snapped_points,zcol="Sites",legend=F,color="red",layer.name="")+
+  mapview(point_catchments,legend=F, color = "cyan", col.regions = "white", lwd = 3,alpha=0.8,layer.name="")+
+  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 3,alpha=0.8,layer.name="")
 
 ```
 
@@ -269,19 +276,19 @@ mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F)+
 
 hydro_out_comp<-process_loi(
   input=hydro_out_comp,
-  numb_inputs=list(
+  num_inputs=list( # named list of inputs to be considered numeric; can be a combination of file paths/object types
     ruggedness=file.path(save_dir, "ruggedness_index.tif"),
     lulc_numbpoly=file.path(save_dir,"lulc_p.shp")
   ),
-  cat_inputs=list(
+  cat_inputs=list( # named list of inputs to be considered categorical
     landform_class=file.path(save_dir, "landform_class.tif"),
     lulc_catpoly=file.path(save_dir,"lulc_p.shp")
   ),
-  variable_names=list( 
-    lulc_numbpoly=c("var_1"),
-    lulc_catpoly=c("var_2")
+  variable_names=list( # a named list, When specified, only the given variables in a layer will be used
+    lulc_numbpoly=c("var_1"), # In this case, the same polygon layer is used as both numeric and categorical
+    lulc_catpoly=c("var_2")   # The `variable_names` argument allows the specification of which variables are what
   ),
-  return_products=T,
+  return_products=T, # these layers can get large, and it is generally not advised to return them into R 
   temp_dir=NULL,
   verbose=F
 )
@@ -294,8 +301,8 @@ hydro_out_comp<-process_loi(
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-loi<-list(numb=rast(hydro_out_comp$numb_inputs),
-          cat=rast(hydro_out_comp$cat_inputs))
+loi<-list(numb=rast(loi_combined$num_inputs),
+          cat=rast(loi_combined$cat_inputs))
 
 loi_names<-lapply(loi,names) %>% unlist()
 names(loi_names)<-loi_names
@@ -310,12 +317,12 @@ specification_table<-tibble(
 specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:5)]
 specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
 
+# specification_table$loi[[2]]
 
 final_attributes_sub<-attrib_points(
   input=hydro_out_comp,
   spec=specification_table,
   weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
-  loi_numeric_stats = c("distwtd_mean",  "mean",  "min", "max"),
   OS_combine=F,
   target_streamseg=F, # This will set the target_o parameter as the sampling point
   inv_function = function(x) {
@@ -327,7 +334,9 @@ final_attributes_sub<-attrib_points(
   verbose=F
 )
 
-final_attributes_sub
+# Site 2 should only contain mean and distwtd_mean variables for ruggedness
+final_attributes_sub %>% 
+  select(Sites,contains("ruggedness"))
 
 ```
 
@@ -335,13 +344,13 @@ final_attributes_sub
 
 ### 3.6 Calculate weighted spatial summaries at each reach 'attrib_points()'
 
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
 # Warning this operation can be very slow
 final_attributes_all<-attrib_points(
   input=hydro_out_comp,
   all_reaches=T, # This will calculate attributes for each reach
-  weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+  weighting_scheme = c("HAiFLO", "HAiFLS"),
   loi_numeric_stats = c("distwtd_mean",  "mean",  "min", "max"),
   OS_combine=F,
   target_streamseg=T # This will set the target_o parameter as the entire reach
@@ -386,7 +395,7 @@ plot(flow_accum,main="ln-Flow Accumulation")
 
 [Back to top](#contents)
 
-### 3.3 Generate Subbasins 'generate_subbasins()'
+### 4.2 Generate Subbasins 'generate_subbasins()'
 
 The generate_subbasins() generates subbasins for each reach identified in process_flowdir()
 
@@ -407,7 +416,7 @@ mapview(hydro_out1$subbasins,zcol="link_id")
 
 [Back to top](#contents)
 
-### 3.4 Generate Attributed Stream Lines `attrib_streamline()'
+### 4.3 Generate Attributed Stream Lines `attrib_streamline()'
 
 
 
@@ -443,7 +452,7 @@ mapview(hydro_out2$stream_lines,zcol="link_id")
 
 [Back to top](#contents)
 
-### 3.5 Insert Sampling Points into Stream Layer
+### 4.4 Insert Sampling Points into Stream Layer
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -462,7 +471,7 @@ hydro_out25<-insert_points(
   input=hydro_out2,
   points=points,
   site_id_col="Sites", # Column in points layer that corresponds to unique IDs that will be available in data products
-  snap_distance=10,
+  snap_distance=10L,
   return_products=T,
   temp_dir=NULL,
   verbose=F
@@ -481,7 +490,7 @@ mapview(hydro_out25$subbasins,zcol="link_id",legend=F)+
 
 [Back to top](#contents)
 
-### 3.6 Trace Flow Paths
+### 4.5 Trace Flow Paths
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -504,14 +513,3 @@ hydro_out4<-generate_pwisedist(
 
 [Back to top](#contents)
 
-
-[Back to top](#contents)
-
-### 3.2 Process DEM with `process_flowdir()`
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-
-```
-
-[Back to top](#contents)

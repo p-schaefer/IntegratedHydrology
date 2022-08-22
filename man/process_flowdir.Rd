@@ -2,7 +2,7 @@
 % Please edit documentation in R/process_flowdir.R
 \name{process_flowdir}
 \alias{process_flowdir}
-\title{Title}
+\title{Process flow direction/accumulation and extracts streams from DEM}
 \usage{
 process_flowdir(
   dem,
@@ -14,8 +14,24 @@ process_flowdir(
 )
 }
 \arguments{
-\item{verbose}{}
+\item{dem}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.}
+
+\item{threshold}{integer. Flow accumulation threshold for stream initiation.}
+
+\item{output_filename}{character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
+
+\item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{verbose}{logical.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Process flow direction/accumulation and extracts streams from DEM
+}
+\seealso{
+\link[whitebox:wbt_d8_pointer]{whitebox::wbt_d8_pointer}, \link[whitebox:wbt_d8_flow_accumulation]{whitebox::wbt_d8_flow_accumulation}, \link[whitebox:wbt_extract_streams]{whitebox::wbt_extract_streams}
 }

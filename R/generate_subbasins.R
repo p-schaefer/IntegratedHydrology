@@ -1,12 +1,13 @@
 
-#' Title
+#' Extracts polygon subbasins from 'process_flowdir()'
 #'
-#' @param input
-#' @param return_products
-#' @param temp_dir
-#' @param verbose
+#' @param input resulting object from `process_flowdir()`
+#' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
+#' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
+#' @param verbose logical.
 #'
-#' @return
+#' @seealso [whitebox::wbt_subbasins]
+#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples

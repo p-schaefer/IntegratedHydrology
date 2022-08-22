@@ -7,7 +7,16 @@
 generate_pwisedist(input, return_products = F, temp_dir = NULL, verbose = F)
 }
 \arguments{
-\item{verbose}{}
+\item{input}{ouptut of \code{trace_flowpaths()}}
+
+\item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
+
+\item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{verbose}{logical.}
+}
+\value{
+If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
 Title

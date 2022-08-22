@@ -1,43 +1,24 @@
-#' Process DEM by generating various terrain products
+#' Generate geospatial analysis products
 #'
-#' #' \code{IntegratedHydrology::process_hydrology()} processes a DEM into various geospatial analysis products.
+#' \code{ihydro::process_hydrology()} processes a DEM into various geospatial analysis products.
 #'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
 #' @param output_filename character. File path to write resulting .zip file.
-#' @param threshold numeric. Threshold in flow accumulation values for channelization.
+#' @param threshold integer. Flow accumulation threshold for stream initiation.
+#' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
+#' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
+#' @param snap_distance integer. Maximum distance which points will be snapped to stream lines in map units
+#' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
-#' @param verbose logical. If \code{FALSE}, the function will not print output prints.
+#' @param verbose logical.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples
 #'
-#' library(whitebox)
-#' library(terra)
-#' library(sf)
-#' library(hydroweight)
 #'
-#' ## Import toy_dem from whitebox package
-#' toy_file<-sample_dem_data()
-#' toy_file <- system.file("extdata", "DEM.tif", package = "whitebox")
-#' toy_dem <- rast(raster::raster(x = toy_file)) # reading the file from terra directly sometimes crashes R for some reason
-#' crs(toy_dem) <- "epsg:3161"
-#'
-#' ## Generate hydroweight_dir as a temporary directory
-#' save_dir <- tempdir()
-#'
-#' hydro_out<-process_hydrology(
-#'   dem=toy_dem,
-#'   threshold=1000,
-#'   return_products=T,
-#'   save_dir=save_dir,
-#'   temp_dir=NULL,
-#'   verbose=F
-#' )
-#'
-#
 process_hydrology<-function(
     dem,
     output_filename,

@@ -1,12 +1,13 @@
 
-#' Title
+#' Generate upstream catchment areas for target points
 #'
-#' @param input
-#' @param site_id_col
-#' @param target_sites
-#' @param tolerance
+#' @param input output of `process_hydrology()` or one containing `generate_subbasins()` and `trace_flowpaths()`
+#' @param site_id_col \code{NULL} or character. If Character, must match `site_id_col` from `insert_points()`
+#' @param target_points character. Unique site identifier(s) from `site_id_col`, or `link_id` values corresponding to specific reaches.
+#' @param tolerance numeric. Tolerance values used for \code{sf::st_snap} in meters
+#' @param buffer numeric. Tolerance values used for \code{sf::st_buffer} in meters
 #'
-#' @return
+#' @return polygon of upstream catchments at `target_points`
 #' @export
 #'
 #' @examples
@@ -15,11 +16,12 @@
 get_catchment<-function(
     input,
     site_id_col=NULL,
-    target_sites,
-    tolerance=0.000001
+    target_points,
+    tolerance=0.000001,
+    buffer=0.001
 ) {
 
-  target_sites<-as.character(target_sites)
+  target_points<-as.character(target_points)
 
   if (is.null(site_id_col) || site_id_col=="link_id") site_id_col<-"link_id"
 
@@ -39,31 +41,18 @@ get_catchment<-function(
     filter(!if_any(site_id_col,is.na)) %>%
     mutate(across(everything(),as.character))
 
-  sites<-sites[sites[[site_id_col]] %in% target_sites,]
+  sites<-sites[sites[[site_id_col]] %in% target_points,]
 
-  missing_sites<-target_sites[!target_sites %in% sites[[1]]]
-  if (length(missing_sites)>0) stop(paste0("'target_sites' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
+  missing_sites<-target_points[!target_points %in% sites[[1]]]
+  if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
   us_flowpaths<-readRDS(gzcon(unz(zip_loc,"us_flowpaths.rds")))
-
-  # if (site_id_col=="link_id") {
-  #   out_file<-tibble(
-  #     link_id=sites$link_id[match(sites[[1]],target_sites,nomatch = 0)]
-  #   )
-  # } else {
-  #   out_file<-tibble(
-  #     uid=target_sites,
-  #     link_id=sites$link_id[match(sites[[1]],target_sites,nomatch = 0)]
-  #   ) %>%
-  #     setNames(c(site_id_col,"link_id"))
-  # }
-
 
   sites %>%
     mutate(us_flowpaths=us_flowpaths[link_id]) %>%
     mutate(geometry=future_map(us_flowpaths,~filter(subb,link_id %in% .$link_id) %>%
-                                 st_buffer(0.001,nQuadSegs = 1)%>%
-                                 st_snap(x=.,y=., tolerance = tolerance) %>%
+                                 st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1)%>%
+                                 st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
                                  st_union())
     ) %>%
     unnest(geometry) %>%

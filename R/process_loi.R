@@ -1,18 +1,18 @@
 
-#' Title
+#' processes layers of interest (loi) for attribution of stream network
 #'
-#' @param input
-#' @param dem
-#' @param clip_region
-#' @param numb_inputs
-#' @param cat_inputs
-#' @param output_filename
-#' @param variable_names
-#' @param return_products
-#' @param temp_dir
-#' @param verbose
+#' @param input \code{NULL} or output from `process_hydrology()` or `process_flowdir()`. If \code{NULL}, `dem` must be specified.
+#' @param dem \code{NULL} or character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster. If \code{NULL}, input must be specified.
+#' @param clip_region character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/lu.shp"), \code{sf}, \code{SpatVector}, \code{PackedSpatVector}, \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of ESRI Shapefile type or GeoTiFF type only. Region over which loi are returned. defaults to `dem` extent.
+#' @param num_inputs named list containing file paths (with extensions), and/or R GIS objects to be coerced into \code{SpatRaster}. Layers of interest to be summarized numerically (e.g., with mean, SD, etc.)
+#' @param cat_inputs named list containing file paths (with extensions), and/or R GIS objects to be coerced into \code{SpatRaster}. Layers of interest to be summarized categorical (e.g., with with proportions or weighted proportions in the catchment)
+#' @param output_filename \code{NULL} or character (full file path with extensions). If `input` is provided, loi are saved in the same .zip output folder regadless of `output_filename`. If `input` not provided, file path to write resulting .zip file.
+#' @param variable_names named list containing variables from `num_inputs` and `cat_inputs` to include in output. If not specied, all variables are used.
+#' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
+#' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
+#' @param verbose logical.
 #'
-#' @return
+#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
 #' @examples
@@ -22,7 +22,7 @@ process_loi<-function(
     input=NULL,
     dem=NULL,
     clip_region=NULL,
-    numb_inputs=list(),
+    num_inputs=list(),
     cat_inputs=list(),
     output_filename=NULL,
     variable_names=NULL,
@@ -42,18 +42,18 @@ process_loi<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
-  if (!inherits(numb_inputs,"list")) stop("'numb_inputs' should be a named list")
-  if (length(numb_inputs)>0 & is.null(names(numb_inputs))) stop("objects in 'numb_inputs' must be named")
+  if (!inherits(num_inputs,"list")) stop("'num_inputs' should be a named list")
+  if (length(num_inputs)>0 & is.null(names(num_inputs))) stop("objects in 'num_inputs' must be named")
   if (!inherits(cat_inputs,"list")) stop("'cat_inputs' should be a named list")
   if (length(cat_inputs)>0 & is.null(names(cat_inputs))) stop("objects in 'cat_inputs' must be named")
 
-  if (any(names(numb_inputs) %in% names(cat_inputs)) |
-      any(names(cat_inputs) %in% names(numb_inputs))) stop("'numb_inputs' and 'cat_inputs' cannot share names")
+  if (any(names(num_inputs) %in% names(cat_inputs)) |
+      any(names(cat_inputs) %in% names(num_inputs))) stop("'num_inputs' and 'cat_inputs' cannot share names")
 
   if (!is.null(variable_names)) {
     # Add a check to make sure names match
   } else {
-    message("No variables specified in 'variable_names', all variables in 'numb_inputs' and 'cat_inputs' will be used")
+    message("No variables specified in 'variable_names', all variables in 'num_inputs' and 'cat_inputs' will be used")
   }
 
   if (is.null(input) & is.null(dem)) stop("Either 'input' or 'dem' must be specifed")
@@ -105,11 +105,11 @@ process_loi<-function(
   ## Numeric loi
 
   if (verbose) print("Preparing Numeric Inputs")
-  numb_inputs_list<-list(lyr_nms=names(numb_inputs),
-                         lyr=numb_inputs,
-                         lyr_variables=variable_names[names(numb_inputs)])
+  num_inputs_list<-list(lyr_nms=names(num_inputs),
+                         lyr=num_inputs,
+                         lyr_variables=variable_names[names(num_inputs)])
 
-  numb_inputs<-future_pmap(numb_inputs_list,
+  num_inputs<-future_pmap(num_inputs_list,
                     function(lyr_nms,lyr,lyr_variables){
                       output<-hydroweight::process_input(
                         input=lyr,
@@ -149,20 +149,20 @@ process_loi<-function(
 
   # Combine loi -------------------------------------------------------------
   if (verbose) print("Combining Numeric Inputs")
-  numb_inputs<-rast(map(numb_inputs,rast))
-  writeRaster(numb_inputs,file.path(temp_dir,"numeric_rasters.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  num_inputs<-rast(map(num_inputs,rast))
+  writeRaster(num_inputs,file.path(temp_dir,"num_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
   if (verbose) print("Combining Categorical Inputs")
   cat_inputs<-rast(map(cat_inputs,rast))
-  writeRaster(cat_inputs,file.path(temp_dir,"cat_rasters.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  writeRaster(cat_inputs,file.path(temp_dir,"cat_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
 
   # Generate Output ---------------------------------------------------------
   if (verbose) print("Generating Outputs")
 
   dist_list_out<-list(
-    "numeric_rasters.tif",
-    "cat_rasters.tif"
+    "num_rast.tif",
+    "cat_rast.tif"
   )
 
   dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
@@ -177,7 +177,7 @@ process_loi<-function(
   if (return_products){
     output<-c(
       list(
-        numb_inputs=wrap(numb_inputs),
+        num_inputs=wrap(num_inputs),
         cat_inputs=wrap(cat_inputs)
       ),
       output

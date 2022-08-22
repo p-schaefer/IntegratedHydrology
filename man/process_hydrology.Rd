@@ -2,7 +2,7 @@
 % Please edit documentation in R/process_hydrology.R
 \name{process_hydrology}
 \alias{process_hydrology}
-\title{Process DEM by generating various terrain products}
+\title{Generate geospatial analysis products}
 \usage{
 process_hydrology(
   dem,
@@ -23,43 +23,25 @@ process_hydrology(
 
 \item{output_filename}{character. File path to write resulting .zip file.}
 
-\item{threshold}{numeric. Threshold in flow accumulation values for channelization.}
+\item{threshold}{integer. Flow accumulation threshold for stream initiation.}
+
+\item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
+
+\item{points}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.}
+
+\item{snap_distance}{integer. Maximum distance which points will be snapped to stream lines in map units}
+
+\item{site_id_col}{character. Variable name in \code{points} that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same \code{site_id_col}, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
 
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
 
-\item{verbose}{logical. If \code{FALSE}, the function will not print output prints.}
+\item{verbose}{logical.}
 }
 \value{
 If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-#' \code{IntegratedHydrology::process_hydrology()} processes a DEM into various geospatial analysis products.
-}
-\examples{
-
-library(whitebox)
-library(terra)
-library(sf)
-library(hydroweight)
-
-## Import toy_dem from whitebox package
-toy_file<-sample_dem_data()
-toy_file <- system.file("extdata", "DEM.tif", package = "whitebox")
-toy_dem <- rast(raster::raster(x = toy_file)) # reading the file from terra directly sometimes crashes R for some reason
-crs(toy_dem) <- "epsg:3161"
-
-## Generate hydroweight_dir as a temporary directory
-save_dir <- tempdir()
-
-hydro_out<-process_hydrology(
-  dem=toy_dem,
-  threshold=1000,
-  return_products=T,
-  save_dir=save_dir,
-  temp_dir=NULL,
-  verbose=F
-)
-
+\code{ihydro::process_hydrology()} processes a DEM into various geospatial analysis products.
 }
