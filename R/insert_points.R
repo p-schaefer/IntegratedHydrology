@@ -90,7 +90,7 @@ insert_points<-function(
     group_by(x,y) %>%
     summarize(across(everything(),head,1)) %>%
     select(-x,-y) %>%
-    st_join(stream_lines %>% select(link_id),join=nngeo::st_nn, maxdist = snap_distance )
+    st_join(stream_lines %>% select(link_id),join=nngeo::st_nn, maxdist = snap_distance, progress =F, parallel = parallel::detectCores(logical=F)-1 )
 
   if (any(is.na(snapped_points$link_id))) warning("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") )
 

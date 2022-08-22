@@ -23,6 +23,7 @@ Remotes:
     p-schaefer/hydroweight
 Imports:
     nngeo,
+    parallel,
     units,
     rlang,
 Depends:
