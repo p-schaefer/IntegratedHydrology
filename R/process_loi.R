@@ -164,6 +164,7 @@ process_loi<-function(
            ot<-writeRaster(output,file.path(temp_dir,rln),gdal=gdal_arg)
 
            file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
+           suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
 
            p()
 
@@ -172,7 +173,7 @@ process_loi<-function(
   }
 
   with_progress({
-    print("Generating New Points")
+    print("Processing loi")
     p <- progressor(steps = (length(num_inputs) + length(cat_inputs)))
 
     ot<-future_map(inputs_list,~loi_fn(lyr_nms=.$lyr_nms,
