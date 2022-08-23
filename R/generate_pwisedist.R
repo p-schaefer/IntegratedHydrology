@@ -115,6 +115,7 @@ pairwise_dist_fn<-function(
   }
 
   with_progress({
+    print("Generating Pairwise Distances")
     p <- progressor(steps = length(ds_flowpaths)*length(ds_flowpaths))
 
     out_tbl<-tibble(

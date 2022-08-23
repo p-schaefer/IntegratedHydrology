@@ -51,6 +51,8 @@ attrib_streamline<-function(
                       tempdir = temp_dir
   )
 
+  options(dplyr.summarise.inform = FALSE)
+
   zip_loc<-input$outfile
   fl<-unzip(list=T,zip_loc)
 
@@ -191,7 +193,7 @@ attrib_streamline<-function(
 
   attr<-lapply(extra_attr,function(x) rast(x))
 
-  id3<-terra::extract(do.call(c,setNames(attr,NULL)),id2)
+  id3<-suppressWarnings(suppressMessages(terra::extract(do.call(c,setNames(attr,NULL)),id2)))
 
   id4<-id3 %>%
     mutate(link_type=case_when(
@@ -418,7 +420,7 @@ attrib_streamline<-function(
     )
   }
 
-  file.remove(list.files(temp_dir,full.names = T))
+  file.remove(list.files(temp_dir,full.names = T,recursive = T))
 
   return(output)
 }

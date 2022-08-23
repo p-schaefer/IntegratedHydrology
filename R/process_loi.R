@@ -102,59 +102,170 @@ process_loi<-function(
   target_crs<-crs(dem)
 
   # Prepare loi -------------------------------------------------------------
-  ## Numeric loi
 
-  if (verbose) print("Preparing Numeric Inputs")
-  num_inputs_list<-list(lyr_nms=names(num_inputs),
-                         lyr=num_inputs,
-                         lyr_variables=variable_names[names(num_inputs)])
+  num_inputs<-map(num_inputs,function(x){
+    if (inherits(x,"character")) return(x)
+    if (inherits(x,c("sf","sfc","sfg"))) return(wrap(vect(x)))
+    if (inherits(x,c("SpatRaster","SpatVector"))) return(wrap(x))
+    return(x)
+  })
 
-  num_inputs<-future_pmap(num_inputs_list,
-                    function(lyr_nms,lyr,lyr_variables){
-                      output<-hydroweight::process_input(
-                        input=lyr,
-                        input_name = lyr_nms,
-                        variable_name=lyr_variables,
-                        target=file.path(temp_dir,"dem_final.tif"),
-                        clip_region = file.path(temp_dir,"clip_region.shp"),
-                        resample_type = "bilinear"
-                      )
+  cat_inputs<-map(cat_inputs,function(x){
+    if (inherits(x,"character")) return(x)
+    if (inherits(x,c("sf","sfc","sfg"))) return(wrap(vect(x)))
+    if (inherits(x,c("SpatRaster","SpatVector"))) return(wrap(x))
+    return(x)
+  })
 
-                      ot<-writeRaster(output,file.path(temp_dir,paste0(lyr_nms,".tif")),overwrite=T,gdal="COMPRESS=NONE")
-                      return(file.path(temp_dir,paste0(lyr_nms,".tif")))
-                    })
 
-  ## Categorical loi
+  inputs_list<-list(
+    num_rast.tif=list(lyr_nms=names(num_inputs),
+                      lyr=num_inputs,
+                      lyr_variables=variable_names[names(num_inputs)]),
+    cat_rast.tif=list(lyr_nms=names(cat_inputs),
+                      lyr=cat_inputs,
+                      lyr_variables=variable_names[names(cat_inputs)])
+  )
 
-  if (verbose) print("Preparing Categorical Inputs")
-  cat_inputs_list<-list(lyr_nms=names(cat_inputs),
-                        lyr=cat_inputs,
-                        lyr_variables=variable_names[names(cat_inputs)])
+  ot<-future_map2(inputs_list,names(inputs_list),function(rl,rln){
 
-  cat_inputs<-future_pmap(cat_inputs_list,
-                   function(lyr_nms,lyr,lyr_variables){
-                     output<-hydroweight::process_input(
-                       input=lyr,
-                       input_name = lyr_nms,
-                       variable_name=lyr_variables,
-                       target=file.path(temp_dir,"dem_final.tif"),
-                       clip_region = file.path(temp_dir,"clip_region.shp"),
-                       resample_type = "near"
-                     )
+    temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
+    dir.create(temp_temp_dir)
 
-                     ot<-writeRaster(output,file.path(temp_dir,paste0(lyr_nms,".tif")),overwrite=T,gdal="COMPRESS=NONE")
-                     return(file.path(temp_dir,paste0(lyr_nms,".tif")))
-                   })
+    resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
+    output<-hydroweight::process_input(
+      input=rl$lyr[[1]],
+      input_name = rl$lyr_nms[[1]],
+      variable_name=rl$lyr_variables[[1]],
+      target=file.path(temp_dir,"dem_final.tif"),
+      clip_region = file.path(temp_dir,"clip_region.shp"),
+      resample_type = resaml,
+      working_dir=temp_temp_dir
+    )
+
+    writeRaster(output,file.path(temp_dir,rln),overwrite=T,gdal="COMPRESS=NONE")
+
+    file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
+
+    rl<-map(rl,~.[-c(1)])
+
+    num_inputs<-pmap(rl,
+                     function(lyr_nms,lyr,lyr_variables){
+
+                       temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
+                       dir.create(temp_temp_dir)
+
+                       output<-hydroweight::process_input(
+                         input=lyr,
+                         input_name = lyr_nms,
+                         variable_name=lyr_variables,
+                         target=file.path(temp_dir,"dem_final.tif"),
+                         clip_region = file.path(temp_dir,"clip_region.shp"),
+                         resample_type = resaml,
+                         working_dir=temp_dir
+                       )
+
+                       ot<-writeRaster(output,file.path(temp_dir,rln),gdal="APPEND_SUBDATASET=YES")
+
+                       file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
+
+                       return(ot)
+                     })
+
+    return(NULL)
+  })
+
+
+
+
+  #   #browser()
+  #
+  #   if (verbose) print("Preparing Numeric Inputs")
+  # num_inputs_list<-list(lyr_nms=names(num_inputs),
+  #                       lyr=num_inputs,
+  #                       lyr_variables=variable_names[names(num_inputs)])
+  #
+  # output<-hydroweight::process_input(
+  #   input=num_inputs_list$lyr[[1]],
+  #   input_name = num_inputs_list$lyr_nms[[1]],
+  #   variable_name=num_inputs_list$lyr_variables[[1]],
+  #   target=file.path(temp_dir,"dem_final.tif"),
+  #   clip_region = file.path(temp_dir,"clip_region.shp"),
+  #   resample_type = "bilinear",
+  #   working_dir=temp_dir
+  # )
+  #
+  # writeRaster(output,file.path(temp_dir,"num_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  #
+  # num_inputs_list<-map(num_inputs_list,~.[-c(1)])
+  #
+  # num_inputs<-pmap(num_inputs_list,
+  #                  function(lyr_nms,lyr,lyr_variables){
+  #                    output<-hydroweight::process_input(
+  #                      input=lyr,
+  #                      input_name = lyr_nms,
+  #                      variable_name=lyr_variables,
+  #                      target=file.path(temp_dir,"dem_final.tif"),
+  #                      clip_region = file.path(temp_dir,"clip_region.shp"),
+  #                      resample_type = "bilinear",
+  #                      working_dir=temp_dir
+  #                    )
+  #
+  #                    ot<-writeRaster(output,file.path(temp_dir,"num_rast.tif"),gdal="APPEND_SUBDATASET=YES")
+  #                    return(ot)
+  #                    # ot<-writeRaster(output,file.path(temp_dir,paste0(lyr_nms,".tif")),overwrite=T,gdal="COMPRESS=NONE")
+  #                    # return(file.path(temp_dir,paste0(lyr_nms,".tif")))
+  #                  })
+  #
+  # ## Categorical loi
+  #
+  # if (verbose) print("Preparing Categorical Inputs")
+  # cat_inputs_list<-list(lyr_nms=names(cat_inputs),
+  #                       lyr=cat_inputs,
+  #                       lyr_variables=variable_names[names(cat_inputs)])
+  #
+  # output<-hydroweight::process_input(
+  #   input=cat_inputs_list$lyr[[1]],
+  #   input_name = cat_inputs_list$lyr_nms[[1]],
+  #   variable_name=cat_inputs_list$lyr_variables[[1]],
+  #   target=file.path(temp_dir,"dem_final.tif"),
+  #   clip_region = file.path(temp_dir,"clip_region.shp"),
+  #   resample_type = "near",
+  #   working_dir=temp_dir
+  # )
+  #
+  # writeRaster(output,file.path(temp_dir,"cat_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  #
+  # cat_inputs_list<-map(cat_inputs_list,~.[-c(1)])
+  #
+  # cat_inputs<-pmap(cat_inputs_list,
+  #                  function(lyr_nms,lyr,lyr_variables){
+  #                    output<-hydroweight::process_input(
+  #                      input=lyr,
+  #                      input_name = lyr_nms,
+  #                      variable_name=lyr_variables,
+  #                      target=file.path(temp_dir,"dem_final.tif"),
+  #                      clip_region = file.path(temp_dir,"clip_region.shp"),
+  #                      resample_type = "near",
+  #                      working_dir=temp_dir
+  #                    )
+  #
+  #                    ot<-writeRaster(output,file.path(temp_dir,"cat_rast.tif"),gdal="APPEND_SUBDATASET=YES")
+  #                    return(ot)
+  #                    # ot<-writeRaster(output,file.path(temp_dir,paste0(lyr_nms,".tif")),overwrite=T,gdal="COMPRESS=NONE")
+  #                    # return(file.path(temp_dir,paste0(lyr_nms,".tif")))
+  #                  })
+  #
 
   # Combine loi -------------------------------------------------------------
-  if (verbose) print("Combining Numeric Inputs")
-  num_inputs<-rast(map(num_inputs,rast))
-  writeRaster(num_inputs,file.path(temp_dir,"num_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
-
-  if (verbose) print("Combining Categorical Inputs")
-  cat_inputs<-rast(map(cat_inputs,rast))
-  writeRaster(cat_inputs,file.path(temp_dir,"cat_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  # if (verbose) print("Combining Numeric Inputs")
+  # num_inputs<-rast(map(num_inputs,rast))
+  # writeRaster(num_inputs,file.path(temp_dir,"num_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  #
+  # if (verbose) print("Combining Categorical Inputs")
+  # cat_inputs<-rast(map(cat_inputs,rast))
+  # writeRaster(cat_inputs,file.path(temp_dir,"cat_rast.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
 
   # Generate Output ---------------------------------------------------------
@@ -167,6 +278,8 @@ process_loi<-function(
 
   dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
 
+  dist_list_out<-dist_list_out[sapply(dist_list_out,file.exists)]
+
   zip(output_filename,
       unlist(dist_list_out),
       flags = '-r9Xjq'
@@ -175,16 +288,18 @@ process_loi<-function(
   output<-input
 
   if (return_products){
+
+    ot<-map(dist_list_out,~wrap(rast(.)))
+    names(ot)[grepl("num_rast",unlist(dist_list_out))]<-"num_inputs"
+    names(ot)[grepl("cat_rast",unlist(dist_list_out))]<-"cat_inputs"
+
     output<-c(
-      list(
-        num_inputs=wrap(num_inputs),
-        cat_inputs=wrap(cat_inputs)
-      ),
+      ot,
       output
     )
   }
 
-  file.remove(list.files(temp_dir,full.names = T))
+  file.remove(list.files(temp_dir,full.names = T,recursive = T))
 
   return(output)
 

@@ -90,6 +90,7 @@ insert_points<-function(
     group_by(x,y) %>%
     summarize(across(everything(),head,1)) %>%
     select(-x,-y) %>%
+    ungroup() %>%
     st_join(stream_lines %>% select(link_id),join=nngeo::st_nn, maxdist = snap_distance, progress =F, parallel = parallel::detectCores(logical=F)-1 )
 
   if (any(is.na(snapped_points$link_id))) warning("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") )
@@ -99,172 +100,240 @@ insert_points<-function(
 
   write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))
 
-  # Add a catch for points that overlap links exactly
+  # TODO: Add a catch for points that overlap links exactly
+
+
+  # Split subbasins by sampling points ----------------------------------
+  new_subbasins_fn<-function(l_id,
+                             pnt,
+                             p,
+                             stream_links=stream_links,
+                             Subbasins_poly=Subbasins_poly){
+
+    pnt_file<-file.path(temp_dir,paste0("Tempsite_",l_id,".shp"))
+
+    pnt<-pnt %>%
+      mutate(across(any_of(site_id_col),as.character)) %>%
+      bind_rows(
+        stream_links %>%
+          filter(link_id==l_id) %>%
+          select(geometry) %>%
+          mutate(UID=paste0("pour_point_A1B2C3_",l_id)) %>%
+          setNames(c("geometry",site_id_col))
+      ) %>%
+      mutate(x=st_coordinates(geometry)[,1],
+             y=st_coordinates(geometry)[,2]) %>%
+      group_by(x,y) %>%
+      summarize(across(everything(),head,1)) %>%
+      select(-x,-y) %>%
+      ungroup()
+
+    write_sf(pnt,pnt_file)
+
+    rast(file.path(temp_dir,"dem_d8.tif")) %>%
+      crop(y=Subbasins_poly %>% filter(link_id == l_id) %>% vect(),
+           mask=T,overwrite=T) %>%
+      writeRaster(
+        file.path(temp_dir,paste0("d8_",l_id,".tif")),
+        overwrite=T
+      )
+
+    wbt_unnest_basins(
+      d8_pntr=paste0("d8_",l_id,".tif"),
+      pour_pts=pnt_file,
+      output=paste0("Catch_",l_id,".tif")
+    )
+
+    catch_fls<-list.files(temp_dir,pattern=paste0("Catch_",l_id))
+    catch_rast<-rast(file.path(temp_dir,catch_fls))
+    catch_rast[is.na(catch_rast)]<-0
+    catch_rast[catch_rast>0]<-1
+    catch_rast<-app(catch_rast,sum)
+
+    catch_rast[catch_rast==0]<-NA
+
+    #browser()
+    catch_poly<-catch_rast %>%
+      as.polygons() %>%
+      st_as_sf() %>%
+      st_join(pnt) %>%
+      arrange(sum) %>%
+      mutate(link_id=row_number()-1) %>%
+      mutate(link_id=formatC(link_id,width=nchar(max(link_id)),format="d",flag=0)) %>%
+      mutate(link_id=as.numeric(paste0(l_id,".",link_id))) %>%
+      mutate(sbbsn_area=st_area(.)) %>%
+      select(link_id,sbbsn_area,any_of(site_id_col), geometry) %>%
+      st_intersection(Subbasins_poly %>% filter(link_id == l_id) %>% select(geometry))
+
+    catch_poly[grepl("pour_point_A1B2C3_",catch_poly%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+    p()
+
+    flrm<-unique(c(list.files(temp_dir,pattern=paste0("_",l_id,"."),full.names = T),
+                   list.files(temp_dir,pattern=paste0("_",l_id,"_"),full.names = T)
+    ))
+
+    file.remove(flrm)
+    return(catch_poly)
+  }
+
+  # Split points by sampling points ----------------------------------
+  new_points_fn<-function(x,
+                          p,
+                          stream_points=stream_points) {
+
+    out<-x %>%
+      select(-sbbsn_area) %>%
+      rename(link_id_new=link_id) %>%
+      st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
+
+    out2<-stream_points %>%
+      filter(link_id == min(out$link_id_new)) %>%
+      select(geometry) %>%
+      st_join(out,join=st_nearest_feature)
+
+    out2[grepl("pour_point_A1B2C3_",out2%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+    p()
+    return(out2)
+  }
+
+  # Split lines by sampling points ----------------------------------
+  new_lines_fn<-function(x,
+                         p,
+                         stream_lines=stream_lines
+  ) {
+
+    trg_strm<-stream_lines %>%
+      filter(link_id == min(x$link_id))
+
+    out <- x %>%
+      select(-sbbsn_area) %>%
+      rename(link_id_new=link_id) %>%
+      st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
+
+    out2 <- st_intersection(trg_strm,out)
+    missing_pieces<-st_difference(trg_strm %>% select(geometry),x %>% select(geometry) %>% st_union())
+
+    missing_pieces<-st_join(missing_pieces,out2,join=st_nearest_feature)
+
+    out3<-bind_rows(
+      out2 %>% select(link_id_new),
+      missing_pieces %>% select(link_id_new)
+    ) %>%
+      group_by(link_id_new) %>%
+      summarize() %>%
+      select(geometry) %>%
+      st_join(out2,join=st_nearest_feature) %>%
+      mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
+      mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
+      mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
+      select(-link_id) %>%
+      rename(link_id=link_id_new) %>%
+      select(any_of(colnames(trg_strm)),everything())
+
+    out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+    p()
+    return(out3)
+  }
+
+  # Split links by sampling points ----------------------------------
+  new_links_fn<-function(pnts,
+                         lns,
+                         p,
+                         stream_links=stream_links){
+
+    lns_target<-lns %>%
+      as_tibble() %>%
+      filter(!if_any(any_of(site_id_col),is.na))
+
+    replace_target<-stream_links %>%
+      filter(link_id %in% min(lns_target$link_id)) %>%
+      mutate(uslink_id1=min(lns_target$link_id[-c(1)])) %>%
+      mutate(across(c(starts_with("uslink_id"),-uslink_id1),~NA))
+
+    add_links<-pnts %>%
+      mutate(across(any_of(site_id_col),as.character)) %>%
+      bind_rows(
+        stream_links %>%
+          filter(link_id==min(lns_target$link_id)) %>%
+          select(geometry) %>%
+          mutate(UID=paste0("pour_point_",min(lns_target$link_id))) %>%
+          setNames(c("geometry",site_id_col))
+      ) %>%
+      left_join(lns %>% as_tibble() %>% select(-geometry)) %>%
+      arrange(link_id) %>%
+      mutate(link_id_new=link_id) %>%
+      mutate(link_id=min(link_id)) %>%
+      select(link_id,link_id_new,any_of(site_id_col)) %>%
+      left_join(stream_links %>% as_tibble() %>% select(-geometry)) %>%
+      mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
+      mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
+      mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
+      filter(link_id_new %in% max(link_id_new)) %>%
+      select(-link_id) %>%
+      rename(link_id=link_id_new)
+
+    out3<-bind_rows(replace_target,add_links)
+    out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
+
+    p()
+    return(out3)
+  }
 
   if (verbose) print("Inserting Points")
-
-
   # Adjusts flow tracers in segment containing points -----------------------
+
   new_data<-snapped_points %>%
     select(any_of(site_id_col),link_id) %>%
     group_by(link_id) %>%
-    nest() %>%
-    mutate(new_subbasins=future_map2(link_id,data,function(l_id,pnt){
+    nest()
 
-      # Split subbasins by sampling points ----------------------------------
+  with_progress({
+    print("Generating New Subbasins")
+    p <- progressor(steps = nrow(new_data))
 
-      pnt_file<-file.path(temp_dir,paste0("Tempsite_",l_id,".shp"))
+    new_data<-new_data  %>%
+      mutate(new_subbasins=future_map2(link_id,data,~new_subbasins_fn(l_id=.x,
+                                                                      pnt=.y,
+                                                                      p=p,
+                                                                      stream_links=stream_links,
+                                                                      Subbasins_poly=Subbasins_poly)))
+  })
 
-      pnt<-pnt %>%
-        mutate(across(any_of(site_id_col),as.character)) %>%
-        bind_rows(
-          stream_links %>%
-            filter(link_id==l_id) %>%
-            select(geometry) %>%
-            mutate(UID=paste0("pour_point_A1B2C3_",l_id)) %>%
-            setNames(c("geometry",site_id_col))
-        )
+  with_progress({
+    print("Generating New Points")
+    p <- progressor(steps = nrow(new_data))
 
-      write_sf(pnt,pnt_file)
+    new_data<-new_data %>%
+      mutate(new_points=future_map(new_subbasins,~new_points_fn(x=.,
+                                                                p=p,
+                                                                stream_points=stream_points)))
+  })
 
-      rast(file.path(temp_dir,"dem_d8.tif")) %>%
-        crop(y=Subbasins_poly %>% filter(link_id == l_id) %>% vect(),
-             mask=T,overwrite=T) %>%
-        writeRaster(
-          file.path(temp_dir,paste0("d8_",l_id,".tif")),
-          overwrite=T
-        )
+  with_progress({
+    print("Generating New Lines")
+    p <- progressor(steps = nrow(new_data))
 
-      wbt_unnest_basins(
-        d8_pntr=paste0("d8_",l_id,".tif"),
-        pour_pts=pnt_file,
-        output=paste0("Catch_",l_id,".tif")
-      )
+    new_data<-new_data %>%
+      mutate(new_lines=future_map(new_subbasins, ~new_lines_fn(x=.,
+                                                               p=p,
+                                                               stream_lines=stream_lines)))
+  })
 
-      catch_fls<-list.files(temp_dir,pattern=paste0("Catch_",l_id))
-      catch_rast<-rast(file.path(temp_dir,catch_fls))
-      catch_rast[is.na(catch_rast)]<-0
-      catch_rast[catch_rast>0]<-1
-      catch_rast<-app(catch_rast,sum)
+  with_progress({
+    print("Generating New Links")
+    p <- progressor(steps = nrow(new_data))
 
-      catch_rast[catch_rast==0]<-NA
-
-      #browser()
-      catch_poly<-catch_rast %>%
-        as.polygons() %>%
-        st_as_sf() %>%
-        st_join(pnt) %>%
-        arrange(sum) %>%
-        mutate(link_id=row_number()-1) %>%
-        mutate(link_id=formatC(link_id,width=nchar(max(link_id)),format="d",flag=0)) %>%
-        mutate(link_id=as.numeric(paste0(l_id,".",link_id))) %>%
-        mutate(sbbsn_area=st_area(.)) %>%
-        select(link_id,sbbsn_area,any_of(site_id_col), geometry) %>%
-        st_intersection(Subbasins_poly %>% filter(link_id == l_id) %>% select(geometry))
-
-      catch_poly[grepl("pour_point_A1B2C3_",catch_poly%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
-
-      return(catch_poly)
-    })) %>%
-    mutate(new_points=future_map(new_subbasins, function(x) {
-      # Split points by sampling points ----------------------------------
-
-      out<-x %>%
-        select(-sbbsn_area) %>%
-        rename(link_id_new=link_id) %>%
-        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
-
-      out2<-stream_points %>%
-        filter(link_id == min(out$link_id_new)) %>%
-        select(geometry) %>%
-        st_join(out,join=st_nearest_feature)
-
-      out2[grepl("pour_point_A1B2C3_",out2%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
-
-      return(out2)
-    }
-    )) %>%
-    mutate(new_lines=future_map(new_subbasins, function(x) {
-      # Split lines by sampling points ----------------------------------
-
-      trg_strm<-stream_lines %>%
-        filter(link_id == min(x$link_id))
-
-      out <- x %>%
-        select(-sbbsn_area) %>%
-        rename(link_id_new=link_id) %>%
-        st_buffer(-units::as_units(0.5,"m"),nQuadSegs = 1)
-
-      out2 <- st_intersection(trg_strm,out)
-      missing_pieces<-st_difference(trg_strm %>% select(geometry),x %>% select(geometry) %>% st_union())
-
-      missing_pieces<-st_join(missing_pieces,out2,join=st_nearest_feature)
-
-      out3<-bind_rows(
-        out2 %>% select(link_id_new),
-        missing_pieces %>% select(link_id_new)
-      ) %>%
-        group_by(link_id_new) %>%
-        summarize() %>%
-        select(geometry) %>%
-        st_join(out2,join=st_nearest_feature) %>%
-        mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
-        mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
-        mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
-        select(-link_id) %>%
-        rename(link_id=link_id_new) %>%
-        select(any_of(colnames(trg_strm)),everything())
-
-      out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
-
-      return(out3)
-    }
-    )) %>%
-    mutate(new_links=future_map2(data,new_lines, function(pnts,lns){
-      # Split links by sampling points ----------------------------------
-
-      lns_target<-lns %>%
-        as_tibble() %>%
-        filter(!if_any(any_of(site_id_col),is.na))
-
-      replace_target<-stream_links %>%
-        filter(link_id %in% min(lns_target$link_id)) %>%
-        mutate(uslink_id1=min(lns_target$link_id[-c(1)])) %>%
-        mutate(across(c(starts_with("uslink_id"),-uslink_id1),~NA))
-
-      add_links<-pnts %>%
-        mutate(across(any_of(site_id_col),as.character)) %>%
-        bind_rows(
-          stream_links %>%
-            filter(link_id==min(lns_target$link_id)) %>%
-            select(geometry) %>%
-            mutate(UID=paste0("pour_point_",min(lns_target$link_id))) %>%
-            setNames(c("geometry",site_id_col))
-        ) %>%
-        left_join(lns %>% as_tibble() %>% select(-geometry)) %>%
-        arrange(link_id) %>%
-        mutate(link_id_new=link_id) %>%
-        mutate(link_id=min(link_id)) %>%
-        select(link_id,link_id_new,any_of(site_id_col)) %>%
-        left_join(stream_links %>% as_tibble() %>% select(-geometry)) %>%
-        mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
-        mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
-        mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
-        filter(link_id_new %in% max(link_id_new)) %>%
-        select(-link_id) %>%
-        rename(link_id=link_id_new)
-
-      out3<-bind_rows(replace_target,add_links)
-      out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
-
-      return(out3)
-    }
-
-    )
-    )
+    new_data<-new_data %>%
+      mutate(new_links=future_map2(data,new_lines,~new_links_fn(pnts=.x,
+                                                                lns=.y,
+                                                                p=p,
+                                                                stream_links=stream_links)))
+  })
 
   # Add to master data
-
   new_lines<-new_data %>%
     ungroup() %>%
     select(new_lines) %>%
@@ -421,7 +490,7 @@ insert_points<-function(
     output$snapped_points<-snapped_points
   }
 
-  file.remove(list.files(temp_dir,full.names = T))
+  file.remove(list.files(temp_dir,full.names = T,recursive = T))
 
   return(output)
 

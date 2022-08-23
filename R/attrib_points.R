@@ -96,7 +96,7 @@ attrib_points<-function(
 
   loi_rasts_exists_names<-map(loi_rasts_exists,~rast(.) %>% names())
   loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
-  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count")))
+  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~loi_numeric_stats))
 
   loi_rasts<-map(loi_rasts_exists,rast)
   loi_rasts_names<-map(loi_rasts,names) %>% unlist()

@@ -128,7 +128,7 @@ process_flowdir<-function(
       output
     )
   }
-  file.remove(list.files(temp_dir,full.names = T))
+  file.remove(list.files(temp_dir,full.names = T,recursive=T))
 
   return(output)
 }

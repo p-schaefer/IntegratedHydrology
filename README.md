@@ -282,10 +282,6 @@ loi_combined<-process_loi(
   verbose=T
 )
 #> [1] "Preparing DEM"
-#> [1] "Preparing Numeric Inputs"
-#> [1] "Preparing Categorical Inputs"
-#> [1] "Combining Numeric Inputs"
-#> [1] "Combining Categorical Inputs"
 #> [1] "Generating Outputs"
 
 # All layers have been transformed to rasters with 1 indicating presence, and NA for absence
@@ -331,9 +327,11 @@ hydro_out_comp<-process_hydrology(
   temp_dir=NULL,
   verbose=F
 )
-```
-
-``` r
+#> [1] "Generating New Subbasins"
+#> [1] "Generating New Points"
+#> [1] "Generating New Lines"
+#> [1] "Generating New Links"
+#> [1] "Generating Pairwise Distances"
 
 # Complete upstream catchments for each reach/sampling point are not stored, but can easily be retrieved
 point_catchments<-get_catchment( # retrieve sampling point catchment
@@ -395,7 +393,7 @@ loi<-list(numb=rast(loi_combined$num_inputs),
 
 loi_names<-lapply(loi,names) %>% unlist()
 names(loi_names)<-loi_names
-loi_names<-map(loi_names,~c("distwtd_mean",  "mean",  "min", "max"))
+loi_names<-map(loi_names,~c("distwtd_mean",  "mean", "distwtd_sd",  "min", "max"))
 
 # A 'spec' table can be given to calculate attributes at only select sampling points,
 # and/or to only calculate a subset of attributes from select sampling points
@@ -426,17 +424,19 @@ final_attributes_sub<-attrib_points(
 # Site 2 should only contain mean and distwtd_mean variables for ruggedness
 final_attributes_sub %>% 
   select(Sites,contains("ruggedness"))
-#> # A tibble: 3 × 9
-#>   Sites ruggedness_ind…¹ rugge…² rugge…³ rugge…⁴ rugge…⁵ rugge…⁶ rugge…⁷ rugge…⁸
-#>   <chr> <chr>            <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
-#> 1 1     10.2604821508503 0.3374… 39.752… 10.260… 9.5551… 9.2993… 5.6975… 5.9174…
-#> 2 2     16.6954987029686 <NA>    <NA>    16.559… 15.365… 15.278… 5.9973… 10.750…
-#> 3 3     18.9960212670056 1.5622… 47.235… 18.996… 17.206… 16.244… 13.119… 9.9036…
-#> # … with abbreviated variable names ¹​ruggedness_index_lumped_mean,
-#> #   ²​ruggedness_index_lumped_min, ³​ruggedness_index_lumped_max,
-#> #   ⁴​ruggedness_index_lumped_distwtd_mean, ⁵​ruggedness_index_iFLO_distwtd_mean,
-#> #   ⁶​ruggedness_index_iFLS_distwtd_mean, ⁷​ruggedness_index_HAiFLO_distwtd_mean,
-#> #   ⁸​ruggedness_index_HAiFLS_distwtd_mean
+#> # A tibble: 3 × 14
+#>   Sites rugged…¹ rugge…² rugge…³ rugge…⁴ rugge…⁵ rugge…⁶ rugge…⁷ rugge…⁸ rugge…⁹
+#>   <chr> <chr>    <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
+#> 1 1     10.2604… 0.3374… 39.752… 10.260… 6.5635… 9.5551… 5.9751… 9.2993… 5.7761…
+#> 2 2     16.6954… <NA>    <NA>    16.559… <NA>    15.365… <NA>    15.278… <NA>   
+#> 3 3     18.9960… 1.5622… 47.235… 18.996… 9.4318… 17.206… 8.5895… 16.244… 8.5843…
+#> # … with 4 more variables: ruggedness_index_HAiFLO_distwtd_mean <chr>,
+#> #   ruggedness_index_HAiFLO_distwtd_sd <chr>,
+#> #   ruggedness_index_HAiFLS_distwtd_mean <chr>,
+#> #   ruggedness_index_HAiFLS_distwtd_sd <chr>, and abbreviated variable names
+#> #   ¹​ruggedness_index_lumped_mean, ²​ruggedness_index_lumped_min,
+#> #   ³​ruggedness_index_lumped_max, ⁴​ruggedness_index_lumped_distwtd_mean,
+#> #   ⁵​ruggedness_index_lumped_distwtd_sd, ⁶​ruggedness_index_iFLO_distwtd_mean, …
 ```
 
 [Back to top](#Introduction)
@@ -456,26 +456,26 @@ final_attributes_all<-attrib_points(
 )
 
 final_attributes_all
-#> # A tibble: 29 × 47
+#> # A tibble: 29 × 35
 #>    link_id distance_we…¹ weigh…² rugge…³ var_1…⁴ rugge…⁵ var_1…⁶ rugge…⁷ var_1…⁸
 #>      <dbl> <list>        <list>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1      26 <NULL>        <NULL>     16.3    3.48    8.30    3.04   15.5        2
-#>  2      25 <NULL>        <NULL>     16.7    3.33    8.25    2.91   15.9        2
-#>  3       1 <NULL>        <NULL>     10.2    6.34    6.48    3.83    8.32      10
-#>  4       3 <NULL>        <NULL>     12.8    4.42    4.64    3.64   12.5        2
-#>  5      22 <NULL>        <NULL>     17.3    2.87    8.07    2.45   16.7        2
-#>  6       5 <NULL>        <NULL>     12.5    3.92    6.25    3.40   12.2        2
-#>  7       6 <NULL>        <NULL>     18.9    2.51    9.36    1.93   18.5        2
-#>  8      21 <NULL>        <NULL>     17.1    2.81    7.78    2.38   16.5        2
-#>  9       4 <NULL>        <NULL>     12.1    3.88    5.01    3.37   11.7        2
-#> 10      23 <NULL>        <NULL>     12.6    4.10    5.38    3.47   11.9        2
-#> # … with 19 more rows, 38 more variables: ruggedness_index_lumped_min <dbl>,
-#> #   var_1_lumped_min <dbl>, ruggedness_index_lumped_max <dbl>,
-#> #   var_1_lumped_max <dbl>, ruggedness_index_lumped_sum <dbl>,
-#> #   var_1_lumped_sum <dbl>, ruggedness_index_lumped_cell_count <dbl>,
-#> #   var_1_lumped_cell_count <dbl>, ruggedness_index_HAiFLO_distwtd_mean <dbl>,
-#> #   var_1_HAiFLO_distwtd_mean <dbl>, ruggedness_index_HAiFLO_distwtd_sd <dbl>,
-#> #   var_1_HAiFLO_distwtd_sd <dbl>, …
+#>  1      26 <NULL>        <NULL>     16.3    3.48 7.89e-4       2    53.9      10
+#>  2      25 <NULL>        <NULL>     16.7    3.33 7.89e-4       2    53.9      10
+#>  3       1 <NULL>        <NULL>     10.2    6.34 3.37e-1       2    39.8      10
+#>  4       3 <NULL>        <NULL>     12.8    4.42 1.40e+0       2    28.7      10
+#>  5      22 <NULL>        <NULL>     17.3    2.87 1.06e-3       2    51.3      10
+#>  6       5 <NULL>        <NULL>     12.5    3.92 7.65e-1       2    36.4      10
+#>  7       6 <NULL>        <NULL>     18.9    2.51 1.29e+0       2    47.2      10
+#>  8      21 <NULL>        <NULL>     17.1    2.81 1.93e-3       2    51.3      10
+#>  9       4 <NULL>        <NULL>     12.1    3.88 1.82e+0       2    36.7      10
+#> 10      23 <NULL>        <NULL>     12.6    4.10 7.82e-4       2    36.7      10
+#> # … with 19 more rows, 26 more variables:
+#> #   ruggedness_index_HAiFLO_distwtd_mean <dbl>,
+#> #   var_1_HAiFLO_distwtd_mean <dbl>,
+#> #   ruggedness_index_HAiFLS_distwtd_mean <dbl>,
+#> #   var_1_HAiFLS_distwtd_mean <dbl>, landform_class_1_HAiFLO_prop <dbl>,
+#> #   landform_class_2_HAiFLO_prop <dbl>, landform_class_3_HAiFLO_prop <dbl>,
+#> #   landform_class_4_HAiFLO_prop <dbl>, landform_class_5_HAiFLO_prop <dbl>, …
 ```
 
 [Back to top](#Introduction)
@@ -506,12 +506,12 @@ hydro_out<-process_flowdir(
   verbose=T
 )
 #> [1] "Generating d8 pointer"
-#> d8_pointer - Elapsed Time (excluding I/O): 0.2s
+#> d8_pointer - Elapsed Time (excluding I/O): 0.3s
 #> [1] "Generating d8 flow accumulation"
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.142s
-#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.138s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.134s
+#> d8_flow_accumulation - Elapsed Time (excluding I/O): 0.129s
 #> [1] "Extracting Streams"
-#> extract_streams - Elapsed Time (excluding I/O): 0.1s
+#> extract_streams - Elapsed Time (excluding I/O): 0.2s
 #> [1] "Generating Output"
 
 flow_accum<-log(rast(hydro_out$dem_accum_d8.tif))
@@ -604,6 +604,10 @@ hydro_out25<-insert_points(
   temp_dir=NULL,
   verbose=F
 )
+#> [1] "Generating New Subbasins"
+#> [1] "Generating New Points"
+#> [1] "Generating New Lines"
+#> [1] "Generating New Links"
 
 # Segments get split at sampling points, with the most downstream segment retaining the original 'link_id' and 
 # upstream segments getting increasingly larger decimal numbers
@@ -638,6 +642,7 @@ hydro_out4<-generate_pwisedist(
   temp_dir=NULL,
   verbose=F
 )
+#> [1] "Generating Pairwise Distances"
 ```
 
 [Back to top](#Introduction)
