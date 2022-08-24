@@ -67,6 +67,13 @@ process_loi<-function(
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
+  wbt_options(exe_path=wbt_exe_path(),
+              verbose=verbose,
+              wd=temp_dir)
+
+  terra::terraOptions(verbose = verbose,
+                      tempdir = temp_dir
+  )
 
   # Prepare DEM -------------------------------------------------------------
   if (verbose) print("Preparing DEM")
@@ -128,7 +135,6 @@ process_loi<-function(
   )
 
   inputs_list<-map2(inputs_list,names(inputs_list),~c(.x,
-                                                      list(gdal_arg=as.list(c("COMPRESS=NONE",rep("APPEND_SUBDATASET=YES",length(.x[[1]])-1)))),
                                                       list(rln=as.list(rep(.y,length(.x[[1]])))),
                                                       list(temp_dir=as.list(rep(temp_dir,length(.x[[1]]))))
   ))
@@ -137,17 +143,21 @@ process_loi<-function(
     pmap(list(lyr_nms=lyr_nms,
               lyr=lyr,
               lyr_variables=lyr_variables,
-              gdal_arg=gdal_arg,
               rln=rln,
               temp_dir=temp_dir),
          function(lyr_nms,
                   lyr,
                   lyr_variables,
-                  gdal_arg,
                   rln,temp_dir){
+           #print(lyr)
+           #browser()
 
            temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
            dir.create(temp_temp_dir)
+
+           terra::terraOptions(verbose = verbose,
+                               tempdir = temp_temp_dir
+           )
 
            resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
@@ -158,17 +168,31 @@ process_loi<-function(
              target=file.path(temp_dir,"dem_final.tif"),
              clip_region = file.path(temp_dir,"clip_region.shp"),
              resample_type = resaml,
-             working_dir=temp_dir
+             working_dir=temp_temp_dir
            )
 
-           ot<-writeRaster(output,file.path(temp_dir,rln),gdal=gdal_arg)
+           out_file<-file.path(temp_dir,rln)
 
-           file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
+           if (file.exists(out_file)) {
+             output<-rast(list(rast(out_file),output))
+             out_file<-file.path(temp_dir,paste0("new_",rln))
+           }
+
+           ot<-writeRaster(output,out_file,overwrite=T,gdal="COMPRESS=NONE")
+
            suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
+           file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
+           unlink(temp_temp_dir,recursive = T, force = T)
+
+           if (file.exists(file.path(temp_dir,paste0("new_",rln)))){
+             file.remove(file.path(temp_dir,paste0(rln)))
+             file.rename(file.path(temp_dir,paste0("new_",rln)),
+                         file.path(temp_dir,paste0(rln)))
+           }
 
            p()
 
-           return(ot)
+           return(NULL)
          })
   }
 

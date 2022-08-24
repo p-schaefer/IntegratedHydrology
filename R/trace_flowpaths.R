@@ -17,10 +17,6 @@ trace_flowpaths<-function(
     temp_dir=NULL,
     verbose=F
 ){
-  # require(sf)
-  # require(terra)
-  # require(whitebox)
-  # require(tidyverse)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -40,10 +36,10 @@ trace_flowpaths<-function(
   zip_loc<-input$outfile
   fl<-unzip(list=T,zip_loc)
 
-  final_lines<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+  final_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
 
-  ds_flowpaths<-trace_ds_flowpath(input=final_lines,verbose=verbose)
-  us_flowpaths<-trace_us_flowpath(input=final_lines,verbose=verbose)
+  ds_flowpaths<-trace_ds_flowpath(input=final_links,verbose=verbose)
+  us_flowpaths<-trace_us_flowpath(input=final_links,verbose=verbose)
 
   saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"))
   saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"))
@@ -84,30 +80,33 @@ trace_ds_flowpath<-function(
     input,
     verbose=F
 ) {
-  # require(tidyverse)
 
-  input<-as_tibble(input)
-  input$link_id<-as.character(input$link_id)
+  input_tib<-input %>%
+    as_tibble() %>%
+    select(link_id,trib_id,link_lngth,sbbsn_area,starts_with("uslink_id"),starts_with("dslink_id")) %>%
+    filter(!is.na(link_id)) %>%
+    mutate(link_id=as.character(link_id))
 
-  unique_link_id<-unique(input$link_id)
+  unique_link_id<-input_tib %>%
+    filter(!is.na(link_id)) %>%
+    filter(if_all(starts_with("uslink_id"),is.na)) %>%
+    pull(link_id) %>%
+    unique()
+
   unique_link_id<-split(unique_link_id,unique_link_id)
-  if (verbose) print("Generating Downstream flowpaths")
+  print("Generating Downstream flowpaths")
 
-  pb <- txtProgressBar(min = 0,
-                       max = length(unique_link_id),
-                       style = 2,    # Progress bar style (also available style = 1 and style = 2)
-                       width = 50,
-                       char = "=")
-
-  unique_link_id<-future_map(unique_link_id,function(x){
+  id_fn<-function(x,input_tib,p){
     out<-x
+    #print(x)
     repeat {
-      ds_id <- input %>%
+      ds_id <- input_tib %>%
         filter(link_id %in% out) %>%
-        select(starts_with("dslink_id")) %>%
+        dplyr::select(starts_with("dslink_id")) %>%
         unlist() %>%
         as.character() %>%
-        unique()
+        unique() %>%
+        .[!is.na(.)]
 
       if (all(ds_id %in% out)) break
 
@@ -115,17 +114,40 @@ trace_ds_flowpath<-function(
     }
 
     out<-out[!is.na(out)]
-    out<-tibble(link_id=out,
-                link_lngth=input$link_lngth[match(out,input$link_id)])
+    out<-tibble(link_id=out) %>%
+      left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
+      distinct() %>%
+      filter(!is.na(link_id))
 
-    if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
-
+    p()
     return(out)
+  }
+
+  input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
+
+  with_progress({
+    p <- progressor(steps = length(unique_link_id))
+
+    unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(x=.x,input_tib=.y,p=p))
   })
 
-  if (verbose) print("")
+  # Get remaining distances by unnesting the list
+  final_out<-unique_link_id
 
-  return(unique_link_id)
+  for (i in final_out){
+    nrw<-nrow(i)
+    new_entries<-lapply(2:nrw,function(x) i[seq(x,nrw),])
+    names(new_entries)<-sapply(new_entries,function(x) head(x$link_id,1))
+
+    keep_entries<-new_entries[!names(new_entries) %in% names(final_out)]
+
+    final_out<-c(final_out,keep_entries)
+  }
+
+  final_out<-final_out[order(names(final_out))]
+  final_out<-final_out[!is.na(names(final_out))]
+
+  return(final_out)
 
 }
 
@@ -134,48 +156,74 @@ trace_us_flowpath<-function(
     input,
     verbose=F
 ) {
-  # require(tidyverse)
 
-  input<-as_tibble(input)
-  input$link_id<-as.character(input$link_id)
+  input_tib<-input %>%
+    as_tibble() %>%
+    select(link_id,trib_id,link_lngth,sbbsn_area,
+           starts_with("uslink_id"),starts_with("dslink_id"),starts_with("dstrib_id"),starts_with("ustrib_id")) %>%
+    filter(!is.na(link_id)) %>%
+    mutate(link_id=as.character(link_id))
 
-  unique_link_id<-unique(input$link_id)
+  unique_link_id<-input_tib %>%
+    # filter(if_all(starts_with("dslink_id"),is.na) | trib_id != dstrib_id1) %>% # heep any without a downstream link, or where the downstream trib has a different ID
+    filter(!is.na(link_id)) %>%
+    pull(link_id) %>%
+    unique()
+
   unique_link_id<-split(unique_link_id,unique_link_id)
-  if (verbose) print("Generating Upstream flowpaths")
+  print("Generating Upstream flowpaths")
 
-  pb <- txtProgressBar(min = 0,
-                       max = length(unique_link_id),
-                       style = 2,    # Progress bar style (also available style = 1 and style = 2)
-                       width = 50,
-                       char = "=")
-
-  unique_link_id<-future_map(unique_link_id,function(x){
+  id_fn<-function(x,input_tib,p){
     out<-x
     repeat {
-      ds_id <- input %>%
+      us_id <- input_tib %>%
         filter(link_id %in% out) %>%
-        select(starts_with("uslink_id")) %>%
+        dplyr::select(starts_with("uslink_id")) %>%
         unlist() %>%
         as.character() %>%
-        unique()
+        unique() %>%
+        .[!is.na(.)]
 
-      if (all(ds_id %in% out)) break
+      if (all(us_id %in% out)) break
 
-      out<-unique(c(out,ds_id))
+      out<-unique(c(out,us_id))
     }
 
     out<-out[!is.na(out)]
-    out<-tibble(link_id=out,
-                link_lngth=input$link_lngth[match(out,input$link_id)],
-                sbbsn_area=input$sbbsn_area[match(out,input$link_id)])
+    out<-tibble(link_id=out)%>%
+      left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
+      distinct() %>%
+      filter(!is.na(link_id))
 
-    if (verbose) setTxtProgressBar(pb, which(names(unique_link_id)==out$link_id[[1]]))
-
+    p()
     return(out)
+  }
+
+  #browser()
+
+  input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
+
+  with_progress({
+    p <- progressor(steps = length(unique_link_id))
+
+    unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(x=.x,input_tib=.y,p=p))
   })
 
-  if (verbose) print("")
+  final_out<-unique_link_id
 
-  return(unique_link_id)
+  # for (i in final_out){ # there is probably some way of doing this similar to ds_tracing but I can't figure it out right now
+  #   nrw<-nrow(i)
+  #   new_entries<-lapply(2:nrw,function(x) i[seq(x,nrw),])
+  #   names(new_entries)<-sapply(new_entries,function(x) head(x$link_id,1))
+  #
+  #   keep_entries<-new_entries[!names(new_entries) %in% names(final_out)]
+  #
+  #   final_out<-c(final_out,keep_entries)
+  # }
+
+  final_out<-final_out[order(names(final_out))]
+  final_out<-final_out[!is.na(names(final_out))]
+
+  return(final_out)
 }
 

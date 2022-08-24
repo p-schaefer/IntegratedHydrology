@@ -82,71 +82,66 @@ generate_pwisedist<-function(
 pairwise_dist_fn<-function(
     ds_flowpaths=NULL,
     us_flowpaths=NULL,
-    stream_lines=NULL,
+    stream_links=NULL,
     verbose=F
 ) {
   # require(tidyverse)
 
-  if (is.null(stream_lines) & is.null(ds_flowpaths)) stop("Either 'ds_flowpaths' or 'stream_lines' must be provided")
-  if (is.null(stream_lines) & is.null(us_flowpaths)) stop("Either 'us_flowpaths' or 'stream_lines' must be provided")
+  if (is.null(stream_links) & is.null(ds_flowpaths)) stop("Either 'ds_flowpaths' or 'stream_links' must be provided")
+  if (is.null(stream_links) & is.null(us_flowpaths)) stop("Either 'us_flowpaths' or 'stream_links' must be provided")
 
-  if (is.null(ds_flowpaths)) ds_flowpaths<-trace_ds_flowpath(stream_lines)
-  if (is.null(us_flowpaths)) us_flowpaths<-trace_us_flowpath(stream_lines)
+  if (is.null(ds_flowpaths)) ds_flowpaths<-trace_ds_flowpath(stream_links)
+  if (is.null(us_flowpaths)) us_flowpaths<-trace_us_flowpath(stream_links)
   us_catchment_areas<-lapply(us_flowpaths,function(x) sum(x$sbbsn_area,na.rm=T))
 
   if (any(duplicated(names(ds_flowpaths)))) stop("'ds_flowpaths' cannot contain duplicate names")
   if (any(duplicated(names(us_flowpaths)))) stop("'us_flowpaths' cannot contain duplicate names")
   if (any(!names(ds_flowpaths) %in% names(us_flowpaths))) stop("'ds_flowpaths' contains link_ds not present in 'us_flowpaths'")
-  if (any(!names(us_flowpaths) %in% names(ds_flowpaths))) stop("'us_flowpaths' contains link_ds not present in 'ds_flowpaths'")
+  #if (any(!names(us_flowpaths) %in% names(ds_flowpaths))) stop("'us_flowpaths' contains link_ds not present in 'ds_flowpaths'") # this can happen at raster boundaries
 
   if (verbose) print("Generating Pairwise Distances")
 
-  pl_fn<-function(.x,.y,p){
-    out<-mutate(.x,is_target=link_id==.y) %>%
-      filter(!is.na(link_lngth)) %>%
-      mutate(link_lngth=cumsum(link_lngth)) %>%
-      filter(is_target) %>%
-      pull(link_lngth) %>%
-      ifelse(length(.)==0,0,.)
+  out_tbl<-tibble(
+    origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
+    destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths)))
 
-    p()
+  ds_out<-future_map_dfr(ds_flowpaths,~mutate(.,origin=.$link_id[1]) %>%
+                           rename(destination=link_id) %>%
+                           mutate(directed_path_length=cumsum(link_lngth)) %>%
+                           select(origin,destination,directed_path_length)
+  )
 
-    return(out)
-  }
+  out_tbl<-out_tbl %>%
+    left_join(ds_out,by=c("origin","destination")) %>%
+    mutate(directed_path_length=if_else(is.na(directed_path_length),0,directed_path_length)) %>%
+    mutate(
+      origin_catchment=unlist(us_catchment_areas[origin]),
+      destination_catchment=unlist(us_catchment_areas[destination])
+    ) %>%
+    mutate(prop_shared_catchment=case_when(
+      directed_path_length>0 ~ origin_catchment/destination_catchment,
+      T ~ 0
+    )) %>%
+    group_by(origin) %>%
+    mutate(n_pairs=sum(prop_shared_catchment>0 & prop_shared_catchment<1)) %>%
+    filter(n_pairs>0) %>%
+    select(-n_pairs)
 
-  with_progress({
-    print("Generating Pairwise Distances")
-    p <- progressor(steps = length(ds_flowpaths)*length(ds_flowpaths))
-
-    out_tbl<-tibble(
-      origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
-      destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths))) %>%
-      mutate(
-        directed_path_length=ds_flowpaths[origin]
-      ) %>%
-      mutate(directed_path_length=future_map2_dbl(directed_path_length,destination,pl_fn,p)) %>%
-      mutate(
-        origin_catchment=unlist(us_catchment_areas[origin]),
-        destination_catchment=unlist(us_catchment_areas[destination])
-      ) %>%
-      mutate(prop_shared_catchment=case_when(
-        directed_path_length>0 ~ origin_catchment/destination_catchment,
-        T ~ 0
-      )) %>%
-      select(-origin_catchment,-destination_catchment)
-  })
+  gg<-gc()
 
   out_prop<-out_tbl %>%
     select(-directed_path_length) %>%
     mutate(origin=paste0("prop_link_id_",origin)) %>%
     rename(link_id=destination) %>%
-    pivot_wider(names_from=origin,values_from=prop_shared_catchment)
+    pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill = 0)
+
+  gg<-gc()
 
   out_dist<-out_tbl %>%
     select(-prop_shared_catchment) %>%
     mutate(origin=paste0("dist_link_id_",origin)) %>%
     rename(link_id=destination) %>%
-    pivot_wider(names_from=origin,values_from=directed_path_length)
+    pivot_wider(names_from=origin,values_from=directed_path_length,values_fill = 0)
 
   return(list(
     long_pwise=out_tbl,

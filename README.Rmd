@@ -8,6 +8,7 @@ output:
 editor_options: 
   markdown: 
     wrap: 72
+  chunk_output_type: console
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -106,29 +107,36 @@ library(dplyr)
 # as file paths will be faster than passing whole sf or terra objects. Not returning products directly will also speed
 # up function processing time dramatically. Products can always be retrieved/read in directly from the output .zip
 # file.
-if (T) plan(multisession, workers = 2)
+if (T) plan(multisession)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
 
-## Import toy_dem from whitebox package
-toy_file<-sample_dem_data()
-toy_file <- system.file("extdata", "DEM.tif", package = "whitebox")
-toy_dem <- rast(raster::raster(x = toy_file)) # reading the file from terra directly sometimes crashes R for some reason
-crs(toy_dem) <- "epsg:3161"
 
-## Write toy_dem to save_dir
-writeRaster(
-  x = toy_dem, filename = file.path(save_dir, "toy_dem.tif"),
-  overwrite = TRUE
-)
+## Import toy_dem from openSTARS package
+# devtools::install_github("MiKatt/openSTARS", ref = "dev")
 
-## Identify some sampling points
-points<-xyFromCell(toy_dem,c(1291,1524,15954,24022)) %>% 
-  vect(crs="epsg:3161") %>% 
+system.file("extdata", "nc", "elev_ned_30m.tif", package = "openSTARS") %>% 
+  rast() %>% 
+  set.crs(crs(rast(system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")))) %>% 
+  writeRaster(file.path(save_dir, "toy_dem1.tif"),overwrite=T)
+
+toy_dem<-rast(file.path(save_dir, "toy_dem1.tif"))
+
+
+# Bring in and process stream vector
+system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>% 
+  vect() %>% 
   st_as_sf() %>% 
-  mutate(Sites=row_number()) %>% 
-  select(Sites, everything())
+  st_transform(st_crs(toy_dem)) %>% 
+  vect() %>% 
+  writeVector(file.path(save_dir, "toy_streams.shp"),overwrite=T)
+
+burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
+  rasterize(toy_dem)
+
+toy_dem[!is.na(burn_lyr)]<-toy_dem[!is.na(burn_lyr)]-5
+writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
 ## Breach depressions to ensure continuous flow
 wbt_breach_depressions(
@@ -138,15 +146,36 @@ wbt_breach_depressions(
 
 toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
 
-```
 
+# wbt_fill_burn(
+#   dem=file.path(save_dir, "toy_dem_breached.tif"),
+#   streams=file.path(save_dir, "toy_streams.shp"),
+#   output=file.path(save_dir, "toy_dem_burned.tif")
+# )
+# 
+# toy_dem<-rast(file.path(save_dir, "toy_dem_burned.tif"))
 
-[Back to top](#Introduction)
+## Identify some sampling points
+system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>% 
+  vect() %>% 
+  st_as_sf() %>% 
+  st_transform(st_crs(toy_dem)) %>% 
+  vect() %>% 
+  writeVector(file.path(save_dir, "sites.shp"),overwrite=T)
 
-### 3.2 Generate predictor layers
+## Predictors from openSTARS
+landuse_r_path <- system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")
+geology_path<-system.file("extdata", "nc", "geology.shp", package = "openSTARS")
+pointsources_path<-system.file("extdata", "nc", "pointsources.shp", package = "openSTARS")
 
+read_sf(pointsources_path) %>% 
+  mutate(pointsource=1) %>% 
+  group_by(pointsource) %>% 
+  summarize(across(everything(),head,1)) %>% 
+  st_buffer(30) %>% 
+  write_sf(file.path(save_dir, "pointsources.shp"))
 
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+pointsources_path<-file.path(save_dir, "pointsources.shp")
 
 # Categorical Raster
 wbt_pennock_landform_class(
@@ -160,24 +189,51 @@ wbt_ruggedness_index(
   output = file.path(save_dir, "ruggedness_index.tif")
 )
 
-# Categorical/Numeric Polygon
-lulc_p <- toy_dem
-m <- c(0, 220, 1, 220, 300, 2, 300, 400, 3, 400, Inf, 4) 
-rclmat <- matrix(m, ncol = 3, byrow = TRUE)
-lulc_p <- classify(lulc_p, rclmat)
-names(lulc_p)<-"lulc"
-lulc_p <- as.polygons(lulc_p, dissolve = T, na.rm = T)
-lulc_p <- st_as_sf(lulc_p)
+wbt_slope(
+  dem = file.path(save_dir, "toy_dem.tif"),
+  output = file.path(save_dir, "slope.tif")
+)
 
-set.seed(123)
-lulc_p$var_1 <- sample(c(1:10), size = 4, replace = TRUE)
-set.seed(123)
-lulc_p$var_2 <- sample(c(20:30), size = 4, replace = TRUE)
+plot(toy_dem)
 
-lulc_p<-lulc_p %>% 
-  select(var_1,var_2)
+if (F){
+  ## Import toy_dem from whitebox package
+  toy_file<-sample_dem_data()
+  toy_file <- system.file("extdata", "DEM.tif", package = "whitebox")
+  toy_dem <- rast(raster::raster(x = toy_file)) # reading the file from terra directly sometimes crashes R for some reason
+  crs(toy_dem) <- "epsg:3161"
+  
+  ## Write toy_dem to save_dir
+  writeRaster(
+    x = toy_dem, filename = file.path(save_dir, "toy_dem.tif"),
+    overwrite = TRUE
+  )
+  
+  ## Identify some sampling points
+  points<-xyFromCell(toy_dem,c(1291,1524,15954,24022)) %>% 
+    vect(crs="epsg:3161") %>% 
+    st_as_sf() %>% 
+    mutate(Sites=row_number()) %>% 
+    select(Sites, everything())
+  
+  ## Breach depressions to ensure continuous flow
+  wbt_breach_depressions(
+    dem = file.path(save_dir, "toy_dem.tif"),
+    output = file.path(save_dir, "toy_dem_breached.tif")
+  )
+  
+  
+}
 
-write_sf(lulc_p,file.path(save_dir,"lulc_p.shp"))
+```
+
+
+[Back to top](#Introduction)
+
+### 3.2 Generate predictor layers
+
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 # Combine loi layers
 output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
@@ -186,15 +242,17 @@ loi_combined<-process_loi(
   dem=toy_dem,
   num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     ruggedness=file.path(save_dir, "ruggedness_index.tif"),
-    lulc_numbpoly=lulc_p
+    slope=file.path(save_dir, "slope.tif")
   ),
   cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     landform_class=file.path(save_dir, "landform_class.tif"),
-    lulc_catpoly=lulc_p
+    landcover=landuse_r_path,
+    geology=geology_path,
+    pointsources=pointsources_path
   ),
   variable_names=list( # any unlisted inputs will be used in their entirety
-    lulc_numbpoly=c("var_1"),
-    lulc_catpoly=c("var_2")
+    geology="GEO_NAME",
+    pointsources="pontsrc"
   ),
   output_filename=output_filename_loi,
   return_products=T,
@@ -204,6 +262,46 @@ loi_combined<-process_loi(
 
 # All layers have been transformed to rasters with 1 indicating presence, and NA for absence
 plot(rast(loi_combined$cat_inputs),type="classes",col="darkgreen")
+
+
+if (F) {
+  # Categorical Raster
+  wbt_pennock_landform_class(
+    dem = file.path(save_dir, "toy_dem.tif"),
+    output = file.path(save_dir, "landform_class.tif")
+  )
+  
+  # Numeric Raster
+  wbt_ruggedness_index(
+    dem = file.path(save_dir, "toy_dem.tif"),
+    output = file.path(save_dir, "ruggedness_index.tif")
+  )
+  
+  landuse <- system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")
+  
+  
+  # Categorical/Numeric Polygon
+  lulc_p <- toy_dem
+  m <- c(0, 220, 1, 220, 300, 2, 300, 400, 3, 400, Inf, 4) 
+  rclmat <- matrix(m, ncol = 3, byrow = TRUE)
+  lulc_p <- classify(lulc_p, rclmat)
+  names(lulc_p)<-"lulc"
+  lulc_p <- as.polygons(lulc_p, dissolve = T, na.rm = T)
+  lulc_p <- st_as_sf(lulc_p)
+  
+  set.seed(123)
+  lulc_p$var_1 <- sample(c(1:10), size = 4, replace = TRUE)
+  set.seed(123)
+  lulc_p$var_2 <- sample(c(20:30), size = 4, replace = TRUE)
+  
+  lulc_p<-lulc_p %>% 
+    select(var_1,var_2)
+  
+  write_sf(lulc_p,file.path(save_dir,"lulc_p.shp"))
+  
+  
+}
+
 
 ```
 
@@ -221,11 +319,79 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 # Run complete hydrology processing tools in one function
 output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
+plan(multisession)
+
+hydro_out<-process_flowdir(
+  dem=toy_dem,
+  threshold=100L,  
+  return_products=T,
+  output_filename=output_filename_hydro,
+  temp_dir=NULL, 
+  verbose=T
+)
+
+hydro_out<-generate_vectors(
+  input=hydro_out,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+) 
+
+hydro_out<-insert_points( 
+  input=hydro_out,
+  points=file.path(save_dir, "sites.shp"),
+  site_id_col="site_id", # Column in points layer that corresponds to unique IDs that will be available in data products
+  snap_distance=250L,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
+
+mapview(hydro_out$subbasins,zcol="link_id",legend=F)+
+  mapview(hydro_out$stream_lines,zcol="link_id",legend=F)+
+  #mapview(hydro_out$links,zcol="link_id",legend=F)+
+  mapview(hydro_out$snapped_points,zcol="link_id",legend=F,color="yellow")+
+  mapview(read_sf(file.path(save_dir, "sites.shp")),color="red")
+
+hydro_out<-trace_flowpaths(
+  input=hydro_out,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
+
+subbasin_catchments<-get_catchment( # retrieve reach catchment
+    input=hydro_out,
+    site_id_col=NULL,
+    target_points=c("709")
+)
+
+point_catchments<-get_catchment( # retrieve sampling point catchment
+  input=hydro_out,
+  site_id_col="site_id",
+  target_points=c("1","25","80")
+)
+
+mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".")+
+  mapview(hydro_out$stream_lines,zcol="link_id",legend=F,layer.name="..")+
+  mapview(hydro_out$links,zcol="link_id",legend=F,layer.name="...")+
+  mapview(hydro_out$snapped_points,zcol="site_id",legend=F,color="red",layer.name="....")+
+  mapview(point_catchments,legend=F, color = "black", col.regions = "white", lwd = 5,alpha=0.8,layer.name=".....")+
+  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 5,alpha=0.8,layer.name="......")
+
+hydro_out<-generate_pwisedist(
+  input=hydro_out,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
+
+
 
 hydro_out_comp<-process_hydrology(
   dem=toy_dem,
   output_filename=output_filename_hydro,
-  threshold=1000L,
+  threshold=100L,
   extra_attr=c( # Additional attributes to calculate and add to outputs
     "link_slope",
     "cont_slope",
@@ -236,9 +402,17 @@ hydro_out_comp<-process_hydrology(
     "StOrd_Hort",
     "StOrd_Shr"
   ),
-  points=points,
-  snap_distance=10L,
-  site_id_col="Sites",
+  points=file.path(save_dir, "sites.shp"),
+  snap_distance=250L,
+  site_id_col="site_id",
+  pwise_dist=F,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=T
+)
+
+hydro_out_comp2<-generate_pwisedist(
+  input=hydro_out_comp,
   return_products=T,
   temp_dir=NULL,
   verbose=F
@@ -247,8 +421,8 @@ hydro_out_comp<-process_hydrology(
 # Complete upstream catchments for each reach/sampling point are not stored, but can easily be retrieved
 point_catchments<-get_catchment( # retrieve sampling point catchment
   input=hydro_out_comp,
-  site_id_col="Sites",
-  target_points=c("1","2","3","4")
+  site_id_col="site_id",
+  target_points=c("1","25","60")
 )
 
 subbasin_catchments<-get_catchment( # retrieve reach catchment
@@ -274,17 +448,19 @@ mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
 
 hydro_out_comp<-process_loi(
   input=hydro_out_comp,
-  num_inputs=list( # named list of inputs to be considered numeric; can be a combination of file paths/object types
+  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     ruggedness=file.path(save_dir, "ruggedness_index.tif"),
-    lulc_numbpoly=file.path(save_dir,"lulc_p.shp")
+    slope=file.path(save_dir, "slope.tif")
   ),
-  cat_inputs=list( # named list of inputs to be considered categorical
+  cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     landform_class=file.path(save_dir, "landform_class.tif"),
-    lulc_catpoly=file.path(save_dir,"lulc_p.shp")
+    landcover=landuse_r_path,
+    geology=geology_path,
+    pointsources=pointsources_path
   ),
-  variable_names=list( # a named list, When specified, only the given variables in a layer will be used
-    lulc_numbpoly=c("var_1"), # In this case, the same polygon layer is used as both numeric and categorical
-    lulc_catpoly=c("var_2")   # The `variable_names` argument allows the specification of which variables are what
+  variable_names=list( # any unlisted inputs will be used in their entirety
+    geology="GEO_NAME",
+    pointsources="pontsrc"
   ),
   return_products=T, # these layers can get large, and it is generally not advised to return them into R 
   temp_dir=NULL,
@@ -372,6 +548,8 @@ This function generates d8 pointer, flow accumulation, and stream layers from th
 and flow accumulation threshold.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+
 
 output_filename<-file.path(save_dir,"Processed_Hydrology_sub.zip")
 

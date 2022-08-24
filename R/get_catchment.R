@@ -38,23 +38,36 @@ get_catchment<-function(
   sites<-points %>%
     as_tibble() %>%
     select(any_of(site_id_col),link_id) %>%
-    filter(!if_any(site_id_col,is.na)) %>%
-    mutate(across(everything(),as.character))
+    filter(!if_any(any_of(site_id_col),is.na)) %>%
+    mutate(across(everything(),as.character)) %>%
+    filter(if_any(any_of(site_id_col), ~.x %in% target_points))
 
-  sites<-sites[sites[[site_id_col]] %in% target_points,]
+  #sites<-sites[sites[[site_id_col]] %in% target_points,]
 
   missing_sites<-target_points[!target_points %in% sites[[1]]]
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
   us_flowpaths<-readRDS(gzcon(unz(zip_loc,"us_flowpaths.rds")))
 
+  #browser()
+  geo_fn<-function(x,subb=subb,buffer=buffer,tolerance=tolerance) {
+    filter(subb,if_any(contains('link_id'), ~.x %in% x$link_id)) %>%
+      st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1) %>%
+      st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
+      st_union()
+  }
+
   sites %>%
     mutate(us_flowpaths=us_flowpaths[link_id]) %>%
-    mutate(geometry=future_map(us_flowpaths,~filter(subb,link_id %in% .$link_id) %>%
-                                 st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1)%>%
-                                 st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
-                                 st_union())
-    ) %>%
+    filter(!map_lgl(us_flowpaths,is.null)) %>%
+    filter(map_dbl(us_flowpaths,nrow)>0) %>%
+    mutate(geometry=future_map(us_flowpaths,~geo_fn(x=.,subb=subb,buffer=buffer,tolerance=tolerance))) %>%
+
+    # mutate(geometry=future_map(us_flowpaths,~filter(subb,link_id %in% .$link_id) %>%
+    #                              st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1)%>%
+    #                              st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
+    #                              st_union())
+    # ) %>%
     unnest(geometry) %>%
     select(-us_flowpaths) %>%
     st_as_sf()

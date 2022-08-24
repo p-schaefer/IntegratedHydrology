@@ -226,9 +226,10 @@ attrib_streamline<-function(
 
   # Upstream ----------------------------------------------------------
   if (verbose) print("Identifying Upstream Links")
+  #browser()
 
   nodes<-final_points %>%
-    filter(link_class==4) %>%
+    filter(link_class %in% c(4,5)) %>%
     select(ID) %>%
     arrange(ID) %>%
     vect()
@@ -236,15 +237,17 @@ attrib_streamline<-function(
   cv <- cells(d8_pntr,nodes)
 
   cv1 <- tibble(target=cv[,2]) %>%
-    bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen")) %>%
-    rename(TL=...2,
-           TM=...3,
-           TR=...4,
-           ML=...5,
-           MR=...6,
-           BL=...7,
-           BM=...8,
-           BR=...9) %>%
+    bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen") %>%
+                data.frame() %>%
+                setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
+    # rename(TL=...2,
+    #        TM=...3,
+    #        TR=...4,
+    #        ML=...5,
+    #        MR=...6,
+    #        BL=...7,
+    #        BM=...8,
+    #        BR=...9) %>%
     gather("direction","cell_num",-target) %>%
     arrange(target) %>%
     mutate(on_stream=terra::extract(st_r,.$cell_num)$dem_streams_d8) %>%
@@ -303,15 +306,17 @@ attrib_streamline<-function(
   cv <- cells(d8_pntr,nodes)
 
   cv1 <- tibble(target=cv[,2]) %>%
-    bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen")) %>%
-    rename(TL=...2,
-           TM=...3,
-           TR=...4,
-           ML=...5,
-           MR=...6,
-           BL=...7,
-           BM=...8,
-           BR=...9) %>%
+    bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen")%>%
+                data.frame() %>%
+                setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
+    # rename(TL=...2,
+    #        TM=...3,
+    #        TR=...4,
+    #        ML=...5,
+    #        MR=...6,
+    #        BL=...7,
+    #        BM=...8,
+    #        BR=...9) %>%
     gather("direction","cell_num",-target) %>%
     arrange(target) %>%
     mutate(on_stream=terra::extract(st_r,.$cell_num)$dem_streams_d8) %>%
@@ -356,10 +361,14 @@ attrib_streamline<-function(
   names(final_ds)<-abbreviate(names(final_ds),10)
 
   # Putting it all together -------------------------------------------------
-  #browser()
   final_links<-links %>%
-    full_join(final_us) %>%
-    full_join(final_ds)
+    full_join(final_us, by = c("link_id", "trib_id")) %>%
+    full_join(final_ds, by = c("link_id", "trib_id")) %>%
+    left_join(subb %>%
+                as_tibble() %>%
+                select(link_id,sbbsn_area),
+              by = c("link_id")
+    )
 
   # check both ID and link_id are unique
   check_link_id<-any(duplicated(final_links$link_id))
@@ -374,13 +383,16 @@ attrib_streamline<-function(
                 select(link_id,trib_id,link_lngth,link_slope,any_of(names(attr))) %>%
                 group_by(link_id,trib_id) %>%
                 summarise(across(everything(),mean)) %>%
-                distinct()) %>%
+                distinct(),
+              by = c("link_id")) %>%
     left_join(final_links %>%
                 as_tibble() %>%
-                select(link_id,trib_id,starts_with("dstrib_id"),starts_with("dslink_id"),starts_with("ustrib_id"),starts_with("uslink_id"))) %>%
+                select(link_id,trib_id,starts_with("dstrib_id"),starts_with("dslink_id"),starts_with("ustrib_id"),starts_with("uslink_id")),
+              by = c("link_id", "trib_id")) %>%
     left_join(subb %>%
                 as_tibble() %>%
-                select(link_id,sbbsn_area)
+                select(link_id,sbbsn_area),
+              by = "link_id"
     ) %>%
     select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr,everything())
 

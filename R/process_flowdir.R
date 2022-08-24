@@ -107,7 +107,7 @@ process_flowdir<-function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
 
   if (file.exists(out_file)) {
-    out_file<-file.path(out_dir,gsub("\\.zip","",basename(out_file)),"_",paste0(basename(tempfile()), ".zip"))
+    out_file<-file.path(out_dir,paste0(gsub("\\.zip","",basename(out_file)),"_",paste0(basename(tempfile()), ".zip")))
     warning(paste0("Target .zip file already exists. Saving as: ",out_file))
   }
 
