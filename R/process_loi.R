@@ -162,9 +162,9 @@ process_loi<-function(
            resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
            output<-hydroweight::process_input(
-             input=lyr,
-             input_name = lyr_nms,
-             variable_name=lyr_variables,
+             input=unlist(lyr),
+             input_name = unlist(lyr_nms),
+             variable_name=unlist(lyr_variables),
              target=file.path(temp_dir,"dem_final.tif"),
              clip_region = file.path(temp_dir,"clip_region.shp"),
              resample_type = resaml,
@@ -195,6 +195,8 @@ process_loi<-function(
            return(NULL)
          })
   }
+
+  inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
 
   with_progress({
     print("Processing loi")

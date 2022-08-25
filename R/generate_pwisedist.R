@@ -121,26 +121,20 @@ pairwise_dist_fn<-function(
     mutate(prop_shared_catchment=case_when(
       directed_path_length>0 ~ origin_catchment/destination_catchment,
       T ~ 0
-    )) %>%
-    group_by(origin) %>%
-    mutate(n_pairs=sum(prop_shared_catchment>0 & prop_shared_catchment<1)) %>%
-    filter(n_pairs>0) %>%
-    select(-n_pairs)
-
-  gg<-gc()
+    ))
 
   out_prop<-out_tbl %>%
     select(-directed_path_length) %>%
     mutate(origin=paste0("prop_link_id_",origin)) %>%
     rename(link_id=destination) %>%
+    select(-origin_catchment,-destination_catchment) %>%
     pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill = 0)
-
-  gg<-gc()
 
   out_dist<-out_tbl %>%
     select(-prop_shared_catchment) %>%
     mutate(origin=paste0("dist_link_id_",origin)) %>%
     rename(link_id=destination) %>%
+    select(-origin_catchment,-destination_catchment) %>%
     pivot_wider(names_from=origin,values_from=directed_path_length,values_fill = 0)
 
   return(list(

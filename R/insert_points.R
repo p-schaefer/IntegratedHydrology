@@ -126,10 +126,15 @@ insert_points<-function(
   new_subbasins_fn<-function(l_id,
                              pnt,
                              p,
-                             stream_links=stream_links,
-                             Subbasins_poly=Subbasins_poly,
+                             stream_links=file.path(temp_dir,"stream_links.shp"),
+                             Subbasins_poly=file.path(temp_dir,"Subbasins_poly.shp"),
                              temp_dir=temp_dir){
     #browser()
+
+    stream_links<-hydroweight::process_input(stream_links,"stream_links")
+    Subbasins_poly<-hydroweight::process_input(Subbasins_poly,"Subbasins_poly")
+    stream_links<-st_as_sf(stream_links)
+    Subbasins_poly<-st_as_sf(Subbasins_poly)
 
     # temp_dir<-tempfile()
     # dir.create(temp_dir)
@@ -208,8 +213,12 @@ insert_points<-function(
   # Split points by sampling points ----------------------------------
   new_points_fn<-function(x,
                           p,
-                          stream_points=stream_points,
+                          stream_points=file.path(temp_dir,"stream_points.shp"),
                           temp_dir=temp_dir) {
+
+    stream_points<-hydroweight::process_input(stream_points,"stream_points")
+    stream_points<-st_as_sf(stream_points)
+
     out<-x %>%
       select(-sbbsn_area) %>%
       rename(link_id_new=link_id) %>%
@@ -229,9 +238,13 @@ insert_points<-function(
   # Split lines by sampling points ----------------------------------
   new_lines_fn<-function(x,
                          p,
-                         stream_lines=stream_lines,
+                         stream_lines=file.path(temp_dir,"stream_lines.shp"),
                          temp_dir=temp_dir
   ) {
+
+    stream_lines<-hydroweight::process_input(stream_lines,"stream_lines")
+    stream_lines<-st_as_sf(stream_lines)
+
     trg_strm<-stream_lines %>%
       filter(link_id == min(x$link_id))
 
@@ -270,8 +283,11 @@ insert_points<-function(
   new_links_fn<-function(pnts,
                          lns,
                          p,
-                         stream_links=stream_links,
+                         stream_links=file.path(temp_dir,"stream_links.shp"),
                          temp_dir=temp_dir){
+
+    stream_links<-hydroweight::process_input(stream_links,"stream_links")
+    stream_links<-st_as_sf(stream_links)
 
     if (nrow(lns)==1) {
       replace_target<-stream_links %>%
@@ -343,8 +359,8 @@ insert_points<-function(
       mutate(new_subbasins=future_map2(link_id,data,~new_subbasins_fn(l_id=.x,
                                                                       pnt=.y,
                                                                       p=p,
-                                                                      stream_links=stream_links,
-                                                                      Subbasins_poly=Subbasins_poly,
+                                                                      stream_links=file.path(temp_dir,"stream_links.shp"),
+                                                                      Subbasins_poly=file.path(temp_dir,"Subbasins_poly.shp"),
                                                                       temp_dir=temp_dir)))
   })
 
@@ -355,7 +371,7 @@ insert_points<-function(
     new_data<-new_data %>%
       mutate(new_points=future_map(new_subbasins,~new_points_fn(x=.,
                                                                 p=p,
-                                                                stream_points=stream_points,
+                                                                stream_points=file.path(temp_dir,"stream_points.shp"),
                                                                 temp_dir=temp_dir)))
   })
 
@@ -366,7 +382,7 @@ insert_points<-function(
     new_data<-new_data %>%
       mutate(new_lines=future_map(new_subbasins, ~new_lines_fn(x=.,
                                                                p=p,
-                                                               stream_lines=stream_lines,
+                                                               stream_lines=file.path(temp_dir,"stream_lines.shp"),
                                                                temp_dir=temp_dir)))
   })
 
@@ -379,7 +395,7 @@ insert_points<-function(
       mutate(new_links=future_map2(data,new_lines,~new_links_fn(pnts=.x,
                                                                 lns=.y,
                                                                 p=p,
-                                                                stream_links=stream_links,
+                                                                stream_links=file.path(temp_dir,"stream_links.shp"),
                                                                 temp_dir=temp_dir)))
   })
 
