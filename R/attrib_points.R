@@ -1,14 +1,15 @@
 
 #' Attributes stream segments/sampling points with layers of interest (loi)
 #'
-#' @param input output from `process_loi()` run on `process_hydrology()`
+#' @param input output from `process_hydrology()` (if `process_loi()` was not run on `process_hydrology()`, `loi_file` must be specified)
+#' @param loi_file filepath of `process_loi()` output (optional, will overwrite data in `process_hydrology()` output if present).
 #' @param spec table containing which sampling points (and/or stream segments) to attribute. Must contain a column with the same `site_id_col` used in `process_hydrology()`, and `loi` column containing a named list of loi `variable_names`, and associated `loi_numeric_stats` for each. See example.
 #' @param weighting_scheme character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")
 #' @param loi_numeric_stats character. One or more of c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count"). Those without distwtd_ are simple "lumped" statistics.
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
 #' @param remove_region character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/lu.shp"), \code{sf}, \code{SpatVector}, \code{PackedSpatVector}, \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster}. Regions to remove when summarizing the attributes (e.g., remove lake from catchment)
 #' @param dw_dir character. File path for stored `hydroweight::hydroweight()` outputs, if separately calculated. Note file names must match format of \code{paste0(`site_id_col`,"_inv_distances.zip")}.
-#' @param all_reaches logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points and subbasin pour points). Warning, can be very slow.
+#' @param all_reaches logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points are ignored). Warning, can be very slow.
 #' @param OS_combine logical. Should target_O and target_S be merged as targets for iEucS, iFLS, and/or HAiFLS? Use \code{TRUE} or \code{FALSE}. This allows cells surrounding \code{target_O} to flow directly into \code{target_O} rather than be forced through \code{target_S}.
 #' @param target_streamseg logical. If \code{TRUE}, `target_O` is considered the entire stream segment, else `target_O` is just the most downstream sampling point
 #' @param buffer numeric. Amount to buffer the catchment (in meters) when calculating `hydroweight::hydroweight()`. `hydroweight::hydroweight()` sometimes misses point `target_O` values unless buffered. Doesn't affect attribute values
@@ -25,6 +26,7 @@
 
 attrib_points<-function(
     input,
+    loi_file=NULL,
     spec=NULL,
     all_reaches=F,
     weighting_scheme = c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
@@ -52,6 +54,8 @@ attrib_points<-function(
   match.arg(loi_numeric_stats,several.ok = T)
 
   zip_loc<-input$outfile
+  loi_loc<-loi_file
+  if (is.null(loi_loc)) loi_loc<-zip_loc
 
   temp_dir<-file.path(gsub(basename(zip_loc),"",zip_loc),basename(tempfile()))
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
@@ -63,6 +67,7 @@ attrib_points<-function(
   }
 
   fl<-unzip(list=T,zip_loc)
+  fl_loi<-unzip(list=T,loi_loc)
   all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
 
   # Get site name column ----------------------------------------------------
@@ -89,9 +94,9 @@ attrib_points<-function(
 
   # Setup loi  --------------------------------------------------------------
   loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
-  if (!any(loi_rasts_exists %in% fl$Name)) stop("No 'loi' present in input, please run 'process_loi()' first")
-  loi_rasts_exists<-fl$Name[grepl("num_rast|cat_rast",fl$Name)]
-  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",zip_loc,.))
+  if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
+  loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
+  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
   names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
 
   loi_rasts_exists_names<-map(loi_rasts_exists,~rast(.) %>% names())
@@ -107,12 +112,18 @@ attrib_points<-function(
   # Setup spec table if missing ---------------------------------------------
   if (is.null(spec)){
     spec<-tibble(uid=all_points %>%
-                   select(site_id_col) %>%
+                   select(any_of(site_id_col)) %>%
                    filter(!if_any(site_id_col,is.na)) %>%
                    pull(1)
     ) %>%
       setNames(site_id_col) %>%
       mutate(loi=list(setNames(unlist(loi_rasts_exists_names,recursive = F,use.names = F),loi_rasts_names)))
+
+    if (all_reaches){
+      spec<-spec %>%
+        mutate(link_id=floor(link_id)) %>%
+        distinct()
+    }
   }
 
   if (!any(colnames(spec) %in% "loi")) stop("'spec' must have a column named 'loi'")
@@ -134,6 +145,13 @@ attrib_points<-function(
 
   if (target_streamseg) {
     target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+
+    if (all_reaches){
+      target_O<-target_O %>%
+        mutate(link_id=floor(link_id)) %>%
+        select(link_id) %>%
+        distinct()
+    }
   } else {
     target_O<-all_points
   }

@@ -6,6 +6,7 @@
 \usage{
 attrib_points(
   input,
+  loi_file = NULL,
   spec = NULL,
   all_reaches = F,
   weighting_scheme = c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
@@ -27,11 +28,13 @@ attrib_points(
 )
 }
 \arguments{
-\item{input}{output from \code{process_loi()} run on \code{process_hydrology()}}
+\item{input}{output from \code{process_hydrology()} (if \code{process_loi()} was not run on \code{process_hydrology()}, \code{loi_file} must be specified)}
+
+\item{loi_file}{filepath of \code{process_loi()} output (optional, will overwrite data in \code{process_hydrology()} output if present).}
 
 \item{spec}{table containing which sampling points (and/or stream segments) to attribute. Must contain a column with the same \code{site_id_col} used in \code{process_hydrology()}, and \code{loi} column containing a named list of loi \code{variable_names}, and associated \code{loi_numeric_stats} for each. See example.}
 
-\item{all_reaches}{logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points and subbasin pour points). Warning, can be very slow.}
+\item{all_reaches}{logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points are ignored). Warning, can be very slow.}
 
 \item{weighting_scheme}{character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")}
 

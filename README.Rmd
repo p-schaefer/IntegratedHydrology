@@ -107,7 +107,7 @@ library(dplyr)
 # as file paths will be faster than passing whole sf or terra objects. Not returning products directly will also speed
 # up function processing time dramatically. Products can always be retrieved/read in directly from the output .zip
 # file.
-if (T) plan(multisession)
+if (F) plan(multisession)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -135,7 +135,7 @@ system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>%
 burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
   rasterize(toy_dem)
 
-toy_dem[!is.na(burn_lyr)]<-toy_dem[!is.na(burn_lyr)]-5
+toy_dem[!is.na(burn_lyr)]<-toy_dem[!is.na(burn_lyr)]-5 # rudimentary stream burning
 writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
 ## Breach depressions to ensure continuous flow
@@ -146,15 +146,6 @@ wbt_breach_depressions(
 
 toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
 
-
-# wbt_fill_burn(
-#   dem=file.path(save_dir, "toy_dem_breached.tif"),
-#   streams=file.path(save_dir, "toy_streams.shp"),
-#   output=file.path(save_dir, "toy_dem_burned.tif")
-# )
-# 
-# toy_dem<-rast(file.path(save_dir, "toy_dem_burned.tif"))
-
 ## Identify some sampling points
 system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>% 
   vect() %>% 
@@ -162,6 +153,18 @@ system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>%
   st_transform(st_crs(toy_dem)) %>% 
   vect() %>% 
   writeVector(file.path(save_dir, "sites.shp"),overwrite=T)
+
+plot(toy_dem)
+
+```
+
+
+[Back to top](#Introduction)
+
+### 3.2 Generate predictor layers
+
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 ## Predictors from openSTARS
 landuse_r_path <- system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")
@@ -194,49 +197,14 @@ wbt_slope(
   output = file.path(save_dir, "slope.tif")
 )
 
-plot(toy_dem)
-
-if (F){
-  ## Import toy_dem from whitebox package
-  toy_file<-sample_dem_data()
-  toy_file <- system.file("extdata", "DEM.tif", package = "whitebox")
-  toy_dem <- rast(raster::raster(x = toy_file)) # reading the file from terra directly sometimes crashes R for some reason
-  crs(toy_dem) <- "epsg:3161"
-  
-  ## Write toy_dem to save_dir
-  writeRaster(
-    x = toy_dem, filename = file.path(save_dir, "toy_dem.tif"),
-    overwrite = TRUE
-  )
-  
-  ## Identify some sampling points
-  points<-xyFromCell(toy_dem,c(1291,1524,15954,24022)) %>% 
-    vect(crs="epsg:3161") %>% 
-    st_as_sf() %>% 
-    mutate(Sites=row_number()) %>% 
-    select(Sites, everything())
-  
-  ## Breach depressions to ensure continuous flow
-  wbt_breach_depressions(
-    dem = file.path(save_dir, "toy_dem.tif"),
-    output = file.path(save_dir, "toy_dem_breached.tif")
-  )
-  
-  
-}
-
-```
-
-
-[Back to top](#Introduction)
-
-### 3.2 Generate predictor layers
-
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
 # Combine loi layers
 output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
+
+# This function sequentially combines numeric and categorical loi layers,
+# it can be run with at most 2 processes (1 numeric and 1 categorical).
+# Most operations occur out of memory, but the sequential nature means 
+# temporary files won't accumulate eating valuable hardrive space.
+plan(multisession(workers=2))
 
 loi_combined<-process_loi(
   dem=toy_dem,
@@ -263,46 +231,6 @@ loi_combined<-process_loi(
 # All layers have been transformed to rasters with 1 indicating presence, and NA for absence
 plot(rast(loi_combined$cat_inputs),type="classes",col="darkgreen")
 
-
-if (F) {
-  # Categorical Raster
-  wbt_pennock_landform_class(
-    dem = file.path(save_dir, "toy_dem.tif"),
-    output = file.path(save_dir, "landform_class.tif")
-  )
-  
-  # Numeric Raster
-  wbt_ruggedness_index(
-    dem = file.path(save_dir, "toy_dem.tif"),
-    output = file.path(save_dir, "ruggedness_index.tif")
-  )
-  
-  landuse <- system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")
-  
-  
-  # Categorical/Numeric Polygon
-  lulc_p <- toy_dem
-  m <- c(0, 220, 1, 220, 300, 2, 300, 400, 3, 400, Inf, 4) 
-  rclmat <- matrix(m, ncol = 3, byrow = TRUE)
-  lulc_p <- classify(lulc_p, rclmat)
-  names(lulc_p)<-"lulc"
-  lulc_p <- as.polygons(lulc_p, dissolve = T, na.rm = T)
-  lulc_p <- st_as_sf(lulc_p)
-  
-  set.seed(123)
-  lulc_p$var_1 <- sample(c(1:10), size = 4, replace = TRUE)
-  set.seed(123)
-  lulc_p$var_2 <- sample(c(20:30), size = 4, replace = TRUE)
-  
-  lulc_p<-lulc_p %>% 
-    select(var_1,var_2)
-  
-  write_sf(lulc_p,file.path(save_dir,"lulc_p.shp"))
-  
-  
-}
-
-
 ```
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
@@ -317,19 +245,27 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-# Run complete hydrology processing tools in one function
+# Run hydrology processing tools 
 output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
-plan(multisession)
+plan(multisession) # improve processing time in some functions with parallel processing
 
+# Generates d8 flow direction and accumulation, extracts streams at a specified 
+# flow accumulation threshold
 hydro_out<-process_flowdir(
   dem=toy_dem,
   threshold=100L,  
   return_products=T,
   output_filename=output_filename_hydro,
   temp_dir=NULL, 
-  verbose=T
+  verbose=F
 )
 
+# Outputs of all functions are always saved to output_filename by default,
+# but can be included in function return with return_products=T (note this can
+# be very slow for large regions)
+
+# generates vector layers, including subbasins, stream lines, and links representing
+# pour-points for each subbasin
 hydro_out<-generate_vectors(
   input=hydro_out,
   return_products=T,
@@ -337,6 +273,8 @@ hydro_out<-generate_vectors(
   verbose=F
 ) 
 
+# Optional step, inserts sampling points into stream vectors, splitting subbasins
+# and lines at sampling points, additional links inserted at sampling points as well
 hydro_out<-insert_points( 
   input=hydro_out,
   points=file.path(save_dir, "sites.shp"),
@@ -347,12 +285,7 @@ hydro_out<-insert_points(
   verbose=F
 )
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out$stream_lines,zcol="link_id",legend=F)+
-  #mapview(hydro_out$links,zcol="link_id",legend=F)+
-  mapview(hydro_out$snapped_points,zcol="link_id",legend=F,color="yellow")+
-  mapview(read_sf(file.path(save_dir, "sites.shp")),color="red")
-
+# Creates lookup tables of upstream and downstream flow paths
 hydro_out<-trace_flowpaths(
   input=hydro_out,
   return_products=T,
@@ -360,83 +293,51 @@ hydro_out<-trace_flowpaths(
   verbose=F
 )
 
-subbasin_catchments<-get_catchment( # retrieve reach catchment
-    input=hydro_out,
-    site_id_col=NULL,
-    target_points=c("709")
+# Once lookup tables are calculated (not necessarily returned, can be return_products = F),
+# catchments can easily be retrieved:
+subbasin_catchments<-get_catchment( # retrieve catchment for an arbitrary reach
+  input=hydro_out,
+  site_id_col=NULL,
+  target_points=c("838")
 )
 
-point_catchments<-get_catchment( # retrieve sampling point catchment
+point_catchments<-get_catchment( # retrieve sampling point catchments
   input=hydro_out,
   site_id_col="site_id",
   target_points=c("1","25","80")
 )
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".")+
-  mapview(hydro_out$stream_lines,zcol="link_id",legend=F,layer.name="..")+
-  mapview(hydro_out$links,zcol="link_id",legend=F,layer.name="...")+
-  mapview(hydro_out$snapped_points,zcol="site_id",legend=F,color="red",layer.name="....")+
-  mapview(point_catchments,legend=F, color = "black", col.regions = "white", lwd = 5,alpha=0.8,layer.name=".....")+
-  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 5,alpha=0.8,layer.name="......")
-
-hydro_out<-generate_pwisedist(
+hydro_out2<-try(generate_pwisedist(
   input=hydro_out,
   return_products=T,
   temp_dir=NULL,
   verbose=F
-)
+))
 
 
+if (F) {
+  # The entire workflow above can be accomplished with a single function:
+  hydro_out<-process_hydrology(
+    dem=toy_dem,
+    output_filename=output_filename_hydro,
+    threshold=100L,
+    points=file.path(save_dir, "sites.shp"),
+    snap_distance=250L,
+    site_id_col="site_id",
+    pwise_dist=T,
+    return_products=T,
+    temp_dir=NULL,
+    verbose=T
+  )
+}
 
-hydro_out_comp<-process_hydrology(
-  dem=toy_dem,
-  output_filename=output_filename_hydro,
-  threshold=100L,
-  extra_attr=c( # Additional attributes to calculate and add to outputs
-    "link_slope",
-    "cont_slope",
-    "USChnLn_To",
-    "Elevation",
-    "StOrd_Hack",
-    "StOrd_Str",
-    "StOrd_Hort",
-    "StOrd_Shr"
-  ),
-  points=file.path(save_dir, "sites.shp"),
-  snap_distance=250L,
-  site_id_col="site_id",
-  pwise_dist=F,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=T
-)
 
-hydro_out_comp2<-generate_pwisedist(
-  input=hydro_out_comp,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-# Complete upstream catchments for each reach/sampling point are not stored, but can easily be retrieved
-point_catchments<-get_catchment( # retrieve sampling point catchment
-  input=hydro_out_comp,
-  site_id_col="site_id",
-  target_points=c("1","25","60")
-)
-
-subbasin_catchments<-get_catchment( # retrieve reach catchment
-  input=hydro_out_comp,
-  site_id_col=NULL,
-  target_points=c("19")
-)
-
-mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
-  mapview(hydro_out_comp$stream_lines,zcol="link_id",legend=F,layer.name="")+
-  mapview(hydro_out_comp$links,zcol="link_id",legend=F,layer.name="")+
-  mapview(hydro_out_comp$snapped_points,zcol="Sites",legend=F,color="red",layer.name="")+
-  mapview(point_catchments,legend=F, color = "cyan", col.regions = "white", lwd = 3,alpha=0.8,layer.name="")+
-  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 3,alpha=0.8,layer.name="")
+mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
+  mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
+  mapview(hydro_out$links,zcol="link_id",legend=F,layer.name="...",cex=2)+
+  mapview(hydro_out$snapped_points,zcol="site_id",legend=F,color="red",layer.name="....",cex=6)+
+  mapview(point_catchments,legend=F, color = "black", col.regions = "white", lwd = 5,alpha.regions=0.8,layer.name=".....")+
+  mapview(subbasin_catchments,legend=F, color = "Yellow", col.regions = "white", lwd = 5,alpha.regions=0.8,layer.name="......")
 
 ```
 
@@ -446,8 +347,14 @@ mapview(hydro_out_comp$subbasins,zcol="link_id",legend=F,layer.name="")+
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-hydro_out_comp<-process_loi(
-  input=hydro_out_comp,
+# Instead of processing loi separately, they can be added to the completed hydrology workflow, 
+# and added to the existing .zip file for convenient file storage/organization. If
+# run separately (as above), "num_rast.tif" and/or "cat_rast.tif" will need to manually
+# be added to the .zip file before points can be attributed.
+
+plan(multisession(workers=2))
+hydro_out<-process_loi(
+  input=hydro_out,
   num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
     ruggedness=file.path(save_dir, "ruggedness_index.tif"),
     slope=file.path(save_dir, "slope.tif")
@@ -475,6 +382,8 @@ hydro_out_comp<-process_loi(
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
+# 
+
 loi<-list(numb=rast(loi_combined$num_inputs),
           cat=rast(loi_combined$cat_inputs))
 
@@ -485,16 +394,17 @@ loi_names<-map(loi_names,~c("distwtd_mean",  "mean", "distwtd_sd",  "min", "max"
 # A 'spec' table can be given to calculate attributes at only select sampling points,
 # and/or to only calculate a subset of attributes from select sampling points
 specification_table<-tibble(
-  Sites=c("1","2","3"),
+  site_id=c("1","25","80"),
   loi=list(loi_names)
 )
-specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:5)]
+specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:2)]
 specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
 
 # specification_table$loi[[2]]
+plan(multisession) # improve processing time in some functions with parallel processing
 
 final_attributes_sub<-attrib_points(
-  input=hydro_out_comp,
+  input=hydro_out,
   spec=specification_table,
   weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
   OS_combine=F,
@@ -508,24 +418,59 @@ final_attributes_sub<-attrib_points(
   verbose=F
 )
 
-# Site 2 should only contain mean and distwtd_mean variables for ruggedness
+# Site 25 should only contain mean and distwtd_mean variables for ruggedness
 final_attributes_sub %>% 
-  select(Sites,contains("ruggedness"))
+  select(site_id,contains("ruggedness"))
 
 ```
 
 [Back to top](#Introduction)
 
-### 3.6 Calculate (weighted) spatial summaries at each reach `attrib_points()`
+### 3.6 Calculate (weighted) spatial summaries at sampleing points `attrib_points()`
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+# A 'spec' table can be given to calculate attributes at only select sampling points,
+# and/or to only calculate a subset of attributes from select sampling points
+specification_table<-tibble(
+  site_id=hydro_out$snapped_points$site_id,
+  loi=list(loi_names)
+)
+
+# specification_table$loi[[2]]
+plan(multisession(workers=4)) # improve processing time in some functions with parallel processing
+
+final_attributes_sub<-attrib_points(
+  input=hydro_out,
+  spec=specification_table,
+  weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+  OS_combine=F,
+  target_streamseg=F, # This will set the target_o parameter as the sampling point
+  inv_function = function(x) {
+    (x * 0.001 + 1)^-1
+  },
+  remove_region=NULL,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
+
+```
+
+[Back to top](#Introduction)
+
+### 3.7 Calculate (weighted) spatial summaries at each reach `attrib_points()`
 
 ```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
+plan(multisession(workers=4)) # improve processing time in some functions with parallel processing
+
 # Warning this operation can be very slow
 final_attributes_all<-attrib_points(
-  input=hydro_out_comp,
+  input=hydro_out,
   all_reaches=T, # This will calculate attributes for each reach
   weighting_scheme = c("HAiFLO", "HAiFLS"),
-  loi_numeric_stats = c("distwtd_mean",  "mean",  "min", "max"),
+  loi_numeric_stats = c("distwtd_mean"),
   OS_combine=F,
   target_streamseg=T # This will set the target_o parameter as the entire reach
 )
@@ -535,157 +480,3 @@ final_attributes_all
 ```
 
 [Back to top](#Introduction)
-
-## 4.0 Generate individual geospatial analysis products
-
-### 4.1 Process DEM with `process_flowdir()`
-
-The process_flowdir() function starts the workflow and creates an output zip file which stores results.
-It is important that functions are not run repeatedly with the same output file, as later
-steps overwrite results from previous iterations.
-
-This function generates d8 pointer, flow accumulation, and stream layers from the specified DEM, 
-and flow accumulation threshold.
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-
-
-output_filename<-file.path(save_dir,"Processed_Hydrology_sub.zip")
-
-
-hydro_out<-process_flowdir(
-  dem=toy_dem,
-  threshold=1000L,  
-  return_products=T,
-  output_filename=output_filename,
-  temp_dir=NULL, 
-  verbose=T
-)
-
-flow_accum<-log(rast(hydro_out$dem_accum_d8.tif))
-
-plot(flow_accum,main="ln-Flow Accumulation")
-
-```
-
-[Back to top](#Introduction)
-
-### 4.2 Generate Subbasins `generate_subbasins()`
-
-The `generate_subbasins()` generates subbasins for each reach identified in process_flowdir()
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-hydro_out1<-generate_subbasins(
-  input=hydro_out,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-) 
-
-# Note polygons are identified with 'link_id' field which matches stream segments generated below
-
-mapview(hydro_out1$subbasins,zcol="link_id")
-
-```
-
-[Back to top](#Introduction)
-
-### 4.3 Generate Attributed Stream Lines `attrib_streamline()`
-
-
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-hydro_out2<-attrib_streamline( 
-  input=hydro_out1,
-  extra_attr=c( # Additional attributes to calculate and add to outputs
-    "link_slope",
-    "cont_slope",
-    "USChnLn_To",
-    "Elevation",
-    "StOrd_Hack",
-    "StOrd_Str",
-    "StOrd_Hort",
-    "StOrd_Shr"
-  ),
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-# hydro_out2$links # Points containing pour points for each subbasins and upstream and downstream 'link_id's and 'extra_attr' fields
-
-# hydro_out2$points # Points containing all points along the stream line, attributed with 'extra_attr' 
-
-# hydro_out2$stream_lines # line segments for each subbasin, as well as and upstream and downstream 'link_id's and 'extra_attr' fields
-
-mapview(hydro_out2$stream_lines,zcol="link_id")
-
-
-```
-
-[Back to top](#Introduction)
-
-### 4.4 Insert Sampling Points into Stream Layer `insert_points()`
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-# Generate some artificial sampling points
-
-points<-rast(hydro_out2$dem_streams_d8.tif) %>% 
-  as.points() %>% 
-  st_as_sf() %>% 
-  filter(st_coordinates(.)[, 1] < 675000) %>% 
-  rename(Sites=dem_streams_d8) %>% 
-  .[c(10,12,50,100),] %>% 
-  mutate(Sites=row_number()) %>% 
-  st_jitter(5)
-
-hydro_out25<-insert_points( 
-  input=hydro_out2,
-  points=points,
-  site_id_col="Sites", # Column in points layer that corresponds to unique IDs that will be available in data products
-  snap_distance=10L,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-# Segments get split at sampling points, with the most downstream segment retaining the original 'link_id' and 
-# upstream segments getting increasingly larger decimal numbers
-
-mapview(hydro_out25$subbasins,zcol="link_id",legend=F)+
-  mapview(hydro_out25$stream_lines,zcol="link_id",legend=F)+
-  mapview(hydro_out25$links,zcol="link_id",legend=F)+
-  mapview(hydro_out25$snapped_points,zcol="Sites",legend=F,color="red")
-
-
-```
-
-[Back to top](#Introduction)
-
-### 4.5 Trace flow paths `trace_flowpaths()` and generate pairwise distances `generate_pwisedist()`
-
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
-
-hydro_out3<-trace_flowpaths(
-  input=hydro_out25,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-hydro_out4<-generate_pwisedist(
-  input=hydro_out3,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-
-```
-
-[Back to top](#Introduction)
-
