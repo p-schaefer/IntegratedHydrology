@@ -135,7 +135,12 @@ system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>%
 burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
   rasterize(toy_dem)
 
-toy_dem[!is.na(burn_lyr)]<-toy_dem[!is.na(burn_lyr)]-5 # rudimentary stream burning
+# rudimentary stream burning
+burn_lyr2<-toy_dem
+burn_lyr2[is.na(burn_lyr)]<-NA 
+burn_lyr2<-burn_lyr2-5
+toy_dem[!is.na(burn_lyr2)]<-burn_lyr2[!is.na(burn_lyr2)]
+
 writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
 ## Breach depressions to ensure continuous flow
@@ -183,17 +188,8 @@ read_sf(pointsources_path) %>%
 
 pointsources_path<-file.path(save_dir, "pointsources.shp")
 
-# Categorical Raster
-wbt_pennock_landform_class(
-  dem = file.path(save_dir, "toy_dem.tif"),
-  output = file.path(save_dir, "landform_class.tif")
-)
 
 # Numeric Raster
-wbt_ruggedness_index(
-  dem = file.path(save_dir, "toy_dem.tif"),
-  output = file.path(save_dir, "ruggedness_index.tif")
-)
 
 wbt_slope(
   dem = file.path(save_dir, "toy_dem.tif"),
@@ -212,11 +208,9 @@ plan(multisession(workers=2))
 loi_combined<-process_loi(
   dem=toy_dem,
   num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    ruggedness=file.path(save_dir, "ruggedness_index.tif"),
     slope=file.path(save_dir, "slope.tif")
   ),
   cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    landform_class=file.path(save_dir, "landform_class.tif"),
     landcover=landuse_r_path,
     geology=geology_path,
     pointsources=pointsources_path
@@ -373,9 +367,6 @@ hydro_out<-insert_points(
 # the pout point for the segment, and 10.1, 10.2,... identify sample points in
 # an upstream direction). 
 
-# The function can be run repeatedly with additional points, so long as the `site_id_col`
-# is consistent, and new points don't overlap existing points
-
 mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
   mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
   mapview(hydro_out$snapped_points,zcol="site_id",legend=F,color="red",layer.name="....",cex=6)
@@ -454,15 +445,62 @@ mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
 
 #### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
 
+
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 hydro_out<-generate_pwisedist(
-    input=hydro_out,
-    return_products=T,
-    temp_dir=NULL,
-    verbose=F
-  )
+  input=hydro_out,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=F
+)
 
+# New layers added by `generate_pwisedist()`
+# hydro_out$pwise_dist$long_pwise # -> table of downstream path lengths between each pair of link_ids,
+#                                 #    with in-stream distances (directed_path_length)
+#                                 #    and proportions of shared catchments (prop_shared_catchment)
+# hydro_out$pwise_dist$wide_prop_shared_catchment # -> wide table of prop_shared_catchment
+# hydro_out$pwise_dist$wide_directed_path_length  # -> wide table of directed_path_length
+
+# Examine relationships among sampled sites. 
+
+# Get link_id for sampled points
+sel_link_id<-hydro_out$snapped_points #%>% 
+#filter(site_id != 25)
+
+# filter long table to selected sites, and convert to wide format
+dmat<-hydro_out$pwise_dist$long_pwise %>% 
+  filter(origin %in% sel_link_id$link_id &
+           destination %in% sel_link_id$link_id
+  ) %>% 
+  select(-prop_shared_catchment) %>%
+  rename(link_id=origin) %>%
+  select(-origin_catchment,-destination_catchment) %>%
+  mutate(directed_path_length=ifelse(directed_path_length==1,0,directed_path_length)) %>% 
+  pivot_wider(names_from=destination,values_from=directed_path_length ,values_fill = 0) %>% 
+  data.frame(check.names = F) %>% 
+  tibble::column_to_rownames("link_id") 
+
+heatmap(as.matrix(dist(log1p(dmat)))) #log transformation used to adjust to normalize distances
+
+```
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+# Using path legths allows the identification of groups of spatially proximate
+# site, these can be used for cross-validation groups
+km<-kmeans(dist(log1p(dmat)),6)
+
+gps<-tibble::enframe(km$cluster,"link_id","group") %>% 
+  mutate(link_id=as.numeric(link_id))
+
+point_groups<-hydro_out$snapped_points %>% 
+  left_join(gps) %>% 
+  filter(!is.na(group))
+
+mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
+  mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
+  mapview(point_groups,zcol="group",legend=F,color="red",layer.name="....",cex=6)
 
 ```
 
@@ -486,14 +524,20 @@ hydro_out_sparse<-process_hydrology(
   output_filename=output_filename_hydro_sparse,
   threshold=1000L,
   points=NULL, # file.path(save_dir, "sites.shp"),
-  snap_distance=NULL, # 250L,
-  site_id_col=NULL, # "site_id",
   pwise_dist=T,
   return_products=F,
   temp_dir=NULL,
   verbose=F
 )
 
+# unzip(list=T,hydro_out_sparse$outfile)
+
+mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp")),
+        zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
+  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")),
+          legend=F,layer.name="..",lwd=2,alpha=1)+
+  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")),zcol="link_id",
+          legend=F,layer.name="...",cex=2)
 ```
 
 [Back to top](#Introduction)
@@ -509,33 +553,36 @@ hydro_out_sparse<-process_hydrology(
 # for convenient file storage/organization. If run separately (as above), 
 # "num_rast.tif" and/or "cat_rast.tif" can manually be added to the .zip file as well.
 
-plan(multisession(workers=2))
-hydro_out<-process_loi(
-  input=hydro_out,
-  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    ruggedness=file.path(save_dir, "ruggedness_index.tif"),
-    slope=file.path(save_dir, "slope.tif")
-  ),
-  cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    landform_class=file.path(save_dir, "landform_class.tif"),
-    landcover=landuse_r_path,
-    geology=geology_path,
-    pointsources=pointsources_path
-  ),
-  variable_names=list( # any unlisted inputs will be used in their entirety
-    geology="GEO_NAME",
-    pointsources="pontsrc"
-  ),
-  return_products=T, # these layers can get large, and it is generally not advised to return them into R 
-  temp_dir=NULL,
-  verbose=F
-)
+# Here we will out our previously calculated loi results below
+
+if (F) {
+  plan(multisession(workers=2))
+  hydro_out<-process_loi(
+    input=hydro_out,
+    num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+      slope=file.path(save_dir, "slope.tif")
+    ),
+    cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+      landcover=landuse_r_path,
+      geology=geology_path,
+      pointsources=pointsources_path
+    ),
+    variable_names=list( # any unlisted inputs will be used in their entirety
+      geology="GEO_NAME",
+      pointsources="pontsrc"
+    ),
+    return_products=T, # these layers can get large, and it is generally not advised to return them into R 
+    temp_dir=NULL,
+    verbose=F
+  )
+}
 
 ```
 
 [Back to top](#Introduction)
 
-### 3.5 Calculate (weighted) spatial summaries at sampleing points `attrib_points()`
+## 6.0 Calculate (weighted) spatial summaries
+### 6.1 At sampleing points with site specific attributes `attrib_points()`
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -562,6 +609,7 @@ plan(multisession) # improve processing time in some functions with parallel pro
 
 final_attributes_sub<-attrib_points(
   input=hydro_out,
+  loi_file=output_filename_loi,
   spec=specification_table,
   weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
   OS_combine=F,
@@ -581,14 +629,36 @@ final_attributes_sub %>%
 
 ```
 
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+
+# We can also access the weighting layers and weighted attribute layers (if return_products==T)
+plot(rast(
+  list(rast(final_attributes_sub$distance_weights[[2]]$iFLS.tif)%>% 
+         setNames("iFLS Weighting"),
+       log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
+         setNames("HAiFLS Weighting"),
+       rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meandistwtd_sdmaxmeanmin.iFLS_num_rast.loi_dist_rast) %>% 
+         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+         setNames("iFLS Weighted Slope"),
+       rast(final_attributes_sub$weighted_attr[[2]]$cat_rast.mean.iFLS_cat_rast.loi_dist_rast)[[9]] %>% 
+         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+         setNames("HAiFLS Weighted Landcover Class 1")
+  )
+))
+
+```
+
 [Back to top](#Introduction)
 
-### 3.6 Calculate (weighted) spatial summaries at sampleing points `attrib_points()`
+### 6.2 At sampleing points `attrib_points()`
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-# A 'spec' table can be given to calculate attributes at only select sampling points,
-# and/or to only calculate a subset of attributes from select sampling points
+loi_names<-lapply(loi,names) %>% unlist()
+names(loi_names)<-loi_names
+loi_names<-map(loi_names,~c("distwtd_mean"))
+
+# Here we will calculate the attributes for all sampled points
 specification_table<-tibble(
   site_id=hydro_out$snapped_points$site_id,
   loi=list(loi_names)
@@ -597,17 +667,18 @@ specification_table<-tibble(
 # specification_table$loi[[2]]
 plan(multisession(workers=4)) # improve processing time in some functions with parallel processing
 
-final_attributes_sub<-attrib_points(
+final_attributes_samples<-attrib_points(
   input=hydro_out,
+  loi_file=output_filename_loi,
   spec=specification_table,
-  weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+  weighting_scheme = c("HAiFLO", "HAiFLS"),
   OS_combine=F,
   target_streamseg=F, # This will set the target_o parameter as the sampling point
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
   remove_region=NULL,
-  return_products=T,
+  return_products=F,
   temp_dir=NULL,
   verbose=F
 )
@@ -616,15 +687,16 @@ final_attributes_sub<-attrib_points(
 
 [Back to top](#Introduction)
 
-### 3.7 Calculate (weighted) spatial summaries at each reach `attrib_points()`
+### 6.3 Across entire study area `attrib_points()`
 
 ```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
 plan(multisession(workers=4)) # improve processing time in some functions with parallel processing
 
-# Warning this operation can be very slow
+# Warning this operation can be very slow - but we will use our sparse
+# hydrology network
 final_attributes_all<-attrib_points(
-  input=hydro_out,
+  input=hydro_out_sparse,
   all_reaches=T, # This will calculate attributes for each reach
   weighting_scheme = c("HAiFLO", "HAiFLS"),
   loi_numeric_stats = c("distwtd_mean"),

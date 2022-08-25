@@ -46,7 +46,7 @@ process_hydrology<-function(
   # install.packages("archive")
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
-  if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
+  if (!is.null(snap_distance) && !is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")

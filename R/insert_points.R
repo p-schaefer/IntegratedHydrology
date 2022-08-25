@@ -73,17 +73,6 @@ insert_points<-function(
   Subbasins_poly<-read_sf(file.path(temp_dir,"Subbasins_poly.shp"))
   stream_lines<-read_sf(file.path(temp_dir,"stream_lines.shp"))
 
-  # write_sf(st_as_sf(points),file.path(temp_dir,"sample_points.shp"))
-
-  # print("Snapping Points")
-  # wbt_jenson_snap_pour_points(
-  #   pour_pts = "sample_points.shp",
-  #   streams = "dem_streams_d8.tif",
-  #   snap_dist=snap_distance,
-  #   output="snapped_sample_points.shp"
-  # )
-
-  #browser()
   print("Snapping Points")
 
   snapped_points<-points %>%
@@ -101,18 +90,8 @@ insert_points<-function(
                 filter(link_class %in% c(1,2)) %>%
                 select(ID,link_id),
               by = c("ID", "link_id")) %>%
-    st_as_sf() %>%
-    select(-ID)
-  # snapped_points<-read_sf(file.path(temp_dir,"snapped_sample_points.shp")) %>%
-  #   st_set_crs(st_crs(stream_lines)) %>%
-  #   mutate(x=st_coordinates(geometry)[,1],
-  #          y=st_coordinates(geometry)[,2]) %>%
-  #   group_by(x,y) %>%
-  #   summarize(across(everything(),head,1)) %>%
-  #   select(-x,-y) %>%
-  #   ungroup() %>%
-  #   st_join(stream_lines %>% select(link_id))
-  #   #st_join(stream_lines %>% select(link_id),join=nngeo::st_nn, maxdist = snap_distance, progress =F, parallel = parallel::detectCores(logical=F)-1 )
+    st_as_sf() #%>%
+    #select(-ID)
 
   if (any(is.na(snapped_points$link_id))) warning(paste0("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") ))
 
@@ -135,9 +114,6 @@ insert_points<-function(
     Subbasins_poly<-hydroweight::process_input(Subbasins_poly,"Subbasins_poly")
     stream_links<-st_as_sf(stream_links)
     Subbasins_poly<-st_as_sf(Subbasins_poly)
-
-    # temp_dir<-tempfile()
-    # dir.create(temp_dir)
 
     pnt_file<-file.path(temp_dir,paste0("Tempsite_",l_id,".shp"))
 
@@ -271,7 +247,9 @@ insert_points<-function(
       mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
       select(-link_id) %>%
       rename(link_id=link_id_new) %>%
-      select(any_of(colnames(trg_strm)),everything())
+      select(any_of(colnames(trg_strm)),everything()) %>%
+      mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
+      mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
 
     out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
@@ -335,7 +313,12 @@ insert_points<-function(
       filter(!is.na(link_id)) %>%
       filter(st_geometry(geometry)!=st_geometry(replace_target))
 
-    out3<-bind_rows(replace_target,add_links) %>% distinct()
+    out3<-bind_rows(replace_target,add_links) %>%
+      distinct() %>%
+      mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
+      mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.))) %>%
+      distinct()
+
     out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
     p()
@@ -399,7 +382,7 @@ insert_points<-function(
                                                                 temp_dir=temp_dir)))
   })
 
-  #browser()
+  # browser()
   # Add to master data
   new_lines<-new_data %>%
     ungroup() %>%
@@ -414,6 +397,7 @@ insert_points<-function(
   new_links<-new_data %>%
     ungroup() %>%
     select(new_links) %>%
+    filter(map_lgl(new_links,~nrow(.)>0)) %>%
     unnest(new_links) %>%
     st_as_sf()
 
@@ -437,7 +421,9 @@ insert_points<-function(
                                    .[!is.na(.)])
             ) %>%
             mutate(dslink_id1=max(lns$link_id))
-        )
+        ) %>%
+        mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
+        mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
 
       out[grepl("pour_point_A1B2C3_",out%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
@@ -457,7 +443,9 @@ insert_points<-function(
 
       replace_us<-stream_links %>% # these will replace existing points
         filter(link_id %in% us_IDs) %>%
-        mutate(dslink_id1=max(lns_target$link_id))
+        mutate(dslink_id1=max(lns_target$link_id)) %>%
+        mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
+        mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
 
       replace_us[grepl("pour_point_A1B2C3_",replace_us%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
@@ -499,6 +487,7 @@ insert_points<-function(
   new_links<-new_data %>%
     ungroup() %>%
     select(new_links) %>%
+    filter(map_lgl(new_links,~nrow(.)>0)) %>%
     unnest(new_links) %>%
     st_as_sf()
 
