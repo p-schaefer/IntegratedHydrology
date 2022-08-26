@@ -45,7 +45,9 @@ get_catchment<-function(
   missing_sites<-target_points[!target_points %in% sites[[1]]]
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
-  us_flowpaths<-readRDS(gzcon(unz(zip_loc,"us_flowpaths.rds")))
+  conn<-unz(zip_loc,"us_flowpaths.rds")
+  us_flowpaths<-readRDS(gzcon(conn))
+  close(conn)
 
   geo_fn<-function(x,subb=subb,buffer=buffer,tolerance=tolerance) {
     filter(subb,if_any(contains('link_id'), ~.x %in% x$link_id)) %>%

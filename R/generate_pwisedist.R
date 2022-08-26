@@ -105,15 +105,71 @@ pairwise_dist_fn<-function(
     origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
     destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths)))
 
-  ds_out<-future_map_dfr(ds_flowpaths,~mutate(.,origin=.$link_id[1]) %>%
-                           rename(destination=link_id) %>%
-                           mutate(directed_path_length=cumsum(link_lngth)) %>%
-                           select(origin,destination,directed_path_length)
-  )
+  # Function - Flow Connected Distances
+  ds_pwise<-function(x,p) {
+    out<-mutate(x,origin=link_id[1]) %>%
+      rename(destination=link_id) %>%
+      mutate(directed_path_length=cumsum(link_lngth)) %>%
+      select(origin,destination,directed_path_length)
+
+    p()
+    return(out)
+  }
+
+  # Function - non-Flow Connected Distances
+  us_pwise<-function(ds,us,p) {
+    ds<-ds %>%
+      mutate(link_lngth=cumsum(link_lngth))
+    target<-ds$link_id[1]
+    target_trib<-ds$trib_id[1]
+    path<-tail(ds$link_id,1)
+
+    ds_part<-ds %>% filter(link_id==path) %>% pull(link_lngth)
+    target_part<-ds %>% filter(link_id==target) %>% pull(link_lngth)
+
+    diff_trib_part<-us[[path]] %>%
+      filter(trib_id != target_trib) %>%
+      mutate(link_lngth=cumsum(link_lngth)+ds_part)
+
+    same_trib_part<-us[[path]] %>%
+      filter(trib_id == target_trib) %>%
+      mutate(link_lngth=cumsum(link_lngth)-ds_part+target_part) %>%
+      filter(link_lngth>0)
+
+    out<-bind_rows(
+      diff_trib_part,
+      same_trib_part
+    ) %>%
+      mutate(origin=target,
+             destination=link_id,
+             undirected_path_length=link_lngth) %>%
+      select(origin,destination,undirected_path_length)
+
+    p()
+
+    return(out)
+  }
+
+
+  print("Generating Flow Connected Distances")
+  with_progress({
+    p <- progressor(steps = length(ds_flowpaths))
+    ds_out<-future_map_dfr(ds_flowpaths,~ds_pwise(.,p=p))
+  })
+
+  print("Generating Flow Unconnected Distances")
+  with_progress({
+    p <- progressor(steps = length(ds_flowpaths))
+    us_out<-future_map2_dfr(ds_flowpaths,
+                            rep(list(us_flowpaths),length(ds_flowpaths)),
+                            ~us_pwise(ds=.x,us=.y,p=p))
+  })
 
   out_tbl<-out_tbl %>%
     left_join(ds_out,by=c("origin","destination")) %>%
-    mutate(directed_path_length=if_else(is.na(directed_path_length),0,directed_path_length)) %>%
+    left_join(us_out,by=c("origin","destination")) %>%
+    # mutate(directed_path_length=if_else(is.na(directed_path_length),0,directed_path_length)) %>%
+    # mutate(directed_path_length=if_else(is.na(directed_path_length),0,directed_path_length)) %>%
     mutate(
       origin_catchment=unlist(us_catchment_areas[origin]),
       destination_catchment=unlist(us_catchment_areas[destination])
@@ -123,25 +179,6 @@ pairwise_dist_fn<-function(
       T ~ 0
     ))
 
-  out_prop<-out_tbl %>%
-    select(-directed_path_length) %>%
-    mutate(origin=paste0("prop_link_id_",origin)) %>%
-    rename(link_id=destination) %>%
-    select(-origin_catchment,-destination_catchment) %>%
-    pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill = 0)
-
-  out_dist<-out_tbl %>%
-    select(-prop_shared_catchment) %>%
-    mutate(origin=paste0("dist_link_id_",origin)) %>%
-    rename(link_id=destination) %>%
-    select(-origin_catchment,-destination_catchment) %>%
-    pivot_wider(names_from=origin,values_from=directed_path_length,values_fill = 0)
-
-  return(list(
-    long_pwise=out_tbl,
-    wide_prop_shared_catchment=out_prop,
-    wide_directed_path_length=out_dist
-  ))
-
+  return(out_tbl)
 }
 

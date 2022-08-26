@@ -165,7 +165,6 @@ trace_us_flowpath<-function(
     mutate(link_id=as.character(link_id))
 
   unique_link_id<-input_tib %>%
-    # filter(if_all(starts_with("dslink_id"),is.na) | trib_id != dstrib_id1) %>% # heep any without a downstream link, or where the downstream trib has a different ID
     filter(!is.na(link_id)) %>%
     pull(link_id) %>%
     unique()
@@ -199,8 +198,6 @@ trace_us_flowpath<-function(
     return(out)
   }
 
-  #browser()
-
   input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
 
   with_progress({
@@ -210,16 +207,6 @@ trace_us_flowpath<-function(
   })
 
   final_out<-unique_link_id
-
-  # for (i in final_out){ # there is probably some way of doing this similar to ds_tracing but I can't figure it out right now
-  #   nrw<-nrow(i)
-  #   new_entries<-lapply(2:nrw,function(x) i[seq(x,nrw),])
-  #   names(new_entries)<-sapply(new_entries,function(x) head(x$link_id,1))
-  #
-  #   keep_entries<-new_entries[!names(new_entries) %in% names(final_out)]
-  #
-  #   final_out<-c(final_out,keep_entries)
-  # }
 
   final_out<-final_out[order(names(final_out))]
   final_out<-final_out[!is.na(names(final_out))]
