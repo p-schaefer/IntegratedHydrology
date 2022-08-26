@@ -9,6 +9,7 @@ insert_points(
   points,
   site_id_col,
   snap_distance,
+  break_on_noSnap = T,
   return_products = F,
   temp_dir = NULL,
   verbose = F
@@ -22,6 +23,8 @@ insert_points(
 \item{site_id_col}{character. Variable name in \code{points} that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same \code{site_id_col}, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.}
 
 \item{snap_distance}{integer. Maximum distance which points will be snapped to stream lines in map units}
+
+\item{break_on_noSnap}{logical. Should the function stop if any points are not snapped to a stream segment (i.e., are beyon snap_distance)}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
 

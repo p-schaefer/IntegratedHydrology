@@ -5,6 +5,7 @@
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
 #' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
 #' @param snap_distance integer. Maximum distance which points will be snapped to stream lines in map units
+#' @param break_on_noSnap logical. Should the function stop if any points are not snapped to a stream segment (i.e., are beyon snap_distance)
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical. If \code{FALSE}, the function will not print output prints.
@@ -20,6 +21,7 @@ insert_points<-function(
     points,
     site_id_col,
     snap_distance,
+    break_on_noSnap=T,
     return_products=F,
     temp_dir=NULL,
     verbose=F
@@ -30,6 +32,7 @@ insert_points<-function(
   # require(tidyverse)
 
   if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
+  if (!is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -47,6 +50,8 @@ insert_points<-function(
   terra::terraOptions(verbose = verbose,
                       tempdir = temp_dir
   )
+
+  options(dplyr.summarise.inform = FALSE)
 
   zip_loc<-input$outfile
   fl<-unzip(list=T,zip_loc,overwrite = T,junkpaths =F)
@@ -83,7 +88,7 @@ insert_points<-function(
             maxdist = snap_distance,
             progress =T#,
             #parallel = future::nbrOfWorkers()
-            ) %>%
+    ) %>%
     as_tibble() %>%
     select(-geometry) %>%
     left_join(stream_points %>%
@@ -91,7 +96,11 @@ insert_points<-function(
                 select(ID,link_id),
               by = c("ID", "link_id")) %>%
     st_as_sf() #%>%
-    #select(-ID)
+  #select(-ID)
+
+  if (break_on_noSnap){
+    if (any(is.na(snapped_points$link_id))) stop(paste0("The following points could not be snapped: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") ))
+  }
 
   if (any(is.na(snapped_points$link_id))) warning(paste0("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") ))
 
@@ -105,15 +114,15 @@ insert_points<-function(
   new_subbasins_fn<-function(l_id,
                              pnt,
                              p,
-                             stream_links=file.path(temp_dir,"stream_links.shp"),
-                             Subbasins_poly=file.path(temp_dir,"Subbasins_poly.shp"),
-                             temp_dir=temp_dir){
+                             stream_links,
+                             Subbasins_poly,
+                             temp_dir){
     #browser()
 
-    stream_links<-hydroweight::process_input(stream_links,"stream_links")
-    Subbasins_poly<-hydroweight::process_input(Subbasins_poly,"Subbasins_poly")
-    stream_links<-st_as_sf(stream_links)
-    Subbasins_poly<-st_as_sf(Subbasins_poly)
+    # stream_links<-hydroweight::process_input(stream_links,"stream_links")
+    # Subbasins_poly<-hydroweight::process_input(Subbasins_poly,"Subbasins_poly")
+    # stream_links<-st_as_sf(stream_links)
+    # Subbasins_poly<-st_as_sf(Subbasins_poly)
 
     pnt_file<-file.path(temp_dir,paste0("Tempsite_",l_id,".shp"))
 
@@ -192,8 +201,8 @@ insert_points<-function(
                           stream_points=file.path(temp_dir,"stream_points.shp"),
                           temp_dir=temp_dir) {
 
-    stream_points<-hydroweight::process_input(stream_points,"stream_points")
-    stream_points<-st_as_sf(stream_points)
+    # stream_points<-hydroweight::process_input(stream_points,"stream_points")
+    # stream_points<-st_as_sf(stream_points)
 
     out<-x %>%
       select(-sbbsn_area) %>%
@@ -218,8 +227,8 @@ insert_points<-function(
                          temp_dir=temp_dir
   ) {
 
-    stream_lines<-hydroweight::process_input(stream_lines,"stream_lines")
-    stream_lines<-st_as_sf(stream_lines)
+    # stream_lines<-hydroweight::process_input(stream_lines,"stream_lines")
+    # stream_lines<-st_as_sf(stream_lines)
 
     trg_strm<-stream_lines %>%
       filter(link_id == min(x$link_id))
@@ -264,8 +273,8 @@ insert_points<-function(
                          stream_links=file.path(temp_dir,"stream_links.shp"),
                          temp_dir=temp_dir){
 
-    stream_links<-hydroweight::process_input(stream_links,"stream_links")
-    stream_links<-st_as_sf(stream_links)
+    # stream_links<-hydroweight::process_input(stream_links,"stream_links")
+    # stream_links<-st_as_sf(stream_links)
 
     if (nrow(lns)==1) {
       replace_target<-stream_links %>%
@@ -328,23 +337,48 @@ insert_points<-function(
   if (verbose) print("Inserting Points")
   # Adjusts flow tracers in segment containing points -----------------------
 
-
   new_data<-snapped_points %>%
     select(any_of(site_id_col),link_id) %>%
     group_by(link_id) %>%
-    nest()
+    nest() %>%
+    mutate(stream_links=as.list(rep(list(stream_links),length(link_id))),
+           Subbasins_poly=as.list(rep(list(Subbasins_poly),length(link_id))),
+           stream_points=as.list(rep(list(stream_points),length(link_id))),
+           stream_lines=as.list(rep(list(stream_lines),length(link_id))),
+           temp_dir=temp_dir)
 
+    # mutate(stream_links=file.path(temp_dir,"stream_links.shp"),
+    #        Subbasins_poly=file.path(temp_dir,"Subbasins_poly.shp"),
+    #        stream_points=file.path(temp_dir,"stream_points.shp"),
+    #        stream_lines=file.path(temp_dir,"stream_lines.shp"),
+    #        temp_dir=temp_dir)
+
+
+  # I can't get these functions to run faster in parallel for some reason
   with_progress({
     print("Splitting Subbasins")
     p <- progressor(steps = nrow(new_data))
 
     new_data<-new_data  %>%
-      mutate(new_subbasins=future_map2(link_id,data,~new_subbasins_fn(l_id=.x,
-                                                                      pnt=.y,
-                                                                      p=p,
-                                                                      stream_links=file.path(temp_dir,"stream_links.shp"),
-                                                                      Subbasins_poly=file.path(temp_dir,"Subbasins_poly.shp"),
-                                                                      temp_dir=temp_dir)))
+      mutate(new_subbasins=pmap(list(link_id=link_id,
+                                     data=data,
+                                     stream_links=stream_links,
+                                     Subbasins_poly=Subbasins_poly,
+                                     temp_dir=temp_dir),
+                                function(link_id,
+                                         data,
+                                         stream_links,
+                                         Subbasins_poly,
+                                         temp_dir)
+                                  suppressWarnings(
+                                    suppressMessages(
+                                      new_subbasins_fn(l_id=link_id,
+                                                       pnt=data,
+                                                       p=p,
+                                                       stream_links=stream_links,
+                                                       Subbasins_poly=Subbasins_poly,
+                                                       temp_dir=temp_dir)))
+      ))
   })
 
   with_progress({
@@ -352,10 +386,18 @@ insert_points<-function(
     p <- progressor(steps = nrow(new_data))
 
     new_data<-new_data %>%
-      mutate(new_points=future_map(new_subbasins,~new_points_fn(x=.,
-                                                                p=p,
-                                                                stream_points=file.path(temp_dir,"stream_points.shp"),
-                                                                temp_dir=temp_dir)))
+      mutate(new_points=pmap(list(new_subbasins=new_subbasins,
+                                  stream_points=stream_points,
+                                  temp_dir=temp_dir),
+                             function(new_subbasins,
+                                      stream_points,
+                                      temp_dir)
+                               suppressWarnings(
+                                 suppressMessages(
+                                   new_points_fn(x=new_subbasins,
+                                                 p=p,
+                                                 stream_points=stream_points)))
+      ))
   })
 
   with_progress({
@@ -363,10 +405,18 @@ insert_points<-function(
     p <- progressor(steps = nrow(new_data))
 
     new_data<-new_data %>%
-      mutate(new_lines=future_map(new_subbasins, ~new_lines_fn(x=.,
-                                                               p=p,
-                                                               stream_lines=file.path(temp_dir,"stream_lines.shp"),
-                                                               temp_dir=temp_dir)))
+      mutate(new_lines=pmap(list(new_subbasins=new_subbasins,
+                                 stream_lines=stream_lines,
+                                 temp_dir=temp_dir),
+                            function(new_subbasins,
+                                     stream_lines,
+                                     temp_dir)
+                              suppressWarnings(
+                                suppressMessages(
+                                  new_lines_fn(x=new_subbasins,
+                                               p=p,
+                                               stream_lines=stream_lines)))
+      ))
   })
 
   #browser()
@@ -375,14 +425,24 @@ insert_points<-function(
     p <- progressor(steps = nrow(new_data))
 
     new_data<-new_data %>%
-      mutate(new_links=future_map2(data,new_lines,~new_links_fn(pnts=.x,
-                                                                lns=.y,
-                                                                p=p,
-                                                                stream_links=file.path(temp_dir,"stream_links.shp"),
-                                                                temp_dir=temp_dir)))
+      mutate(new_links=pmap(list(data=data,
+                                 new_lines=new_lines,
+                                 stream_links=stream_links,
+                                 temp_dir=temp_dir),
+                            function(data,
+                                     new_lines,
+                                     stream_links,
+                                     temp_dir)
+                              suppressWarnings(
+                                suppressMessages(
+                                  new_links_fn(pnts=data,
+                                               lns=new_lines,
+                                               p=p,
+                                               stream_links=stream_links)))
+      ))
   })
 
-  # browser()
+  #browser()
   # Add to master data
   new_lines<-new_data %>%
     ungroup() %>%
@@ -408,7 +468,13 @@ insert_points<-function(
   # Fix flow tracers upstream of sampling points -------------------------------
 
   new_data<-new_data %>%
-    mutate(new_lines=future_map(new_lines, function(lns) {
+    select(-stream_links,-Subbasins_poly,-stream_points,-stream_lines,-temp_dir) %>% # Need to replace with new versions
+    mutate(stream_links=as.list(rep(list(stream_links),length(link_id))),
+           Subbasins_poly=as.list(rep(list(Subbasins_poly),length(link_id))),
+           stream_points=as.list(rep(list(stream_points),length(link_id))),
+           stream_lines=as.list(rep(list(stream_lines),length(link_id))),
+           temp_dir=temp_dir) %>%
+    mutate(new_lines=pmap(list(lns=new_lines,stream_lines=stream_lines), function(lns,stream_lines) {
 
       out<-lns %>%
         bind_rows(
@@ -425,17 +491,16 @@ insert_points<-function(
         mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
         mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
 
-      out[grepl("pour_point_A1B2C3_",out%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
-
       return(out)
 
     })) %>%
-    mutate(new_links=future_map2(data,new_lines, function(pnts,lns) {
+    mutate(new_links=pmap(list(pnts=data,lns=new_lines,stream_links=stream_links), function(pnts,lns,stream_links) {
+
       lns_target<-lns %>%
         as_tibble() %>%
         filter(!if_any(any_of(site_id_col),is.na))
 
-      us_IDs<- lns_target%>% # This needs to be a separate loop
+      us_IDs<- lns_target%>%
         filter(link_id==max(link_id)) %>%
         select(starts_with("uslink_id")) %>%
         unlist() %>%
@@ -446,8 +511,6 @@ insert_points<-function(
         mutate(dslink_id1=max(lns_target$link_id)) %>%
         mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
         mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
-
-      replace_us[grepl("pour_point_A1B2C3_",replace_us%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
       return(replace_us)
     }))

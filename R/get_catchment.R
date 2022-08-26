@@ -21,6 +21,8 @@ get_catchment<-function(
     buffer=0.001
 ) {
 
+  options(dplyr.summarise.inform = FALSE,future.rng.onMisuse="ignore")
+
   target_points<-as.character(target_points)
 
   if (is.null(site_id_col) || site_id_col=="link_id") site_id_col<-"link_id"

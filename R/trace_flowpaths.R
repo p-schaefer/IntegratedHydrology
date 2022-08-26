@@ -33,6 +33,8 @@ trace_flowpaths<-function(
                       tempdir = temp_dir
   )
 
+  options(dplyr.summarise.inform = FALSE)
+
   zip_loc<-input$outfile
   fl<-unzip(list=T,zip_loc)
 

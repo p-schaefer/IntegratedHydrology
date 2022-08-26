@@ -13,6 +13,7 @@ process_hydrology(
   points = NULL,
   pwise_dist = T,
   snap_distance = NULL,
+  break_on_noSnap = T,
   site_id_col = NULL,
   return_products = F,
   temp_dir = NULL,

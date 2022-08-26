@@ -37,18 +37,20 @@ process_hydrology<-function(
     points=NULL,
     pwise_dist=T,
     snap_distance=NULL,
+    break_on_noSnap=T,
     site_id_col=NULL,
     return_products=F,
     temp_dir=NULL,
     verbose=F
 ) {
 
-  # install.packages("archive")
+  options(dplyr.summarise.inform = FALSE)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.null(snap_distance) && !is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
+  if (!is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
   if (!is.null(points)){
@@ -101,6 +103,7 @@ process_hydrology<-function(
       points=points,
       site_id_col=site_id_col,
       snap_distance=snap_distance,
+      break_on_noSnap=break_on_noSnap,
       return_products=return_products,
       temp_dir=temp_dir,
       verbose=verbose

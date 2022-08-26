@@ -29,6 +29,7 @@ process_flowdir<-function(
   # require(terra)
   # require(whitebox)
   # require(tidyverse)
+  options(dplyr.summarise.inform = FALSE)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
 

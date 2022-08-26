@@ -46,6 +46,8 @@ attrib_points<-function(
     verbose=F
 ){
 
+  options(dplyr.summarise.inform = FALSE)
+
   if (!is.null(spec) && !inherits(spec,"data.frame")) stop("'spec' must be a data frame")
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (return_products) warning("Size of 'return_products' may be very large and result in slow calculation time")

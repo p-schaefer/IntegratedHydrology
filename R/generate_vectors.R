@@ -37,6 +37,8 @@ generate_vectors<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
+  options(dplyr.summarise.inform = FALSE)
+
   wbt_options(exe_path=wbt_exe_path(),
               verbose=verbose,
               wd=temp_dir)

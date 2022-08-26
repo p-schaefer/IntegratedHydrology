@@ -24,6 +24,8 @@ generate_pwisedist<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
+  options(dplyr.summarise.inform = FALSE)
+
   wbt_options(exe_path=wbt_exe_path(),
               verbose=verbose,
               wd=temp_dir)
@@ -41,12 +43,13 @@ generate_pwisedist<-function(
         overwrite=T,
         junkpaths=T)
 
-  ds_flowpaths<-readRDS(file.path(temp_dir,"ds_flowpaths.rds"))
-  us_flowpaths<-readRDS(file.path(temp_dir,"us_flowpaths.rds"))
+  # ds_flowpaths<-readRDS(file.path(temp_dir,"ds_flowpaths.rds"))
+  # us_flowpaths<-readRDS(file.path(temp_dir,"us_flowpaths.rds"))
 
-  pwise_dist<-pairwise_dist_fn(ds_flowpaths=ds_flowpaths,
-                               us_flowpaths=us_flowpaths,
-                               verbose=verbose)
+  pwise_dist<-pairwise_dist_fn(ds_flowpaths_file=file.path(temp_dir,"ds_flowpaths.rds"),
+                               us_flowpaths_file=file.path(temp_dir,"us_flowpaths.rds"),
+                               verbose=verbose,
+                               temp_dir=temp_dir)
 
   saveRDS(pwise_dist,file.path(temp_dir,"pwise_dist.rds"))
 
@@ -80,24 +83,36 @@ generate_pwisedist<-function(
 
 #' @export
 pairwise_dist_fn<-function(
-    ds_flowpaths=NULL,
-    us_flowpaths=NULL,
+    ds_flowpaths_file=NULL,
+    us_flowpaths_file=NULL,
     stream_links=NULL,
-    verbose=F
+    verbose=F,
+    temp_dir=NULL
 ) {
   # require(tidyverse)
 
-  if (is.null(stream_links) & is.null(ds_flowpaths)) stop("Either 'ds_flowpaths' or 'stream_links' must be provided")
-  if (is.null(stream_links) & is.null(us_flowpaths)) stop("Either 'us_flowpaths' or 'stream_links' must be provided")
+  if (is.null(stream_links) & is.null(ds_flowpaths_file)) stop("Either 'ds_flowpaths' or 'stream_links' must be provided")
+  if (is.null(stream_links) & is.null(us_flowpaths_file)) stop("Either 'us_flowpaths' or 'stream_links' must be provided")
 
-  if (is.null(ds_flowpaths)) ds_flowpaths<-trace_ds_flowpath(stream_links)
-  if (is.null(us_flowpaths)) us_flowpaths<-trace_us_flowpath(stream_links)
-  us_catchment_areas<-lapply(us_flowpaths,function(x) sum(x$sbbsn_area,na.rm=T))
+  if (is.null(ds_flowpaths_file)) {
+    ds_flowpaths<-trace_ds_flowpath(stream_links)
+  } else {
+    ds_flowpaths<-readRDS(ds_flowpaths_file)
+  }
+  if (is.null(us_flowpaths_file)) {
+    us_flowpaths<-trace_us_flowpath(stream_links)
+  } else {
+    us_flowpaths<-readRDS(us_flowpaths_file)
+  }
 
   if (any(duplicated(names(ds_flowpaths)))) stop("'ds_flowpaths' cannot contain duplicate names")
   if (any(duplicated(names(us_flowpaths)))) stop("'us_flowpaths' cannot contain duplicate names")
   if (any(!names(ds_flowpaths) %in% names(us_flowpaths))) stop("'ds_flowpaths' contains link_ds not present in 'us_flowpaths'")
   #if (any(!names(us_flowpaths) %in% names(ds_flowpaths))) stop("'us_flowpaths' contains link_ds not present in 'ds_flowpaths'") # this can happen at raster boundaries
+
+  us_catchment_areas<-map(us_flowpaths,function(x) sum(x$sbbsn_area,na.rm=T))
+  us_list<-rep(us_flowpaths_file,length(ds_flowpaths))
+  names(us_list)<-names(ds_flowpaths)
 
   if (verbose) print("Generating Pairwise Distances")
 
@@ -117,7 +132,10 @@ pairwise_dist_fn<-function(
   }
 
   # Function - non-Flow Connected Distances
-  us_pwise<-function(ds,us,p) {
+  us_pwise<-function(ds,us_path,p) {
+
+    us<-readRDS(us_path)
+
     ds<-ds %>%
       mutate(link_lngth=cumsum(link_lngth))
     target<-ds$link_id[1]
@@ -161,7 +179,7 @@ pairwise_dist_fn<-function(
   with_progress({
     p <- progressor(steps = length(ds_flowpaths))
     us_out<-future_map2_dfr(ds_flowpaths,
-                            rep(list(us_flowpaths),length(ds_flowpaths)),
+                            us_list, # This is too big to be run in parallel effectively
                             ~us_pwise(ds=.x,us=.y,p=p))
   })
 
