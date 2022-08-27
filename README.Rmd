@@ -27,7 +27,7 @@ knitr::opts_chunk$set(
 ## 1.0 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '75%', fig.align = 'center'}
-knitr::include_graphics("man/figures/README-unnamed-chunk-6-1.png")
+knitr::include_graphics("man/figures/README-unnamed-chunk-8-1.png")
 ```
 
 Aquatic environmental scientists are often tasked with relating landscape factors to observed responses in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.

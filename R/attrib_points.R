@@ -304,7 +304,7 @@ attrib_points<-function(
   output<-input
 
   output<-c(
-    list(pwise_dist=pwise_dist),
+    list(attrib=out),
     output
   )
 
