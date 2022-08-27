@@ -259,8 +259,7 @@ attrib_points<-function(
                                                      return(out)
                                                    })
 
-
-
+                                                   gg<-gc()
                                                    return(out)
                                                  })
 
@@ -284,7 +283,30 @@ attrib_points<-function(
     mutate(distance_weights=map(attrib,~.$distance_weights)) %>%
     mutate(weighted_attr=map(attrib,~.$weighted_attr)) %>%
     unnest(attrib_out) %>%
-    select(site_id_col,distance_weights,weighted_attr,everything(),-attrib)
+    select(site_id_col,distance_weights,weighted_attr,everything(),-attrib) %>%
+    mutate(across(c(everything(),-site_id_col,-distance_weights,-weighted_attr),as.numeric)) %>%
+    mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .)))
+
+
+  zip_loc<-input$outfile
+
+  out_file<-zip_loc
+
+  if (verbose) print("Generating Output")
+
+  saveRDS(out,file.path(temp_dir,"point_attributes.rds"))
+
+  zip(out_file,
+      file.path(temp_dir,"point_attributes.rds"),
+      flags = '-r9Xjq'
+  )
+
+  output<-input
+
+  output<-c(
+    list(pwise_dist=pwise_dist),
+    output
+  )
 
   file.remove(list.files(temp_dir,recursive = T,full.names = T))
 
