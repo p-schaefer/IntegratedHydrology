@@ -30,17 +30,19 @@ knitr::opts_chunk$set(
 knitr::include_graphics("man/figures/README-unnamed-chunk-8-1.png")
 ```
 
-Aquatic environmental scientists are often tasked with relating landscape factors to observed responses in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.
+Aquatic environmental scientists are often interested in relating landscape features to observed responses (e.g., fish size, water temperature, invertebrate community composition, etc.) in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.
 
-Typically, sampling data is available at points along the stream network. If the specific information about the location of these points is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow, but along the same stream reach), they must be incorporated into the network. Once that is done, factors of interest on the landscape (e.g., landcover, soils, geology, climate, etc.) must be related to the reach (or sampling points). This alone can be complex as the spatial configuration of these factors relative to flow direction and accumulation are important. The ***ihydro*** package uses the ***hydroweight*** package (Kielstra et al. 2021) to calculate these attributes.
+Typically, observed responses are measured at discrete sampling locations along the stream network. If the location information is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow), they must be incorporated into the network. This is done by splitting stream lines and catchments at these points.
+
+Once that is done, landscape features of interest (e.g., land-cover, geology, climate, etc.) must be related to the reach (or sampling points). This alone can be complex as the spatial configuration of these factors relative to flow direction and accumulation can be important important (Peterson ***et al.***, 2011). The ***ihydro*** package uses the ***hydroweight*** package (Kielstra et al. 2021) to calculate these attributes.
 
 The complexity of this workflow can be a rate limiting step in the scope, content, quality, and applicability of aquatic environmental scientist investigations. The ***ihydro*** package offers tools and workflows to simplify these complex steps. It is capable of handling all above computation steps, leaving researchers the task of identifying layers of interest and modeling with (potentially) large numbers of predictors.
 
-The ***ihydro*** package also implements descriptions of spatial autocorrelation among sites. Due to the linear nature of flow in streams and rivers, autocorrelation tends to be asymmetric, with downstream sites potentially more similar to upstream sites when they are flow connected, than not flow connected (regardless of spatial proximity). ***ihydro*** produces tables that can be transformed into a asymmetric matrices that describes the relationships between sampling points based on instream distances and/or the proportions of an upstream catchment that is shared with a target site. Proportion of shared upstream catchment (rather than in-stream distance) are a more relevant measure of spatial autocorrelation in streams because it accounts for differences in catchment areas between points, as well as spatial proximity. For example, if water chemistry samples are taken from a large 6th order stream, and a upstream small 1st order tributary we would expect the small tributary to have only a small impact on the larger stream. Hence autocorrelation should be low because the tributary is not contributing much flow to the large stream. If using in-stream distances, the assumed autocorrelation may be high because the physical distance is small, but this would be incorrect.
+The ***ihydro*** package also implements descriptions of spatial autocorrelation among sites. Due to the linear nature of flow in streams and rivers, autocorrelation tends to be asymmetric, with sites generally more similar when they are flow connected, than not flow connected. ***ihydro*** produces tables that can be transformed into a asymmetric matrices that describes the relationships between sampling points based on instream distances and/or the proportions of an upstream catchment that is shared with a target site. Proportion of shared upstream catchment (rather than in-stream distance) are a more relevant measure of spatial autocorrelation in streams because it accounts for differences in catchment areas between points, as well as spatial proximity. For example, if water chemistry samples are taken from a large 6th order stream, and a upstream small 1st order tributary we would expect the small tributary to have only a small impact on the larger stream. Hence autocorrelation should be low because the tributary because it is not contributing much flow to the large stream. If using in-stream distances, the assumed autocorrelation may be high because the physical distance is small, but this would be incorrect.
 
-***ihydro*** stores its geospatial products in a \code{*.zip} file for easy of retrieval and plotting in external software. It can be run in parallel for increased speed (if enough memory is available), and is quick at removing internal intermediate files to keep hard drives from filling up too fast.
+***ihydro*** stores its geospatial products in a \code{.zip} file for easy of retrieval and plotting in external software. This can be one of the slower aspects of the functions, as it means output need to be compressed and added to the existing \code{.zip} file. Many ***ihydro*** function can be run in parallel for increased speed (if enough memory is available), and are quick at removing internal intermediate files to keep hard drives from filling up too fast.
 
-[Back to top](#Introduction)
+[Back to top](#1.0-Introduction)
 
 ## 2.0 System setup and installation
 
@@ -1055,8 +1057,6 @@ Lindsay, J.B. (2016). Whitebox GAT: A case study in geomorphometric analysis. Co
 
 Peterson, E. E., Sheldon, F., Darnell, R., Bunn, S. E., & Harch, B. D. (2011). A comparison of spatially explicit landscape representation methods and their relationship to stream condition. Freshwater Biology, 56(3), 590–610. <https://doi.org/10.1111/j.1365-2427.2010.02507.x>
 
-Peterson, E. E. & Pearse, A. R. (2017). IDW‐Plus: An ArcGIS Toolset for calculating spatially explicit watershed attributes for survey sites. Journal of the American Water Resources Association, 53(5): 1241–1249. <https://doi.org/10.1111/1752-1688.12558>
-
 R Core Team (2022). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. <https://www.R-project.org/>
 
 Wickham, H., Bryan, J. (2021). R Packages. 2nd edition. <https://r-pkgs.org/>.
@@ -1065,6 +1065,6 @@ Wu, Q. (2020). whitebox: 'WhiteboxTools' R Frontend. R package version 1.4.0. <h
 
 Zimmerman, Dale L., and Jay M. Ver Hoef. "The Torgegram for fluvial variography: characterizing spatial dependence on stream networks." Journal of Computational and Graphical Statistics 26.2 (2017): 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
 
-[Back to top](#contents)
+[Back to top](#Introduction)
 
 
