@@ -253,12 +253,15 @@ insert_points<-function(
       st_join(out2,join=st_nearest_feature) %>%
       mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
       mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
+      mutate(dstrib_id1=ifelse(link_id_new==min(link_id_new),dstrib_id1,lag(dstrib_id1))) %>%
+      mutate(across(c(starts_with("ustrib_id"),-ustrib_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
       mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
       select(-link_id) %>%
       rename(link_id=link_id_new) %>%
       select(any_of(colnames(trg_strm)),everything()) %>%
       mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
-      mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.)))
+      mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.))) #%>%
+      #fill(contains("trib_id"),.direction="downup")
 
     out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
@@ -292,7 +295,9 @@ insert_points<-function(
       filter(link_id %in% min(lns$link_id)) %>%
       mutate(uslink_id1=min(lns$link_id[-c(1)])) %>%
       mutate(across(c(starts_with("uslink_id"),-uslink_id1),~NA)) %>%
+      mutate(across(c(starts_with("ustrib_id"),-ustrib_id1),~NA)) %>%
       mutate(uslink_id1=ifelse(is.infinite(abs(uslink_id1)),NA,uslink_id1)) %>%
+      mutate(ustrib_id1=ifelse(is.infinite(abs(ustrib_id1)),NA,ustrib_id1)) %>%
       st_join(pnts %>% mutate(across(any_of(site_id_col),as.character)))
 
     add_links<-pnts %>%
@@ -312,6 +317,8 @@ insert_points<-function(
       left_join(stream_links %>% as_tibble() %>% select(-geometry)) %>%
       mutate(dslink_id1=ifelse(link_id_new==min(link_id_new),dslink_id1,lag(link_id_new))) %>%
       mutate(uslink_id1=ifelse(link_id_new==max(link_id_new),uslink_id1,lead(link_id_new))) %>%
+      mutate(dstrib_id1=ifelse(link_id_new==min(link_id_new),dstrib_id1,lag(dstrib_id1))) %>%
+      mutate(across(c(starts_with("ustrib_id"),-ustrib_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
       mutate(across(c(starts_with("uslink_id"),-uslink_id1),~ifelse(link_id_new==max(link_id_new),.,NA))) %>%
       #filter(link_id_new %in% max(link_id_new)) %>%
       select(-link_id) %>%
@@ -326,7 +333,8 @@ insert_points<-function(
       distinct() %>%
       mutate(across(c(contains('uslink_id'),contains('dslink_id')),~ifelse(.==0,NA_real_,.))) %>%
       mutate(across(c(everything(),-geometry),~ifelse(is.nan(.),NA,.))) %>%
-      distinct()
+      distinct() #%>%
+      #fill(contains("trib_id"),.direction="downup")
 
     out3[grepl("pour_point_A1B2C3_",out3%>% as_tibble() %>% select(any_of(site_id_col)) %>% unlist()),site_id_col]<-NA_character_
 
@@ -355,6 +363,7 @@ insert_points<-function(
 
 
   # I can't get these functions to run faster in parallel for some reason
+  #browser()
   with_progress({
     print("Splitting Subbasins")
     p <- progressor(steps = nrow(new_data))

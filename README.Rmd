@@ -22,8 +22,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-
-
 ## 1.0 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '75%', fig.align = 'center'}
@@ -42,7 +40,7 @@ The ***ihydro*** package also implements descriptions of spatial autocorrelation
 
 ***ihydro*** stores its geospatial products in a \code{.zip} file for easy of retrieval and plotting in external software. This can be one of the slower aspects of the functions, as it means output need to be compressed and added to the existing \code{.zip} file. Many ***ihydro*** function can be run in parallel for increased speed (if enough memory is available), and are quick at removing internal intermediate files to keep hard drives from filling up too fast.
 
-[Back to top](#1.0-Introduction)
+[Back to top](#1.0-introduction)
 
 ## 2.0 System setup and installation
 
@@ -79,7 +77,7 @@ if (F){
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ## 3.0 Prepare DEM and Sampling Points for for analysis
 
@@ -89,12 +87,12 @@ Begin by bringing in the digital elevation model and using it to generate terrai
 
 Another factor to consider at this step is whether to burn stream vectors into the DEM;  \code{whitebox::wbt_fillburn()} tool allows for this, but  there are several caveats associated with this process. See [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
 
-
 ```{r, message = FALSE, error = FALSE, warning = FALSE}
 ## Load libraries
 library(viridis)
 library(ihydro)
-library(mapview)
+#library(mapview)
+library(tmap)
 library(furrr)
 library(whitebox)
 library(terra)
@@ -165,10 +163,9 @@ plot(toy_dem)
 ```
 
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ### 3.2 Generate predictor layers
-
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -237,11 +234,11 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ## 4.0 Generate geospatial analysis products
 
-### 4.1 METHOD 1: Individually
+### 4.1 METHOD 1: With individual function
 
 #### 4.1.1 Generate flow direction/accumulation geospatial analysis products with `process_flowdir()`
 
@@ -294,7 +291,7 @@ plot(log10(flow_accum))
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 #### 4.1.2 Generate vector geospatial analysis products with `generate_vectors()`
 
@@ -332,16 +329,17 @@ hydro_out<-generate_vectors(
 # hydro_out$links # -> point vector representing pour-points for subbasins,
 #                 #   attributed with `link_id` and extra attributes
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
-  mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(hydro_out$links,zcol="link_id",legend=F,layer.name="...",cex=2)
+tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",alpha =0.2,legend.show=F) +
+  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
+  tm_shape(hydro_out$links) + tm_dots(col="yellow",legend.show=F,size=0.15,border.col="black",border.alpha=1)
+
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 #### 4.1.3 Split vector geospatial analysis products at sampling points `insert_points()`
 
-Typically, sampling data is available at points along the stream network. If the specific information about the location of these points is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow, but along the same stream reach), they must be incorporated into the network.
+Typically, observed responses are measured at discrete sampling locations along the stream network. If the location information is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow), they must be incorporated into the network. This is done by splitting stream lines and catchments at these points.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -372,13 +370,14 @@ hydro_out<-insert_points(
 # If you need to rerun insert_points(), you will have to run generate_vectors() again
 # first to generate new vector layers to split.
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
-  mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(hydro_out$snapped_points,zcol="site_id",legend=F,color="red",layer.name="....",cex=6)
+tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
+  tm_shape(hydro_out$snapped_points %>% mutate(site_id=as.numeric(site_id))) + tm_dots(col="site_id",palette = "viridis",legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 #### 4.1.4 Create lookup table of flow-directions with `trace_flowpaths()`
 
@@ -414,12 +413,13 @@ sub_out<-hydro_out$subbasins %>%
            link_id %in% ds_1107.1$link_id
   )
 
-mapview(sub_out,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.3)+
-  mapview(lines_out,legend=F,layer.name="..",lwd=2,alpha=1)
+tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("777","1107.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 #### 4.1.5 Generate complete upstream catchment areas with `get_catchment()`
 
@@ -440,17 +440,16 @@ point_catchments<-get_catchment( # retrieve sampling point catchments
   target_points=c("1","25")
 )
 
-mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(point_catchments,zcol="link_id",legend=F, color = "black", lwd = 5,alpha.regions=0.8,layer.name="...")+
-  mapview(subbasin_catchments,zcol="link_id",legend=F, color = "Yellow", lwd = 5,alpha.regions=0.8,layer.name="....")
+tm_shape(bind_rows(subbasin_catchments,point_catchments)) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3)  
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 #### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
 
-For more complete and thorough treatment on spatial autocorrelation in stream systems, see Zimmerman and Hoef (2007).
+For more complete and thorough treatment on spatial autocorrelation in stream systems, see [Zimmerman and Hoef (2007)](https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgegramForFluvialVariography.pdf).
 
 Below we calculate pairwise distances between sampled areas. We take these distances and visualize them as heatmaps to illustrate how pairwise distance matrices can be used to represent spatial relationships among sites.
 
@@ -475,7 +474,11 @@ hydro_out<-generate_pwisedist(
 # Get link_id for sampled points
 sel_link_id<-hydro_out$snapped_points 
 
+
 # filter long table to selected sites, and convert to wide format
+
+# This table describes the flow-connected in-stream distances at destination points (rows)
+# from upstream origin points (columns)
 dmat<-hydro_out$pwise_dist %>% 
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
@@ -489,7 +492,24 @@ dmat<-hydro_out$pwise_dist %>%
   data.frame(check.names = F) %>% 
   tibble::column_to_rownames("link_id") 
 
-dmat %>% 
+# This table describes the proportions of shared catchments at destination points (rows)
+# from upstream origin points (columns)
+dmat2<-hydro_out$pwise_dist %>% 
+  filter(origin %in% sel_link_id$link_id &
+           destination %in% sel_link_id$link_id
+  ) %>% 
+  filter(origin!=destination) %>% 
+  select(-directed_path_length,-undirected_path_length) %>%
+  rename(link_id=origin) %>%
+  select(-origin_catchment,-destination_catchment) %>%
+  mutate(prop_shared_catchment=ifelse(prop_shared_catchment==1 | is.na(prop_shared_catchment),1,prop_shared_catchment)) %>% 
+  pivot_wider(names_from=destination,values_from=prop_shared_catchment ,values_fill = 0) %>% 
+  data.frame(check.names = F) %>% 
+  tibble::column_to_rownames("link_id") 
+
+# Here we multiply the matrixes (using the proportions of shared catchments as a rough weighting scheme)
+# then take ln(x+1) to normalize the data a bit, calculate manhattan distances and generate a heatmap
+(dmat*dmat2) %>% 
   log1p() %>% 
   dist("manhattan") %>% 
   as.matrix() %>% 
@@ -501,9 +521,8 @@ Using these relationships, we can perform a clustering analysis to identify grou
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-# Using path lengths allows the identification of groups of spatially proximate
-# site, these can be used for cross-validation groups
-km<-dmat %>% 
+# Using the above approach, we create 5 groups of spatially proximate points
+km<-(dmat*dmat2) %>% 
   log1p() %>% 
   dist("manhattan") %>% 
   hclust() %>% 
@@ -516,13 +535,17 @@ point_groups<-hydro_out$snapped_points %>%
   left_join(gps) %>% 
   filter(!is.na(group))
 
-mapview(hydro_out$subbasins,zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
-  mapview(hydro_out$stream_lines,legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(point_groups,zcol="group",legend=F,color="red",layer.name="....",cex=6)
+# These can be used for cross-validation purposes to see how well the models extrapolate outside of 
+# sampled areas
+
+tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
+  tm_shape(point_groups) + tm_dots(col="group", palette = "Set1",legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 
 ```
 
 Finally, we'll examine relationships among our response variable in terms of in-stream distances, contrasting flow connected sites vs, flow unconnected sites. Here we see greater differences between responses with increasing in-stream distance. Within the first 10,000m (10km) range, response values are more similar in flow connected sites, than flow unconnected.
+
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -544,9 +567,6 @@ dmat<-hydro_out$pwise_dist %>%
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
   ) %>% 
-  # select(-directed_path_length,-undirected_path_length) %>%
-  # rename(link_id=destination) %>%
-  #select(-origin_catchment,-destination_catchment) %>%
   left_join(response_table %>% rename(origin_value=value),by=c("origin"="link_id")) %>% 
   left_join(response_table %>% rename(destination_value=value),by=c("destination"="link_id")) %>% 
   mutate(value_diff=sqrt((origin_value-destination_value)^2)) %>% 
@@ -595,7 +615,7 @@ ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ### 4.2 METHOD 2: With a single function
 
@@ -627,26 +647,25 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the producs, we'll verify the outputs exist in the .zip file
 # unzip(list=T,hydro_out_sparse$outfile)
 
-mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp")),
-        zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
-  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")),
-          legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")),zcol="link_id",
-          legend=F,layer.name="...",cex=2)
+tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
+  tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp"))) +
+  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
+  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))) +
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+
+
+
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
-## 5.0 Add layers of interest to geospatial analysis products
+## 5.0 Add layers of interest to geospatial analysis products with `process_loi()`
 
-### 5.1 `process_loi()`
+Instead of processing the loi separately (as was done above), they can instead be added to the completed workflow, and added to the existing .zip file for convenient file storage/organization. If run separately (as above), "num_rast.tif" and/or "cat_rast.tif" can also manually be added to the .zip file as well.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-# Instead of processing loi separately (as was done above), they can also be
-# added to the completed workflow, and added to the existing .zip file
-# for convenient file storage/organization. If run separately (as above), 
-# "num_rast.tif" and/or "cat_rast.tif" can manually be added to the .zip file as well.
 
 # Here we will out our previously calculated loi results below
 
@@ -674,7 +693,7 @@ if (F) {
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ## 6.0 Calculate (weighted) spatial summaries
 ### 6.1 At sampleing points with site specific attributes `attrib_points()`
@@ -704,7 +723,7 @@ specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
 
 final_attributes_sub<-attrib_points(
   input=hydro_out,
-  loi_file=output_filename_loi,
+  loi_file=output_filename_loi, #output file path from process_loi()
   spec=specification_table,
   weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
   OS_combine=F,
@@ -743,7 +762,7 @@ plot(rast(
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ### 6.2 At all sampling points `attrib_points()`
 
@@ -780,7 +799,7 @@ final_attributes_samples
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ### 6.3 Across entire study area `attrib_points()`
 
@@ -802,7 +821,7 @@ final_attributes_all
 
 ```
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 ## 7.0 Example Model
 ### 7.1 Train a Random Forest Model
@@ -1038,9 +1057,17 @@ Points<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"snapped_points.shp
   left_join(response_table %>% select(-link_id)) %>% 
   mutate(Observed=value)
 
+
+tm_shape(Streams) + 
+  tm_lines(col="Predicted", palette = "viridis",alpha =0.3,legend.show=T,lwd ="Prediction Confidence") +
+  tm_shape(Points) + 
+  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+
+
 if(F) {
   mapview(Streams,zcol="Predicted",lwd="Prediction Confidence")+
-    mapview(Points,zcol="Observed")
+    mapview(Points,zcol="Observed")+
+    tm_tiles("Esri.WorldGrayCanvas")
 }
 
 ```
@@ -1063,8 +1090,8 @@ Wickham, H., Bryan, J. (2021). R Packages. 2nd edition. <https://r-pkgs.org/>.
 
 Wu, Q. (2020). whitebox: 'WhiteboxTools' R Frontend. R package version 1.4.0. <https://github.com/giswqs/whiteboxR>
 
-Zimmerman, Dale L., and Jay M. Ver Hoef. "The Torgegram for fluvial variography: characterizing spatial dependence on stream networks." Journal of Computational and Graphical Statistics 26.2 (2017): 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
+Zimmerman, Dale L., and Jay M. Ver Hoef. (2017)."The Torgegram for fluvial variography: characterizing spatial dependence on stream networks. Journal of Computational and Graphical Statistics 26.2 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
 
-[Back to top](#Introduction)
+[Back to top](#1.0-introduction)
 
 
