@@ -62,7 +62,22 @@ get_catchment<-function(
     mutate(us_flowpaths=us_flowpaths[link_id]) %>%
     filter(!map_lgl(us_flowpaths,is.null)) %>%
     filter(map_dbl(us_flowpaths,nrow)>0) %>%
-    mutate(geometry=future_map(us_flowpaths,~geo_fn(x=.,subb=subb,buffer=buffer,tolerance=tolerance))) %>%
+    mutate(subb=as.list(rep(list(subb),length(link_id))),
+           buffer=buffer,
+           tolerance=tolerance) %>%
+    mutate(geometry=future_pmap(
+      list(
+        us_flowpaths=us_flowpaths,
+        subb=subb,
+        buffer=buffer,
+        tolerance=tolerance
+      ),
+      function(us_flowpaths,
+               subb,
+               buffer,
+               tolerance)
+        geo_fn(x=us_flowpaths,subb=subb,buffer=buffer,tolerance=tolerance)
+    )) %>%
     unnest(geometry) %>%
     select(-us_flowpaths) %>%
     st_as_sf()

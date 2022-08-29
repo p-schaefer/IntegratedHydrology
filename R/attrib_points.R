@@ -152,8 +152,24 @@ attrib_points<-function(
       target_O<-target_O %>%
         mutate(link_id=floor(link_id)) %>%
         select(link_id) %>%
-        distinct()
+        group_by(link_id) %>%
+        mutate(geometry=st_union(geometry)) %>%
+        ungroup()
+
     }
+
+    if (any(!spec[[site_id_col]] %in% target_O$link_id)){
+
+      ms<-spec[[site_id_col]][!spec[[site_id_col]] %in% target_O$link_id]
+
+      extra_o<-all_points %>%
+        filter(link_id %in% ms) %>%
+        select(any_of(colnames(target_O)))
+
+      target_O<-bind_rows(target_O,extra_o)
+    }
+
+
   } else {
     target_O<-all_points
   }
