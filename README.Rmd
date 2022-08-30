@@ -984,7 +984,7 @@ Finally, we will use the model to predict across our sparse landscape. The first
 
 ```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
-# link_ids won't match between the sparese and full landscapes, so need to make a lookup table
+# link_ids won't match between the sparse and full landscapes, so need to make a lookup table
 # to combine the link_ids
 
 lkp<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")) %>% 
@@ -992,13 +992,14 @@ lkp<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")) %
   rename(sparse_link_id=link_id) %>% 
   st_join(hydro_out$links %>% select(link_id) %>%  rename(comp_link_id=link_id))
 
-mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp")),
-        zcol="link_id",legend=F,layer.name=".",alpha.regions=0.1)+
-  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")),
-          legend=F,layer.name="..",lwd=2,alpha=1)+
-  mapview(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")),zcol="link_id",
-          legend=F,layer.name="...",cex=2)+
-  mapview(lkp,zcol="comp_link_id")
+tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
+  tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp"))) +
+  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
+  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))) +
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_shape(lkp)+
+  tm_dots(col="comp_link_id",palette = "viridis")
 
 ```
 
@@ -1061,13 +1062,6 @@ tm_shape(Streams) +
   tm_lines(col="Predicted", palette = "viridis",alpha =0.3,legend.show=T,lwd ="Prediction Confidence") +
   tm_shape(Points) + 
   tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
-
-
-if(F) {
-  mapview(Streams,zcol="Predicted",lwd="Prediction Confidence")+
-    mapview(Points,zcol="Observed")+
-    tm_tiles("Esri.WorldGrayCanvas")
-}
 
 ```
 
