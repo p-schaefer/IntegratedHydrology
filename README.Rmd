@@ -25,14 +25,14 @@ knitr::opts_chunk$set(
 ## 1.0 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '75%', fig.align = 'center'}
-knitr::include_graphics("man/figures/README-unnamed-chunk-8-1.png")
+knitr::include_graphics("man/figures/README-unnamed-chunk-9-1.png")
 ```
 
 Aquatic environmental scientists are often interested in relating landscape features to observed responses (e.g., fish size, water temperature, invertebrate community composition, etc.) in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.
 
 Typically, observed responses are measured at discrete sampling locations along the stream network. If the location information is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow), they must be incorporated into the network. This is done by splitting stream lines and catchments at these points.
 
-Once that is done, landscape features of interest (e.g., land-cover, geology, climate, etc.) must be related to the reach (or sampling points). This alone can be complex as the spatial configuration of these factors relative to flow direction and accumulation can be important important (Peterson ***et al.***, 2011). The ***ihydro*** package uses the ***hydroweight*** package (Kielstra et al. 2021) to calculate these attributes.
+Once that is done, landscape features of interest (e.g., land-cover, geology, climate, etc.) must be related to the reach (or sampling points). This alone can be complex as the spatial configuration of these factors relative to flow direction and accumulation can be important important (Peterson ***et al.***, 2011). The ***ihydro*** package uses  ***hydroweight*** (Kielstra ***et al.*** 2021) to calculate these attributes.
 
 The complexity of this workflow can be a rate limiting step in the scope, content, quality, and applicability of aquatic environmental scientist investigations. The ***ihydro*** package offers tools and workflows to simplify these complex steps. It is capable of handling all above computation steps, leaving researchers the task of identifying layers of interest and modeling with (potentially) large numbers of predictors.
 
@@ -40,7 +40,7 @@ The ***ihydro*** package also implements descriptions of spatial autocorrelation
 
 ***ihydro*** stores its geospatial products in a \code{.zip} file for easy of retrieval and plotting in external software. This can be one of the slower aspects of the functions, as it means output need to be compressed and added to the existing \code{.zip} file. Many ***ihydro*** function can be run in parallel for increased speed (if enough memory is available), and are quick at removing internal intermediate files to keep hard drives from filling up too fast.
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 2.0 System setup and installation
 
@@ -77,7 +77,7 @@ if (F){
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 3.0 Prepare DEM and Sampling Points for for analysis
 
@@ -162,7 +162,7 @@ plot(toy_dem)
 ```
 
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 3.2 Generate predictor layers
 
@@ -233,7 +233,7 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 4.0 Generate geospatial analysis products
 
@@ -290,7 +290,7 @@ plot(log10(flow_accum))
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.2 Generate vector geospatial analysis products with `generate_vectors()`
 
@@ -334,7 +334,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",al
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.3 Split vector geospatial analysis products at sampling points `insert_points()`
 
@@ -376,7 +376,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.4 Create lookup table of flow-directions with `trace_flowpaths()`
 
@@ -418,7 +418,7 @@ tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.5 Generate complete upstream catchment areas with `get_catchment()`
 
@@ -444,7 +444,7 @@ tm_shape(bind_rows(subbasin_catchments,point_catchments)) + tm_polygons(col="whi
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
 
@@ -614,7 +614,7 @@ ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 4.2 METHOD 2: With a single function
 
@@ -657,7 +657,7 @@ tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.sh
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 5.0 Add layers of interest to geospatial analysis products with `process_loi()`
 
@@ -692,7 +692,7 @@ if (F) {
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 6.0 Calculate (weighted) spatial summaries
 ### 6.1 At sampleing points with site specific attributes `attrib_points()`
@@ -761,7 +761,7 @@ plot(rast(
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 6.2 At all sampling points `attrib_points()`
 
@@ -798,7 +798,7 @@ final_attributes_samples
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 6.3 Across entire study area `attrib_points()`
 
@@ -806,10 +806,17 @@ final_attributes_samples
 
 # Warning this operation can be very slow - but we will use our sparse
 # hydrology network to speed up calculations
+
+specification_table<-tibble(
+  link_id=read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))$link_id,
+  loi=list(loi_names)
+)
+
 final_attributes_all<-attrib_points(
   input=hydro_out_sparse,
+  spec = specification_table,
   loi_file=output_filename_loi,
-  all_reaches=T, # This will calculate attributes for each reach
+  all_reaches=F, # This will calculate attributes for each reach
   weighting_scheme = c("HAiFLO", "HAiFLS"),
   loi_numeric_stats = c("distwtd_mean"),
   OS_combine=F,
@@ -820,7 +827,7 @@ final_attributes_all
 
 ```
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 7.0 Example Model
 ### 7.1 Train a Random Forest Model
@@ -885,7 +892,7 @@ comb_data<-response_table %>%
       mutate(origin=paste0("Prop_catch_",origin)) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
-  left_join(clust_data)
+left_join(clust_data)
 
 ```
 
@@ -992,15 +999,6 @@ lkp<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")) %
   rename(sparse_link_id=link_id) %>% 
   st_join(hydro_out$links %>% select(link_id) %>%  rename(comp_link_id=link_id))
 
-tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
-  tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp"))) +
-  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))) +
-  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
-  tm_shape(lkp)+
-  tm_dots(col="comp_link_id",palette = "viridis")
-
 ```
 
 We now need to build a data set for our prediction sites.
@@ -1010,6 +1008,7 @@ We now need to build a data set for our prediction sites.
 prediction_data<-lkp %>% 
   as_tibble() %>% 
   mutate(comp_link_id=as.character(comp_link_id)) %>% 
+  mutate(site_id=as.numeric(site_id)) %>% 
   select(link_id=sparse_link_id,comp_link_id,site_id) %>% 
   left_join(
     final_attributes_all %>%
@@ -1044,11 +1043,11 @@ prediction_tbl<-tibble(
       as_tibble() %>% 
       setNames(c("p25","p50","p75"))
   ) %>% 
-  mutate(`Prediction Confidence` = p75-p25,
+  mutate(`Uncertainty` = p75-p25,
          `Predicted`=p50)
 
 Streams<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")) %>% 
-  mutate(link_id=floor(link_id)) %>% #this will assign the predicted value to the entire reach,
+  #mutate(link_id=floor(link_id)) %>% #this will assign the predicted value to the entire reach,
   #not just the unsampled portion
   left_join(prediction_tbl)
 
@@ -1057,11 +1056,12 @@ Points<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"snapped_points.shp
   left_join(response_table %>% select(-link_id)) %>% 
   mutate(Observed=value)
 
-
 tm_shape(Streams) + 
-  tm_lines(col="Predicted", palette = "viridis",alpha =0.3,legend.show=T,lwd ="Prediction Confidence") +
+  tm_lines(col="Predicted", palette = "viridis",alpha =0.8,legend.show=T,lwd ="Uncertainty",scale=5) +
   tm_shape(Points) + 
-  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(legend.outside = TRUE)
+
 
 ```
 
@@ -1085,6 +1085,6 @@ Wu, Q. (2020). whitebox: 'WhiteboxTools' R Frontend. R package version 1.4.0. <h
 
 Zimmerman, Dale L., and Jay M. Ver Hoef. (2017)."The Torgegram for fluvial variography: characterizing spatial dependence on stream networks. Journal of Computational and Graphical Statistics 26.2 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
 
-[Back to top]#10-introduction)
+[Back to top](#10-introduction)
 
 

@@ -53,7 +53,7 @@ ihydro: Integrated hydrology tools for environmental science
 
 ## 1.0 Introduction
 
-<img src="man/figures/README-unnamed-chunk-8-1.png" width="75%" style="display: block; margin: auto;" />
+<img src="man/figures/README-unnamed-chunk-9-1.png" width="75%" style="display: block; margin: auto;" />
 
 Aquatic environmental scientists are often interested in relating
 landscape features to observed responses (e.g., fish size, water
@@ -79,7 +79,7 @@ geology, climate, etc.) must be related to the reach (or sampling
 points). This alone can be complex as the spatial configuration of these
 factors relative to flow direction and accumulation can be important
 important (Peterson ***et al.***, 2011). The ***ihydro*** package uses
-the ***hydroweight*** package (Kielstra et al. 2021) to calculate these
+***hydroweight*** (Kielstra ***et al.*** 2021) to calculate these
 attributes.
 
 The complexity of this workflow can be a rate limiting step in the
@@ -117,7 +117,7 @@ can be run in parallel for increased speed (if enough memory is
 available), and are quick at removing internal intermediate files to
 keep hard drives from filling up too fast.
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 2.0 System setup and installation
 
@@ -155,7 +155,7 @@ if (F){
 }
 ```
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 3.0 Prepare DEM and Sampling Points for for analysis
 
@@ -247,7 +247,7 @@ plot(toy_dem)
 
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 3.2 Generate predictor layers
 
@@ -323,7 +323,7 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 4.0 Generate geospatial analysis products
 
@@ -381,7 +381,7 @@ plot(log10(flow_accum))
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.2 Generate vector geospatial analysis products with `generate_vectors()`
 
@@ -427,7 +427,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",al
 
 <img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.3 Split vector geospatial analysis products at sampling points `insert_points()`
 
@@ -478,7 +478,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
 
 <img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.4 Create lookup table of flow-directions with `trace_flowpaths()`
 
@@ -524,7 +524,7 @@ tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.5 Generate complete upstream catchment areas with `get_catchment()`
 
@@ -551,7 +551,7 @@ tm_shape(bind_rows(subbasin_catchments,point_catchments)) + tm_polygons(col="whi
 
 <img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 #### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
 
@@ -740,7 +740,7 @@ ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
 
 <img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 4.2 METHOD 2: With a single function
 
@@ -790,7 +790,7 @@ tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.sh
 
 <img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 5.0 Add layers of interest to geospatial analysis products with `process_loi()`
 
@@ -828,7 +828,7 @@ if (F) {
 }
 ```
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 6.0 Calculate (weighted) spatial summaries
 
@@ -911,7 +911,7 @@ plot(rast(
 
 <img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 6.2 At all sampling points `attrib_points()`
 
@@ -967,7 +967,7 @@ final_attributes_samples
 #> #   pontsrc_pontsrc_HAiFLO_prop <dbl>, LC_1_HAiFLS_prop <dbl>, …
 ```
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ### 6.3 Across entire study area `attrib_points()`
 
@@ -975,10 +975,17 @@ final_attributes_samples
 
 # Warning this operation can be very slow - but we will use our sparse
 # hydrology network to speed up calculations
+
+specification_table<-tibble(
+  link_id=read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))$link_id,
+  loi=list(loi_names)
+)
+
 final_attributes_all<-attrib_points(
   input=hydro_out_sparse,
+  spec = specification_table,
   loi_file=output_filename_loi,
-  all_reaches=T, # This will calculate attributes for each reach
+  all_reaches=F, # This will calculate attributes for each reach
   weighting_scheme = c("HAiFLO", "HAiFLS"),
   loi_numeric_stats = c("distwtd_mean"),
   OS_combine=F,
@@ -1008,7 +1015,7 @@ final_attributes_all
 #> #   pontsrc_pontsrc_HAiFLO_prop <dbl>, LC_1_HAiFLS_prop <dbl>, …
 ```
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)
 
 ## 7.0 Example Model
 
@@ -1076,7 +1083,7 @@ comb_data<-response_table %>%
       mutate(origin=paste0("Prop_catch_",origin)) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
-  left_join(clust_data)
+left_join(clust_data)
 ```
 
 Then, we’ll follow the tidymodels workflow from here:
@@ -1141,16 +1148,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           76   973     9 rmse    standa…  2.83     5   0.207 Prepro…
-#>  2 standard           60  1790    12 rmse    standa…  2.84     5   0.208 Prepro…
-#>  3 standard           63   381    17 rmse    standa…  2.84     5   0.204 Prepro…
-#>  4 standard           46  1738    10 rmse    standa…  2.84     5   0.208 Prepro…
-#>  5 standard           71  1315     4 rmse    standa…  2.84     5   0.202 Prepro…
-#>  6 spatial             7   162    39 rmse    standa…  3.03     5   0.247 Prepro…
-#>  7 spatial            47   475    34 rmse    standa…  3.04     5   0.227 Prepro…
-#>  8 spatial            12  1929    35 rmse    standa…  3.04     5   0.241 Prepro…
-#>  9 spatial             9  1733    32 rmse    standa…  3.04     5   0.239 Prepro…
-#> 10 spatial             2   582    26 rmse    standa…  3.04     5   0.242 Prepro…
+#>  1 standard           60    81    10 rmse    standa…  2.80     5   0.219 Prepro…
+#>  2 standard           64  1894    11 rmse    standa…  2.83     5   0.205 Prepro…
+#>  3 standard           72  1796     8 rmse    standa…  2.83     5   0.206 Prepro…
+#>  4 standard           47  1462    15 rmse    standa…  2.84     5   0.207 Prepro…
+#>  5 standard           54   475    10 rmse    standa…  2.84     5   0.213 Prepro…
+#>  6 spatial             8  1505    37 rmse    standa…  3.03     5   0.241 Prepro…
+#>  7 spatial            54   268    37 rmse    standa…  3.04     5   0.228 Prepro…
+#>  8 spatial            37   573    34 rmse    standa…  3.04     5   0.230 Prepro…
+#>  9 spatial            54  1798    40 rmse    standa…  3.05     5   0.236 Prepro…
+#> 10 spatial            17  1188    32 rmse    standa…  3.05     5   0.237 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1202,18 +1209,7 @@ lkp<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")) %
   select(site_id,link_id) %>% 
   rename(sparse_link_id=link_id) %>% 
   st_join(hydro_out$links %>% select(link_id) %>%  rename(comp_link_id=link_id))
-
-tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
-  tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp"))) +
-  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))) +
-  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
-  tm_shape(lkp)+
-  tm_dots(col="comp_link_id",palette = "viridis")
 ```
-
-<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
 
 We now need to build a data set for our prediction sites.
 
@@ -1222,6 +1218,7 @@ We now need to build a data set for our prediction sites.
 prediction_data<-lkp %>% 
   as_tibble() %>% 
   mutate(comp_link_id=as.character(comp_link_id)) %>% 
+  mutate(site_id=as.numeric(site_id)) %>% 
   select(link_id=sparse_link_id,comp_link_id,site_id) %>% 
   left_join(
     final_attributes_all %>%
@@ -1260,11 +1257,11 @@ prediction_tbl<-tibble(
       as_tibble() %>% 
       setNames(c("p25","p50","p75"))
   ) %>% 
-  mutate(`Prediction Confidence` = p75-p25,
+  mutate(`Uncertainty` = p75-p25,
          `Predicted`=p50)
 
 Streams<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")) %>% 
-  mutate(link_id=floor(link_id)) %>% #this will assign the predicted value to the entire reach,
+  #mutate(link_id=floor(link_id)) %>% #this will assign the predicted value to the entire reach,
   #not just the unsampled portion
   left_join(prediction_tbl)
 
@@ -1273,11 +1270,11 @@ Points<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"snapped_points.shp
   left_join(response_table %>% select(-link_id)) %>% 
   mutate(Observed=value)
 
-
 tm_shape(Streams) + 
-  tm_lines(col="Predicted", palette = "viridis",alpha =0.3,legend.show=T,lwd ="Prediction Confidence") +
+  tm_lines(col="Predicted", palette = "viridis",alpha =0.8,legend.show=T,lwd ="Uncertainty",scale=5) +
   tm_shape(Points) + 
-  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(legend.outside = TRUE)
 ```
 
 <img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
@@ -1319,4 +1316,4 @@ fluvial variography: characterizing spatial dependence on stream
 networks. Journal of Computational and Graphical Statistics 26.2
 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
 
-\[Back to top\]#10-introduction)
+[Back to top](#10-introduction)

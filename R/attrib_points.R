@@ -74,7 +74,14 @@ attrib_points<-function(
 
   # Get site name column ----------------------------------------------------
   if (any(grepl("snapped_points",fl)) & !all_reaches){
-    site_id_col<-colnames(read_sf(file.path("/vsizip",zip_loc,"snapped_points.shp")))[[1]]
+    site_id_col<-c("link_id",colnames(read_sf(file.path("/vsizip",zip_loc,"snapped_points.shp")))[[1]])
+
+    if (!is.null(spec)) {
+      site_id_col<-site_id_col[site_id_col %in% colnames(spec)]
+    } else {
+      site_id_col<-"link_id"
+    }
+
   } else {
     site_id_col<-"link_id"
   }
