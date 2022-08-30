@@ -548,8 +548,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
 
 ```
 
-Finally, we'll examine relationships among our response variable in terms of in-stream distances, contrasting flow connected sites vs, flow unconnected sites. Here we see greater differences between responses with increasing in-stream distance. Within the first 10,000m (10km) range, response values are more similar in flow connected sites, than flow unconnected.
-
+Finally, we'll examine relationships among our response variable in terms of in-stream distances, contrasting flow connected sites vs, flow unconnected sites. Here we see greater differences between responses with increasing in-stream distance. We expect greater similarity among flow-connected than flow-unconnected sites, but don't see it here. This may be a product of this being an artificial data set.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -579,7 +578,9 @@ dmat<-hydro_out$pwise_dist %>%
     directed_path_length==0 ~ undirected_path_length,
     T ~ NA_real_
   )) %>% 
-  pivot_longer(c(directed_path_length,undirected_path_length),names_to ="dist_type",values_to ="dist") %>% 
+  pivot_longer(c(directed_path_length,undirected_path_length),
+               names_to ="dist_type",
+               values_to ="dist") %>% 
   filter(!is.na(dist)) %>% 
   mutate(`Distance Type`=case_when(
     dist_type=="directed_path_length" ~ "Flow Connected",
@@ -603,7 +604,10 @@ Finally, we'll do a similar comparison but using percent of shared catchments. H
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
+ggplot(dmat %>%
+         select(origin,destination,prop_shared_catchment,value_diff) %>%
+         distinct(),
+       aes(x=prop_shared_catchment,y=value_diff))+
   geom_hex()+
   geom_smooth(se=F)+
   theme_bw()+

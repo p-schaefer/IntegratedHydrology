@@ -11,8 +11,9 @@ ihydro: Integrated hydrology tools for environmental science
     -   <a href="#31-generate-toy-terrain-dataset-and-sampling-points"
         id="toc-31-generate-toy-terrain-dataset-and-sampling-points">3.1
         Generate toy terrain dataset and sampling points</a>
-    -   <a href="#32-generate-predictor-layers"
-        id="toc-32-generate-predictor-layers">3.2 Generate predictor layers</a>
+    -   <a href="#32-generate-layers-of-interest"
+        id="toc-32-generate-layers-of-interest">3.2 Generate layers of
+        interest</a>
 -   <a href="#4-generate-geospatial-analysis-products"
     id="toc-4-generate-geospatial-analysis-products">4 Generate geospatial
     analysis products</a>
@@ -250,7 +251,7 @@ plot(toy_dem)
 
 [Back to top](#1-introduction)
 
-### 3.2 Generate predictor layers
+### 3.2 Generate layers of interest
 
 ``` r
 
@@ -668,9 +669,9 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
 Finally, we’ll examine relationships among our response variable in
 terms of in-stream distances, contrasting flow connected sites vs, flow
 unconnected sites. Here we see greater differences between responses
-with increasing in-stream distance. Within the first 10,000m (10km)
-range, response values are more similar in flow connected sites, than
-flow unconnected.
+with increasing in-stream distance. We expect greater similarity among
+flow-connected than flow-unconnected sites, but don’t see it here. This
+may be a product of this being an artificial data set.
 
 ``` r
 
@@ -700,7 +701,9 @@ dmat<-hydro_out$pwise_dist %>%
     directed_path_length==0 ~ undirected_path_length,
     T ~ NA_real_
   )) %>% 
-  pivot_longer(c(directed_path_length,undirected_path_length),names_to ="dist_type",values_to ="dist") %>% 
+  pivot_longer(c(directed_path_length,undirected_path_length),
+               names_to ="dist_type",
+               values_to ="dist") %>% 
   filter(!is.na(dist)) %>% 
   mutate(`Distance Type`=case_when(
     dist_type=="directed_path_length" ~ "Flow Connected",
@@ -727,7 +730,10 @@ percent of shared catchments increases.
 
 ``` r
 
-ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
+ggplot(dmat %>%
+         select(origin,destination,prop_shared_catchment,value_diff) %>%
+         distinct(),
+       aes(x=prop_shared_catchment,y=value_diff))+
   geom_hex()+
   geom_smooth(se=F)+
   theme_bw()+
@@ -1188,16 +1194,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           29    44    38 rmse    standa…  2.46     2   0.192 Prepro…
-#>  2 standard           45   963     7 rmse    standa…  2.81     5   0.207 Prepro…
-#>  3 standard           65  1473    10 rmse    standa…  2.82     5   0.204 Prepro…
-#>  4 standard           76  1501    16 rmse    standa…  2.82     5   0.202 Prepro…
-#>  5 standard            6   108    13 rmse    standa…  2.82     5   0.203 Prepro…
-#>  6 spatial            58   318    36 rmse    standa…  3.03     5   0.236 Prepro…
-#>  7 spatial            12  1739    40 rmse    standa…  3.03     5   0.236 Prepro…
-#>  8 spatial            65  1267    35 rmse    standa…  3.04     5   0.245 Prepro…
-#>  9 spatial            46   557    38 rmse    standa…  3.04     5   0.239 Prepro…
-#> 10 spatial            20   704    38 rmse    standa…  3.04     5   0.243 Prepro…
+#>  1 standard           36   113    17 rmse    standa…  2.82     5   0.210 Prepro…
+#>  2 standard           74  1626    17 rmse    standa…  2.82     5   0.205 Prepro…
+#>  3 standard           75  1683    16 rmse    standa…  2.83     5   0.205 Prepro…
+#>  4 standard           64  1952     6 rmse    standa…  2.83     5   0.211 Prepro…
+#>  5 standard           24   790    15 rmse    standa…  2.83     5   0.212 Prepro…
+#>  6 spatial            45  1648    38 rmse    standa…  3.03     5   0.242 Prepro…
+#>  7 spatial            11   669    35 rmse    standa…  3.03     5   0.248 Prepro…
+#>  8 spatial             7  1786    33 rmse    standa…  3.04     5   0.245 Prepro…
+#>  9 spatial            47   428    26 rmse    standa…  3.04     5   0.242 Prepro…
+#> 10 spatial            53  1452    37 rmse    standa…  3.04     5   0.248 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
