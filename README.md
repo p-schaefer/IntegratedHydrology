@@ -1,21 +1,21 @@
 ihydro: Integrated hydrology tools for environmental science
 ================
 
--   <a href="#10-introduction" id="toc-10-introduction">1.0 Introduction</a>
--   <a href="#20-system-setup-and-installation"
-    id="toc-20-system-setup-and-installation">2.0 System setup and
+-   <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
+-   <a href="#2-system-setup-and-installation"
+    id="toc-2-system-setup-and-installation">2 System setup and
     installation</a>
--   <a href="#30-prepare-dem-and-sampling-points-for-for-analysis"
-    id="toc-30-prepare-dem-and-sampling-points-for-for-analysis">3.0 Prepare
-    DEM and Sampling Points for for analysis</a>
+-   <a href="#3-prepare-dem-and-sampling-points-for-analysis"
+    id="toc-3-prepare-dem-and-sampling-points-for-analysis">3 Prepare DEM
+    and Sampling Points for analysis</a>
     -   <a href="#31-generate-toy-terrain-dataset-and-sampling-points"
         id="toc-31-generate-toy-terrain-dataset-and-sampling-points">3.1
         Generate toy terrain dataset and sampling points</a>
     -   <a href="#32-generate-predictor-layers"
         id="toc-32-generate-predictor-layers">3.2 Generate predictor layers</a>
--   <a href="#40-generate-geospatial-analysis-products"
-    id="toc-40-generate-geospatial-analysis-products">4.0 Generate
-    geospatial analysis products</a>
+-   <a href="#4-generate-geospatial-analysis-products"
+    id="toc-4-generate-geospatial-analysis-products">4 Generate geospatial
+    analysis products</a>
     -   <a href="#41-method-1-with-individual-function"
         id="toc-41-method-1-with-individual-function">4.1 METHOD 1: With
         individual function</a>
@@ -23,17 +23,17 @@ ihydro: Integrated hydrology tools for environmental science
         id="toc-42-method-2-with-a-single-function">4.2 METHOD 2: With a single
         function</a>
 -   <a
-    href="#50-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi"
-    id="toc-50-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi">5.0
+    href="#5-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi"
+    id="toc-5-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi">5
     Add layers of interest to geospatial analysis products with
     <code>process_loi()</code></a>
--   <a href="#60-calculate-weighted-spatial-summaries"
-    id="toc-60-calculate-weighted-spatial-summaries">6.0 Calculate
-    (weighted) spatial summaries</a>
+-   <a href="#6-calculate-weighted-spatial-summaries"
+    id="toc-6-calculate-weighted-spatial-summaries">6 Calculate (weighted)
+    spatial summaries:</a>
     -   <a
-        href="#61-at-sampleing-points-with-site-specific-attributes-attrib_points"
-        id="toc-61-at-sampleing-points-with-site-specific-attributes-attrib_points">6.1
-        At sampleing points with site specific attributes
+        href="#61-at-specific-sampling-points-with-site-specific-attributes-attrib_points"
+        id="toc-61-at-specific-sampling-points-with-site-specific-attributes-attrib_points">6.1
+        At specific sampling points with site specific attributes
         <code>attrib_points()</code></a>
     -   <a href="#62-at-all-sampling-points-attrib_points"
         id="toc-62-at-all-sampling-points-attrib_points">6.2 At all sampling
@@ -41,17 +41,17 @@ ihydro: Integrated hydrology tools for environmental science
     -   <a href="#63-across-entire-study-area-attrib_points"
         id="toc-63-across-entire-study-area-attrib_points">6.3 Across entire
         study area <code>attrib_points()</code></a>
--   <a href="#70-example-model" id="toc-70-example-model">7.0 Example
-    Model</a>
+-   <a href="#7-example-modelling" id="toc-7-example-modelling">7 Example
+    Modelling</a>
     -   <a href="#71-train-a-random-forest-model"
         id="toc-71-train-a-random-forest-model">7.1 Train a Random Forest
         Model</a>
--   <a href="#80-future-plans" id="toc-80-future-plans">8.0 Future Plans</a>
--   <a href="#90-references" id="toc-90-references">9.0 References</a>
+-   <a href="#8-future-plans" id="toc-8-future-plans">8 Future Plans</a>
+-   <a href="#9-references" id="toc-9-references">9 References</a>
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-## 1.0 Introduction
+## 1 Introduction
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="75%" style="display: block; margin: auto;" />
 
@@ -78,13 +78,13 @@ Once that is done, landscape features of interest (e.g., land-cover,
 geology, climate, etc.) must be related to the reach (or sampling
 points). This alone can be complex as the spatial configuration of these
 factors relative to flow direction and accumulation can be important
-important (Peterson ***et al.***, 2011). The ***ihydro*** package uses
+(Peterson ***et al.***, 2011). The ***ihydro*** package uses
 ***hydroweight*** (Kielstra ***et al.*** 2021) to calculate these
 attributes.
 
 The complexity of this workflow can be a rate limiting step in the
-scope, content, quality, and applicability of aquatic environmental
-scientist investigations. The ***ihydro*** package offers tools and
+scope, content, quality, and applicability of investigations by aquatic
+environmental scientist. The ***ihydro*** package offers tools and
 workflows to simplify these complex steps. It is capable of handling all
 above computation steps, leaving researchers the task of identifying
 layers of interest and modeling with (potentially) large numbers of
@@ -96,30 +96,29 @@ and rivers, autocorrelation tends to be asymmetric, with sites generally
 more similar when they are flow connected, than not flow connected.
 ***ihydro*** produces tables that can be transformed into a asymmetric
 matrices that describes the relationships between sampling points based
-on instream distances and/or the proportions of an upstream catchment
-that is shared with a target site. Proportion of shared upstream
-catchment (rather than in-stream distance) are a more relevant measure
-of spatial autocorrelation in streams because it accounts for
-differences in catchment areas between points, as well as spatial
-proximity. For example, if water chemistry samples are taken from a
-large 6th order stream, and a upstream small 1st order tributary we
-would expect the small tributary to have only a small impact on the
-larger stream. Hence autocorrelation should be low because the tributary
-because it is not contributing much flow to the large stream. If using
-in-stream distances, the assumed autocorrelation may be high because the
-physical distance is small, but this would be incorrect.
+on instream distances and/or the proportions shared catchments.
+Proportion of shared upstream catchment (rather than in-stream distance)
+are a more relevant measure of spatial autocorrelation in streams
+because it accounts for differences in catchment areas between points,
+as well as spatial proximity. For example, if water chemistry samples
+are taken from a large 6th order stream, and a upstream small 1st order
+tributary we would expect the small tributary to have only a small
+impact on the larger stream (despite its close physical proximity).
+Hence, autocorrelation should be low because the tributary does not
+contribute much flow to the larger stream. Using in-stream distances
+alone may misrepresent this pattern.
 
-***ihydro*** stores its geospatial products in a file for easy of
-retrieval and plotting in external software. This can be one of the
-slower aspects of the functions, as it means output need to be
-compressed and added to the existing file. Many ***ihydro*** function
-can be run in parallel for increased speed (if enough memory is
-available), and are quick at removing internal intermediate files to
-keep hard drives from filling up too fast.
+***ihydro*** stores its geospatial products in a zip file for easy of
+retrieval and extraction in external software (i.e. QGIS). Due to the
+compression involved, generating, and adding results to the zip file can
+be time consuming, however, many ***ihydro*** function can be run in
+parallel for increased speed (if enough memory is available). The
+functions are also quick at removing internal intermediate files to keep
+hard drives from filling up too fast.
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 2.0 System setup and installation
+## 2 System setup and installation
 
 *WhiteboxTools* and *whitebox* are required for ***ihydro***. See
 [whiteboxR](https://github.com/giswqs/whiteboxR) or below for
@@ -155,26 +154,25 @@ if (F){
 }
 ```
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 3.0 Prepare DEM and Sampling Points for for analysis
+## 3 Prepare DEM and Sampling Points for analysis
 
 ### 3.1 Generate toy terrain dataset and sampling points
 
 Begin by bringing in the digital elevation model and using it to
 generate terrain products. The DEM must be processed in a way to remove
 depressions. Whitebox offers methods for breaching and filling DEMs to
-remove depressions. These tools must be run before applying ihydro
+remove depressions. These tools must be run before applying ***ihydro***
 tools.
 
 Another factor to consider at this step is whether to burn stream
-vectors into the DEM; tool allows for this, but there are several
-caveats associated with this process. See
-[here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
+vectors into the DEM; the whitebox::wbt_fillburn() tool allows for this,
+but there are several caveats associated with this process. See
+[here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois).
 
 ``` r
 ## Load libraries
-library(viridis)
 library(ihydro)
 library(tmap)
 library(furrr)
@@ -183,12 +181,15 @@ library(terra)
 library(sf)
 library(dplyr)
 
-# Many function in 'ihydro' can be run in parallel internally. However it’s important to remember that
-# data has to be passed back and forth between the workers. This means that whatever performance gain you might have
-# gotten from your parallelization can be crushed by moving large amounts of data around. In general, passing objects
-# as file paths will be faster than passing whole sf or terra objects. Not returning products directly will also speed
-# up function processing time dramatically. Products can always be retrieved/read in directly from the output .zip
-# file.
+# Many function in 'ihydro' can be run in parallel internally. However it’s 
+# important to remember that data has to be passed back and forth between the 
+# workers. This means that whatever performance gain you might have gotten from
+# your parallelization can be crushed by moving large amounts of data around.
+# In general, passing objects as file paths will be faster than passing whole 
+# sf or terra objects. Not returning products directly will also speed up 
+# function processing time dramatically. Products can always be retrieved/read
+# in directly from the output .zip file.
+
 if (F) plan(multisession)
 
 ## Generate save_dir as a temporary directory
@@ -247,7 +248,7 @@ plot(toy_dem)
 
 <img src="man/figures/README-unnamed-chunk-3-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 ### 3.2 Generate predictor layers
 
@@ -323,9 +324,9 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 
 <img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 4.0 Generate geospatial analysis products
+## 4 Generate geospatial analysis products
 
 ### 4.1 METHOD 1: With individual function
 
@@ -381,7 +382,7 @@ plot(log10(flow_accum))
 
 <img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 #### 4.1.2 Generate vector geospatial analysis products with `generate_vectors()`
 
@@ -427,7 +428,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",al
 
 <img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 #### 4.1.3 Split vector geospatial analysis products at sampling points `insert_points()`
 
@@ -444,7 +445,8 @@ done by splitting stream lines and catchments at these points.
 hydro_out<-insert_points( 
   input=hydro_out,
   points=file.path(save_dir, "sites.shp"),
-  site_id_col="site_id", # Column in points layer that corresponds to unique IDs that will be available in data products
+  site_id_col="site_id", # Column name in points layer that corresponds to 
+  #unique IDs that will be available in data products
   snap_distance=250L,
   return_products=T,
   temp_dir=NULL,
@@ -458,7 +460,8 @@ hydro_out<-insert_points(
 
 # New layers added by `insert_points()`
 # hydro_out$snapped_points # -> provided points snapped to nearest segment. Any points 
-#                          #   beyond snap distance are removed, with a warning. 
+#                          #   beyond snap distance are removed, with a warning if
+#                          #    break_on_noSnap == F. 
 
 # This function modifies the existing vector outputs by inserting links, and 
 # splitting lines/subbasins at `points`, and adds the `site_id_col` column to 
@@ -478,7 +481,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
 
 <img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 #### 4.1.4 Create lookup table of flow-directions with `trace_flowpaths()`
 
@@ -524,7 +527,7 @@ tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 #### 4.1.5 Generate complete upstream catchment areas with `get_catchment()`
 
@@ -551,7 +554,7 @@ tm_shape(bind_rows(subbasin_catchments,point_catchments)) + tm_polygons(col="whi
 
 <img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 #### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
 
@@ -656,7 +659,8 @@ point_groups<-hydro_out$snapped_points %>%
 
 tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
-  tm_shape(point_groups) + tm_dots(col="group", palette = "Set1",legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_shape(point_groups) + tm_dots(col="group", palette = "Set1",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(legend.outside = TRUE)
 ```
 
 <img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
@@ -675,21 +679,20 @@ response_table<-file.path(save_dir, "sites.shp") %>%
   read_sf() %>% 
   as_tibble() %>% 
   select(site_id,value) %>% 
-  left_join(hydro_out$snapped_points %>%
+  left_join(hydro_out$snapped_points %>% # join by snapped sites to get link_id values
               as_tibble() %>% 
               select(site_id,link_id)) %>% 
   mutate(link_id=as.character(link_id))
 
-# Combine pairwise data with values and examine spatial relationships. For more 
-# precise version, see:
-# https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgegramForFluvialVariography.pdf
-
+# Combine pairwise data with values and examine spatial relationships. 
 dmat<-hydro_out$pwise_dist %>% 
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
   ) %>% 
+  # Add response values for origin and destination points into the table
   left_join(response_table %>% rename(origin_value=value),by=c("origin"="link_id")) %>% 
   left_join(response_table %>% rename(destination_value=value),by=c("destination"="link_id")) %>% 
+  # Calculate the squared difference
   mutate(value_diff=sqrt((origin_value-destination_value)^2)) %>% 
   filter(origin!=destination) %>% 
   mutate(undirected_path_length=case_when(
@@ -703,16 +706,12 @@ dmat<-hydro_out$pwise_dist %>%
     dist_type=="directed_path_length" ~ "Flow Connected",
     dist_type=="undirected_path_length" ~ "Flow Unconnected",
   ))
-#mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
-#pivot_wider(names_from=origin,values_from=prop_shared_catchment ,values_fill = 0) %>% 
-#data.frame(check.names = F) %>% 
-#tibble::column_to_rownames("link_id") 
+
 
 require(ggplot2)
 ggplot(dmat,aes(x=dist,y=value_diff,col=`Distance Type`))+
   geom_hex()+
   geom_smooth(se=F)+
-  facet_wrap(~`Distance Type`)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
@@ -740,7 +739,7 @@ ggplot(dmat,aes(x=prop_shared_catchment,y=value_diff))+
 
 <img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 ### 4.2 METHOD 2: With a single function
 
@@ -790,20 +789,26 @@ tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.sh
 
 <img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 5.0 Add layers of interest to geospatial analysis products with `process_loi()`
+## 5 Add layers of interest to geospatial analysis products with `process_loi()`
+
+Layers of interest (loi) represent the features on the landscape we are
+interested in relating to the observed responses in the stream. These
+can include land-cover, climate, geology, soils, NDVI, slope, etc.
 
 Instead of processing the loi separately (as was done above), they can
 instead be added to the completed workflow, and added to the existing
 .zip file for convenient file storage/organization. If run separately
-(as above), “num_rast.tif” and/or “cat_rast.tif” can also manually be
-added to the .zip file as well.
+(as above), “num_rast.tif” and/or “cat_rast.tif” can manually be added
+to the .zip file as well.
 
 ``` r
 
 
-# Here we will out our previously calculated loi results below
+# Here we will use out previously calculated loi results, but if `process_loi` 
+# is run with an input parameter specified, the loi rasters will be added to the
+# output. 
 
 if (F) {
   plan(multisession(workers=2))
@@ -828,11 +833,24 @@ if (F) {
 }
 ```
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 6.0 Calculate (weighted) spatial summaries
+## 6 Calculate (weighted) spatial summaries:
 
-### 6.1 At sampleing points with site specific attributes `attrib_points()`
+New research is showing that the presence of particular features on the
+landscape is not always sufficient to predict the instream response to
+those features, and the location of those features relative to the
+locations of streams and areas of higher flow accumulation is very
+important (Peterson ***et al.*** 2011). ***ihydro*** used the
+[hydroweight](https://github.com/bkielstr/hydroweight) package to
+calculate weighted spatial summaries of supplied loi layers.
+
+### 6.1 At specific sampling points with site specific attributes `attrib_points()`
+
+The `attrib_points()` function can be run with a specification table to
+specify at which sites loi summaries should be calculated for, which loi
+to summarize, and type of numeric summary to use for those particular
+loi.
 
 ``` r
 
@@ -864,7 +882,8 @@ final_attributes_sub<-attrib_points(
   weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
   OS_combine=F,
   target_streamseg=F, # This will set the target_o parameter as the sampling point
-  inv_function = function(x) {
+  inv_function = function(x) { # Function used by hydroweight to calculate 
+    # spatial weights across the landscape
     (x * 0.001 + 1)^-1
   },
   remove_region=NULL,
@@ -873,7 +892,7 @@ final_attributes_sub<-attrib_points(
   verbose=F
 )
 
-# Site 25 should only contain mean and distwtd_mean variables for ruggedness
+# Site 25 should only contain mean and distwtd_mean variables for slope
 final_attributes_sub %>% 
   select(site_id,contains("slope"))
 #> # A tibble: 3 × 26
@@ -891,27 +910,32 @@ final_attributes_sub %>%
 #> #   slope_lumped_mean.y <dbl>, slope_lumped_distwtd_mean.y <dbl>, …
 ```
 
+We can also access the weighting layers and weighted attribute layers
+(if return_products==T)
+
 ``` r
 
-# We can also access the weighting layers and weighted attribute layers (if return_products==T)
-plot(rast(
-  list(rast(final_attributes_sub$distance_weights[[2]]$iFLS.tif)%>% 
-         setNames("iFLS Weighting"),
-       log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
-         setNames("HAiFLS Weighting"),
-       rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meandistwtd_sdmaxmeanmin.iFLS_num_rast.loi_dist_rast) %>% 
-         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
-         setNames("iFLS Weighted Slope"),
-       rast(final_attributes_sub$weighted_attr[[2]]$cat_rast.mean.iFLS_cat_rast.loi_dist_rast)[[1]] %>% 
-         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
-         setNames("HAiFLS Weighted Landcover Class 1")
+plot(
+  rast(
+    list(
+      rast(final_attributes_sub$distance_weights[[2]]$iFLS.tif)%>% 
+        setNames("iFLS Weighting"),
+      log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
+        setNames("HAiFLS Weighting"),
+      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meandistwtd_sdmaxmeanmin.iFLS_num_rast.loi_dist_rast) %>% 
+        project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+        setNames("iFLS Weighted Slope"),
+      rast(final_attributes_sub$weighted_attr[[2]]$cat_rast.mean.iFLS_cat_rast.loi_dist_rast)[[1]] %>% 
+        project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+        setNames("HAiFLS Weighted Landcover Class 1")
+    )
   )
-))
+)
 ```
 
 <img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 ### 6.2 At all sampling points `attrib_points()`
 
@@ -923,7 +947,8 @@ loi_names<-map(loi_names,~c("distwtd_mean"))
 
 # Here we will calculate the attributes for all sampled points
 specification_table<-tibble(
-  site_id=hydro_out$snapped_points$site_id,
+  site_id=hydro_out$snapped_points$site_id, # We use the snapped points layer to
+  # get the site_ids of all sample points
   loi=list(loi_names)
 )
 
@@ -967,9 +992,18 @@ final_attributes_samples
 #> #   pontsrc_pontsrc_HAiFLO_prop <dbl>, LC_1_HAiFLS_prop <dbl>, …
 ```
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
 ### 6.3 Across entire study area `attrib_points()`
+
+In order to make predictions across the landscape, we will need to
+calculate our predictors acorss the landscape as well. At this point, we
+may consider switching our target_o parameter from the sampling point
+(as was done above) to the entire reach by setting `target_streamseg`=T.
+This will calculate all target_o weighting schemes to be the entire
+reach. This may be more conservative for predicting beyond sampling
+points as it integrates landscape factors across the length of the whole
+reach.
 
 ``` r
 
@@ -977,6 +1011,7 @@ final_attributes_samples
 # hydrology network to speed up calculations
 
 specification_table<-tibble(
+  # Note we use link_id here instead of site_id to get all reaches
   link_id=read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))$link_id,
   loi=list(loi_names)
 )
@@ -1015,9 +1050,9 @@ final_attributes_all
 #> #   pontsrc_pontsrc_HAiFLO_prop <dbl>, LC_1_HAiFLS_prop <dbl>, …
 ```
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
 
-## 7.0 Example Model
+## 7 Example Modelling
 
 ### 7.1 Train a Random Forest Model
 
@@ -1083,7 +1118,7 @@ comb_data<-response_table %>%
       mutate(origin=paste0("Prop_catch_",origin)) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
-left_join(clust_data)
+  left_join(clust_data)
 ```
 
 Then, we’ll follow the tidymodels workflow from here:
@@ -1107,7 +1142,7 @@ rf_mod <- rand_forest(trees = tune(),
              keep.inbag=TRUE,
              quantreg=TRUE,
              splitrule="extratrees", # for generally improved performance
-             num.random.splits = 5
+             num.random.splits = 10
   ) %>% 
   set_mode("regression")
 
@@ -1117,16 +1152,18 @@ recip<-recipe(x=comb_data %>%
 ) %>% 
   update_role(c(everything()),new_role="predictor") %>% 
   update_role(value,new_role="outcome") %>% 
-  step_zv() %>% # remove variables with near zero variance
-  step_lincomb() # remove variables that are linear combinations of other variables
+  step_zv() %>% # remove variables with zero variance
+  step_lincomb() # remove variables that are linear combinations of other 
+# variables (can happen with proportional variables)
 
 # Setup Cross-Validation Strategies
 set.seed(1234)
 cv_strats<-list(
-  standard=vfold_cv(comb_data,v=5), # standard leave group_out cross-validation
-  spatial=spatial_clustering_cv(comb_data, # using spatial information to leave out groups of nearby stations
-                                cluster_function = "hclust", # hclust did a decent job clustering sites previously
-                                coords=colnames(comb_data)[grepl("CLUST_",colnames(comb_data))],v=5)
+  standard=vfold_cv(comb_data,v=5), # standard random leave group_out cross-validation
+  spatial=spatial_clustering_cv(
+    comb_data, # using spatial information to leave out groups of nearby stations
+    cluster_function = "hclust", # hclust did a decent job clustering sites previously
+    coords=colnames(comb_data)[grepl("CLUST_",colnames(comb_data))],v=5)
 )
 
 # Setup final workflow
@@ -1137,27 +1174,30 @@ wf<-workflow() %>%
 # Run cross-validation strategies 
 set.seed(1234)
 final_out<-future_map(cv_strats,
-                      ~tune_grid(wf,resamples=.,grid=50)
+                      ~tune_grid(wf,resamples=.,grid=50) # Choose 50 hyper-parameter
+                                                         # configurations
 )
 
 # We expect the standard cross-validation to have higher accuracy than spatial
 # cross-validation because the spatial autocorrelation variables should allow more accurate
-# predictions from nearby sites
+# predictions from nearby sites. Conversely, the spatial cross-validation models
+# show the best possible accuracy for predicting beyond the spatial extents of 
+# Where the data was collected.
 
 map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           60    81    10 rmse    standa…  2.80     5   0.219 Prepro…
-#>  2 standard           64  1894    11 rmse    standa…  2.83     5   0.205 Prepro…
-#>  3 standard           72  1796     8 rmse    standa…  2.83     5   0.206 Prepro…
-#>  4 standard           47  1462    15 rmse    standa…  2.84     5   0.207 Prepro…
-#>  5 standard           54   475    10 rmse    standa…  2.84     5   0.213 Prepro…
-#>  6 spatial             8  1505    37 rmse    standa…  3.03     5   0.241 Prepro…
-#>  7 spatial            54   268    37 rmse    standa…  3.04     5   0.228 Prepro…
-#>  8 spatial            37   573    34 rmse    standa…  3.04     5   0.230 Prepro…
-#>  9 spatial            54  1798    40 rmse    standa…  3.05     5   0.236 Prepro…
-#> 10 spatial            17  1188    32 rmse    standa…  3.05     5   0.237 Prepro…
+#>  1 standard           29    44    38 rmse    standa…  2.46     2   0.192 Prepro…
+#>  2 standard           45   963     7 rmse    standa…  2.81     5   0.207 Prepro…
+#>  3 standard           65  1473    10 rmse    standa…  2.82     5   0.204 Prepro…
+#>  4 standard           76  1501    16 rmse    standa…  2.82     5   0.202 Prepro…
+#>  5 standard            6   108    13 rmse    standa…  2.82     5   0.203 Prepro…
+#>  6 spatial            58   318    36 rmse    standa…  3.03     5   0.236 Prepro…
+#>  7 spatial            12  1739    40 rmse    standa…  3.03     5   0.236 Prepro…
+#>  8 spatial            65  1267    35 rmse    standa…  3.04     5   0.245 Prepro…
+#>  9 spatial            46   557    38 rmse    standa…  3.04     5   0.239 Prepro…
+#> 10 spatial            20   704    38 rmse    standa…  3.04     5   0.243 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1169,8 +1209,8 @@ in this data, it is difficult to evaluate that aspect of the model.
 
 ``` r
 
-# Will use rmse to select best metrics overall as it is better suited
-# for model selection in this context
+# We will use rmse to select best metrics overall as it is better suited
+# for model selection in this context than r^2
 
 best_tunes<-map(final_out,select_best,1,metric = "rmse")
 
@@ -1202,8 +1242,7 @@ landscapes, as link_ids are specific to the stream initiation threshold.
 
 ``` r
 
-# link_ids won't match between the sparse and full landscapes, so need to make a lookup table
-# to combine the link_ids
+# This step would not be necessary if predicting to only a single network.
 
 lkp<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp")) %>% 
   select(site_id,link_id) %>% 
@@ -1221,12 +1260,14 @@ prediction_data<-lkp %>%
   mutate(site_id=as.numeric(site_id)) %>% 
   select(link_id=sparse_link_id,comp_link_id,site_id) %>% 
   left_join(
+    # Add loi summaries
     final_attributes_all %>%
       select(-distance_weights,-weighted_attr) %>% 
       mutate(across(c(everything()),as.numeric)) %>% 
       mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .)))
   ) %>% 
   left_join(
+    # Add spatial autocorrelation variables
     hydro_out$pwise_dist %>%
       filter(origin %in% sub_id_keep$link_id) %>%
       select(origin,destination,prop_shared_catchment) %>%
@@ -1236,15 +1277,15 @@ prediction_data<-lkp %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0),
     by=c("comp_link_id"="link_id")
   ) %>% 
-  filter(!if_any(c(contains("Prop_catch"),contains("HAiFLO")),is.na))
+  filter(!if_any(c(contains("Prop_catch"),contains("HAiFLO")),is.na)) # remove some sites without data
 ```
 
 And finally, we can predict across the landscape. We’ll use the range of
 quantile predictions to estimate uncertainty in the model predictions.
-The final map we produce here shows sampled points at thier measured
-value, stream segments are coloured according to their predictied
-values, and the width of the stream segment corresponds to the
-uncertainty in the prediction.
+The final map we produce here shows sampled points at their measured
+value, stream segments are coloured according to their predicted values,
+and the width of the stream segment corresponds to the uncertainty in
+the prediction.
 
 ``` r
 
@@ -1261,8 +1302,6 @@ prediction_tbl<-tibble(
          `Predicted`=p50)
 
 Streams<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp")) %>% 
-  #mutate(link_id=floor(link_id)) %>% #this will assign the predicted value to the entire reach,
-  #not just the unsampled portion
   left_join(prediction_tbl)
 
 Points<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"snapped_points.shp")) %>% 
@@ -1279,13 +1318,13 @@ tm_shape(Streams) +
 
 <img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
-## 8.0 Future Plans
+## 8 Future Plans
 
 This package is considered in early alpha, and bugs are expected. There
 is lots of room for improvements in many of the functions. The core
 functions may still change as the package develops and matures.
 
-## 9.0 References
+## 9 References
 
 Brian W Kielstra, Robert W Mackereth, Stephanie J Melles, & Erik JS
 Emilson. (2021). hydroweight: Inverse distance-weighted rasters and
@@ -1316,4 +1355,4 @@ fluvial variography: characterizing spatial dependence on stream
 networks. Journal of Computational and Graphical Statistics 26.2
 253-264. <https://doi.org/10.1080/10618600.2016.1247006>
 
-[Back to top](#10-introduction)
+[Back to top](#1-introduction)
