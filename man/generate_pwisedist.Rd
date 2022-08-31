@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_pwisedist.R
 \name{generate_pwisedist}
 \alias{generate_pwisedist}
-\title{Title}
+\title{Generate pairwise distances between flow-connected and flow-unconnected site pairs, as well proportions of shared catchments}
 \usage{
 generate_pwisedist(input, return_products = F, temp_dir = NULL, verbose = F)
 }
@@ -19,5 +19,5 @@ generate_pwisedist(input, return_products = F, temp_dir = NULL, verbose = F)
 If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-Title
+Generate pairwise distances between flow-connected and flow-unconnected site pairs, as well proportions of shared catchments
 }

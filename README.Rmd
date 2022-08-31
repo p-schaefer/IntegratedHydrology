@@ -119,29 +119,29 @@ ot<-system.file("extdata", "nc", "elev_ned_30m.tif", package = "openSTARS") %>%
   rast() 
 
 crs(ot)<-crs(rast(system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")))
-writeRaster(ot,file.path(save_dir, "toy_dem1.tif"),overwrite=T)
+writeRaster(ot,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
-toy_dem<-rast(file.path(save_dir, "toy_dem1.tif"))
+toy_dem<-rast(file.path(save_dir, "toy_dem.tif"))
 
 
-# Bring in and process stream vector
-system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>% 
-  vect() %>% 
-  st_as_sf() %>% 
-  st_transform(st_crs(toy_dem)) %>% 
-  vect() %>% 
-  writeVector(file.path(save_dir, "toy_streams.shp"),overwrite=T)
-
-burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
-  rasterize(toy_dem)
-
-# rudimentary stream burning
-burn_lyr2<-toy_dem
-burn_lyr2[is.na(burn_lyr)]<-NA 
-burn_lyr2<-burn_lyr2-5
-toy_dem[!is.na(burn_lyr2)]<-burn_lyr2[!is.na(burn_lyr2)]
-
-writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
+# # Bring in and process stream vector
+# system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>% 
+#   vect() %>% 
+#   st_as_sf() %>% 
+#   st_transform(st_crs(toy_dem)) %>% 
+#   vect() %>% 
+#   writeVector(file.path(save_dir, "toy_streams.shp"),overwrite=T)
+# 
+# burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
+#   rasterize(toy_dem)
+# 
+# # rudimentary stream burning
+# burn_lyr2<-toy_dem
+# burn_lyr2[is.na(burn_lyr)]<-NA 
+# burn_lyr2<-burn_lyr2-5
+# toy_dem[!is.na(burn_lyr2)]<-burn_lyr2[!is.na(burn_lyr2)]
+# 
+# writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
 ## Breach depressions to ensure continuous flow
 wbt_breach_depressions(
@@ -254,6 +254,7 @@ output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
 # flow accumulation threshold
 hydro_out<-process_flowdir(
   dem=toy_dem,
+  burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
   threshold=100L,  
   return_products=T,
   output_filename=output_filename_hydro,
@@ -971,7 +972,7 @@ wf<-workflow() %>%
 set.seed(1234)
 final_out<-future_map(cv_strats,
                       ~tune_grid(wf,resamples=.,grid=50) # Choose 50 hyper-parameter
-                                                         # configurations
+                      # configurations
 )
 
 # We expect the standard cross-validation to have higher accuracy than spatial
@@ -1083,9 +1084,24 @@ Points<-read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"snapped_points.shp
   mutate(Observed=value)
 
 tm_shape(Streams) + 
-  tm_lines(col="Predicted", palette = "viridis",alpha =0.8,legend.show=T,lwd ="Uncertainty",scale=5) +
+  tm_lines(col="Predicted",
+           palette = "viridis",
+           alpha =0.8,
+           style="fixed",
+           breaks =c(0,2,4,6,8,10),
+           legend.show=T,
+           lwd ="Uncertainty",
+           scale=5) +
   tm_shape(Points) + 
-  tm_dots(col="Observed", palette = "viridis",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_dots(col="Observed", 
+          palette = "viridis",
+          legend.show=T,
+          style="fixed",
+          breaks =c(0,2,4,6,8,10),
+          size=0.45,
+          border.col="black",
+          border.alpha=1,
+          border.lwd=1)+
   tm_layout(legend.outside = TRUE)
 
 

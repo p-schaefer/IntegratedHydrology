@@ -7,10 +7,9 @@
 #' @param verbose logical.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
-#'
 #' @export
 #'
-#' @examples
+
 
 generate_vectors<-function(
     input,

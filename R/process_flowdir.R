@@ -3,6 +3,7 @@
 #'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
 #' @param threshold integer. Flow accumulation threshold for stream initiation.
+#' @param burn_streams character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.
 #' @param output_filename character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
@@ -13,22 +14,17 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 #'
-#' @examples
-#'
 
 process_flowdir<-function(
     dem,
     threshold,
+    burn_streams=NULL,
     output_filename,
     return_products=F,
     temp_dir=NULL,
     verbose=F
 ) {
 
-  # require(sf)
-  # require(terra)
-  # require(whitebox)
-  # require(tidyverse)
   options(dplyr.summarise.inform = FALSE)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
@@ -57,6 +53,25 @@ process_flowdir<-function(
   target_crs<-crs(dem)
 
   writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal="COMPRESS=NONE")
+
+  if (!is.null(burn_streams)){
+
+    burn_streams<-hydroweight::process_input(burn_streams,
+                                             target=as.lines(terra::vect("POLYGON ((0 -5, 10 0, 10 -10, 0 -5))",
+                                                                         crs = target_crs)),
+                                             clip_region = as.polygons(ext(dem)+c(-1,-1,-1,-1),crs = target_crs),
+                                             input_name="burn_streams",
+                                             working_dir=temp_dir)
+
+    writeVector(burn_streams,file.path(temp_dir,"stream_final.shp"),overwrite=T)
+
+    wbt_fill_burn(
+      dem="dem_final.tif",
+      streams="stream_final.shp",
+      output="dem_final.tif"
+    )
+
+  }
 
 
   # Process flow dirrection -------------------------------------------------

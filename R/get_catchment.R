@@ -10,9 +10,7 @@
 #' @return polygon of upstream catchments at `target_points`
 #' @export
 #'
-#' @examples
-#'
-#'
+
 get_catchment<-function(
     input,
     site_id_col=NULL,
