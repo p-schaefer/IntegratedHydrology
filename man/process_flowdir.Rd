@@ -7,9 +7,13 @@
 process_flowdir(
   dem,
   threshold,
+  burn_streams = NULL,
+  burn_depth = 5,
+  depression_corr = c(NULL, "fill", "breach"),
   output_filename,
   return_products = F,
   temp_dir = NULL,
+  compress = F,
   verbose = F
 )
 }
@@ -18,11 +22,19 @@ process_flowdir(
 
 \item{threshold}{integer. Flow accumulation threshold for stream initiation.}
 
+\item{burn_streams}{character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.}
+
+\item{burn_depth}{numeric. Depth (in meters) to burn stream into the DEM.}
+
+\item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
+
 \item{output_filename}{character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
 
 \item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{compress}{logical. Should output rasters be compressed, slower but more space efficient.}
 
 \item{verbose}{logical.}
 }
@@ -31,6 +43,9 @@ If \code{return_products = TRUE}, all geospatial analysis products are returned.
 }
 \description{
 Process flow direction/accumulation and extracts streams from DEM
+}
+\details{
+If \code{return_products} = T, Packed-SpatRaster objects are returned. If \code{burn_streams} is specified, \link[whitebox:wbt_fill_burn]{whitebox::wbt_fill_burn} is used to burn the stream layer into the DEM. This is followed by \link[whitebox:wbt_feature_preserving_smoothing]{whitebox::wbt_feature_preserving_smoothing} to smooth final DEM. The \code{depression_corr} argument can be used to apply filling or breaching approaches to enforce flow accumulation from internal pit cells.
 }
 \seealso{
 \link[whitebox:wbt_d8_pointer]{whitebox::wbt_d8_pointer}, \link[whitebox:wbt_d8_flow_accumulation]{whitebox::wbt_d8_flow_accumulation}, \link[whitebox:wbt_extract_streams]{whitebox::wbt_extract_streams}

@@ -204,37 +204,9 @@ ot<-system.file("extdata", "nc", "elev_ned_30m.tif", package = "openSTARS") %>%
   rast() 
 
 crs(ot)<-crs(rast(system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS")))
-writeRaster(ot,file.path(save_dir, "toy_dem1.tif"),overwrite=T)
+writeRaster(ot,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
-toy_dem<-rast(file.path(save_dir, "toy_dem1.tif"))
-
-
-# Bring in and process stream vector
-system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>% 
-  vect() %>% 
-  st_as_sf() %>% 
-  st_transform(st_crs(toy_dem)) %>% 
-  vect() %>% 
-  writeVector(file.path(save_dir, "toy_streams.shp"),overwrite=T)
-
-burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
-  rasterize(toy_dem)
-
-# rudimentary stream burning
-burn_lyr2<-toy_dem
-burn_lyr2[is.na(burn_lyr)]<-NA 
-burn_lyr2<-burn_lyr2-5
-toy_dem[!is.na(burn_lyr2)]<-burn_lyr2[!is.na(burn_lyr2)]
-
-writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
-
-## Breach depressions to ensure continuous flow
-wbt_breach_depressions(
-  dem = file.path(save_dir, "toy_dem.tif"),
-  output = file.path(save_dir, "toy_dem_breached.tif")
-)
-
-toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
+toy_dem<-rast(file.path(save_dir, "toy_dem.tif"))
 
 ## Identify some sampling points
 system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>% 
@@ -344,6 +316,8 @@ output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
 # flow accumulation threshold
 hydro_out<-process_flowdir(
   dem=toy_dem,
+  burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
+  depression_corr="breach",
   threshold=100L,  
   return_products=T,
   output_filename=output_filename_hydro,
@@ -763,6 +737,8 @@ output_filename_hydro_sparse<-file.path(save_dir,"Processed_Hydrology_sparse.zip
 hydro_out_sparse<-process_hydrology(
   dem=toy_dem,
   output_filename=output_filename_hydro_sparse,
+  burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
+  depression_corr="breach",
   threshold=500L,
   points=hydro_out$snapped_points, 
   site_id_col="site_id",
@@ -904,9 +880,9 @@ final_attributes_sub %>%
 #> # A tibble: 3 × 26
 #>   site_id slope_lumped…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷ slope…⁸
 #>   <chr>            <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1                 3.31 0.149      15.9    3.16    2.13    3.39    2.26    3.33
-#> 2 25               NA    0.00515    26.3   NA       2.93   NA       2.85   NA   
-#> 3 80                3.52 0.400      10.1    3.52    2.39    4.04    2.47    3.98
+#> 1 1                 2.86  0.194    10.2     2.73    1.43    2.90    1.49    2.83
+#> 2 25               NA     0.0466   10.9    NA       1.86   NA       1.97   NA   
+#> 3 80                2.37  0.400     5.58    2.37    1.02    2.53    1.05    2.53
 #> # … with 17 more variables: slope_iFLS_distwtd_sd <dbl>,
 #> #   slope_HAiFLO_distwtd_mean <dbl>, slope_HAiFLO_distwtd_sd <dbl>,
 #> #   slope_HAiFLS_distwtd_mean <dbl>, slope_HAiFLS_distwtd_sd <dbl>,
@@ -976,20 +952,20 @@ final_attributes_samples<-attrib_points(
 )
 
 final_attributes_samples
-#> # A tibble: 60 × 37
+#> # A tibble: 61 × 37
 #>    site_id distance_we…¹ weigh…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷ LC_4_…⁸
 #>    <chr>   <list>        <list>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1       <NULL>        <NULL>     3.71    3.37  0.0927       0 0       0.0428 
-#>  2 11      <NULL>        <NULL>     5.71    3.97  0.179        0 1.45e-3 0.219  
-#>  3 12      <NULL>        <NULL>     3.44    3.54  0.820        0 0       0      
-#>  4 15      <NULL>        <NULL>     3.23    4.23  0.128        0 7.28e-4 0.0357 
-#>  5 16      <NULL>        <NULL>     3.34    4.39  0.0906       0 5.89e-4 0.0256 
-#>  6 17      <NULL>        <NULL>     3.35    4.39  0.125        0 9.73e-4 0.0181 
-#>  7 18      <NULL>        <NULL>     3.36    4.42  0.124        0 2.03e-3 0.0128 
-#>  8 19      <NULL>        <NULL>     3.71    4.35  0            0 9.24e-1 0      
-#>  9 20      <NULL>        <NULL>     3.10    4.47  0.0604       0 3.05e-1 0.00915
-#> 10 21      <NULL>        <NULL>     3.08    2.25  0.845        0 2.82e-2 0      
-#> # … with 50 more rows, 28 more variables: LC_5_HAiFLO_prop <dbl>,
+#>  1 1       <NULL>        <NULL>     4.42    2.52  0.0959       0 0        0.0255
+#>  2 11      <NULL>        <NULL>     5.37    3.09  0.167        0 1.37e-3  0.184 
+#>  3 12      <NULL>        <NULL>     4.42    3.03  0.451        0 1.08e-3  0.133 
+#>  4 15      <NULL>        <NULL>     2.33    3.35  0.123        0 7.76e-4  0.0360
+#>  5 16      <NULL>        <NULL>     2.12    3.49  0.0883       0 6.27e-4  0.0259
+#>  6 17      <NULL>        <NULL>     1.98    3.51  0.111        0 9.57e-4  0.0183
+#>  7 18      <NULL>        <NULL>     1.80    3.55  0.118        0 1.55e-3  0.0129
+#>  8 19      <NULL>        <NULL>     3.74    4.37  0            0 9.29e-1  0     
+#>  9 20      <NULL>        <NULL>     1.85    3.60  0.0593       0 3.08e-1  0.0100
+#> 10 21      <NULL>        <NULL>     2.55    2.19  0.861        0 2.80e-2  0     
+#> # … with 51 more rows, 28 more variables: LC_5_HAiFLO_prop <dbl>,
 #> #   LC_6_HAiFLO_prop <dbl>, LC_7_HAiFLO_prop <dbl>,
 #> #   GEO_NAME_CZam_HAiFLO_prop <dbl>, GEO_NAME_CZbg_HAiFLO_prop <dbl>,
 #> #   GEO_NAME_CZfg_HAiFLO_prop <dbl>, GEO_NAME_CZg_HAiFLO_prop <dbl>,
@@ -1034,20 +1010,20 @@ final_attributes_all<-attrib_points(
 )
 
 final_attributes_all
-#> # A tibble: 264 × 37
+#> # A tibble: 276 × 37
 #>    link_id distance_we…¹ weigh…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷ LC_4_…⁸
 #>      <dbl> <list>        <list>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1     213 <NULL>        <NULL>     3.41    5.00 0.00481       0 1.03e-1 1.97e-1
-#>  2      15 <NULL>        <NULL>     4.32    4.32 0.102         0 3.76e-3 2.06e-2
-#>  3     210 <NULL>        <NULL>     4.70    4.07 0.0355        0 1.71e-1 2.72e-2
-#>  4       2 <NULL>        <NULL>     3.77    4.81 0.0846        0 2.26e-1 2.67e-2
-#>  5       5 <NULL>        <NULL>     5.19    4.89 0.316         0 2.47e-1 1.25e-1
-#>  6       7 <NULL>        <NULL>     4.38    4.77 0.740         0 4.52e-3 1.38e-3
-#>  7      11 <NULL>        <NULL>     3.93    4.54 0.556         0 4.22e-4 0      
-#>  8     211 <NULL>        <NULL>     3.71    5.09 0.00613       0 8.28e-2 1.13e-2
-#>  9       1 <NULL>        <NULL>     4.27    4.66 0             0 1.67e-1 5.39e-1
-#> 10     203 <NULL>        <NULL>     2.87    3.31 0.791         0 2.79e-2 4.30e-4
-#> # … with 254 more rows, 28 more variables: LC_5_HAiFLO_prop <dbl>,
+#>  1     225 <NULL>        <NULL>     2.93    4.21 0.00336       0 1.04e-1 1.89e-1
+#>  2     222 <NULL>        <NULL>     4.12    3.95 0.0887        0 4.20e-3 1.36e-2
+#>  3     220 <NULL>        <NULL>     3.09    3.80 0.0380        0 1.88e-1 3.15e-2
+#>  4       2 <NULL>        <NULL>     3.76    3.55 0.0928        0 2.24e-1 3.25e-2
+#>  5       4 <NULL>        <NULL>     5.12    4.52 0.242         0 1.82e-1 1.23e-1
+#>  6       8 <NULL>        <NULL>     3.62    4.36 0.748         0 4.05e-3 1.62e-3
+#>  7      15 <NULL>        <NULL>     3.23    4.01 0.575         0 4.23e-4 0      
+#>  8       1 <NULL>        <NULL>     3.34    3.37 0             0 1.48e-1 5.55e-1
+#>  9     223 <NULL>        <NULL>     3.46    4.41 0.00452       0 5.45e-2 5.78e-3
+#> 10     214 <NULL>        <NULL>     2.37    2.85 0.730         0 4.50e-2 4.02e-4
+#> # … with 266 more rows, 28 more variables: LC_5_HAiFLO_prop <dbl>,
 #> #   LC_6_HAiFLO_prop <dbl>, LC_7_HAiFLO_prop <dbl>,
 #> #   GEO_NAME_CZam_HAiFLO_prop <dbl>, GEO_NAME_CZbg_HAiFLO_prop <dbl>,
 #> #   GEO_NAME_CZfg_HAiFLO_prop <dbl>, GEO_NAME_CZg_HAiFLO_prop <dbl>,
@@ -1194,16 +1170,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           67    48    11 rmse    standa…  2.78     4   0.264 Prepro…
-#>  2 standard           46   402    16 rmse    standa…  2.81     5   0.206 Prepro…
-#>  3 standard           30   339     9 rmse    standa…  2.83     5   0.228 Prepro…
-#>  4 standard           70   759    12 rmse    standa…  2.83     5   0.202 Prepro…
-#>  5 standard           49  1547     5 rmse    standa…  2.83     5   0.208 Prepro…
-#>  6 spatial            51   303    36 rmse    standa…  3.02     5   0.235 Prepro…
-#>  7 spatial            48   101    28 rmse    standa…  3.03     5   0.234 Prepro…
-#>  8 spatial            74  1476    32 rmse    standa…  3.04     5   0.244 Prepro…
-#>  9 spatial            67  1844    35 rmse    standa…  3.04     5   0.243 Prepro…
-#> 10 spatial            14   531    38 rmse    standa…  3.04     5   0.242 Prepro…
+#>  1 standard           16  1062     7 rmse    standa…  2.79     5   0.312 Prepro…
+#>  2 standard            8  1486     8 rmse    standa…  2.79     5   0.287 Prepro…
+#>  3 standard           29   966     5 rmse    standa…  2.80     5   0.332 Prepro…
+#>  4 standard           12   181     6 rmse    standa…  2.80     5   0.309 Prepro…
+#>  5 standard            5  1857    11 rmse    standa…  2.81     5   0.280 Prepro…
+#>  6 spatial            45   922    38 rmse    standa…  2.99     5   0.213 Prepro…
+#>  7 spatial            23  1949    37 rmse    standa…  3.00     5   0.213 Prepro…
+#>  8 spatial            16  1653    39 rmse    standa…  3.01     5   0.222 Prepro…
+#>  9 spatial            34  1739    37 rmse    standa…  3.01     5   0.214 Prepro…
+#> 10 spatial             2  1428    40 rmse    standa…  3.01     5   0.240 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 

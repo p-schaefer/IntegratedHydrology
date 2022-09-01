@@ -180,6 +180,7 @@ attrib_points<-function(
     target_O<-all_points
   }
 
+  #browser()
   with_progress({
     p <- progressor(steps = nrow(spec))
 
@@ -198,11 +199,12 @@ attrib_points<-function(
                                       select(geometry) %>%
                                       rename(clip_region=geometry))) %>%
       unnest(clip_region) %>%
-      mutate(attrib=future_pmap(list(uid=UID,
+      mutate(attrib=future_pmap(list(uid=UID, #
                                      target_O=target_O,
                                      clip_region=clip_region,
                                      loi_cols=loi),
                                 function(uid,target_O,clip_region,loi_cols) {
+                                  #browser()
 
                                   save_file<-file.path(temp_dir,paste0(uid,"_inv_distances.zip"))
 
@@ -263,10 +265,15 @@ attrib_points<-function(
                                                      }
 
                                                      #browser()
+
+                                                     cls<-names(loi_cols)[names(loi_cols) %in% gp &
+                                                                            names(loi_cols) %in% names(loi_lyr_nms)]
+
+                                                     if (length(cls)==0) return(NULL)
+
                                                      out<-hydroweight::hydroweight_attributes(
                                                        loi=loi_path,
-                                                       loi_columns = names(loi_cols)[names(loi_cols) %in% gp &
-                                                                                       names(loi_cols) %in% names(loi_lyr_nms)],
+                                                       loi_columns = cls,
                                                        loi_numeric=grepl("num_rast",loi_nms),
                                                        loi_numeric_stats = loi_numeric_stats,
                                                        roi=cr,
@@ -281,12 +288,14 @@ attrib_points<-function(
                                                      return(out)
                                                    })
 
-                                                   gg<-gc()
+                                                   #gg<-gc()
                                                    return(out)
                                                  })
 
                                   out<-list(
-                                    attr=unlist(map(attr_out,~map(.,~.$attribute_table)),recursive=F) %>% reduce(left_join,by=site_id_col),
+                                    attr=unlist(map(attr_out,~map(.,~.$attribute_table)),recursive=F) %>%
+                                      .[!sapply(.,is.null)] %>%
+                                      reduce(left_join,by=site_id_col),
                                     distance_weights=distance_weights,
                                     weighted_attr=unlist(unlist(map(attr_out,~unlist(map(.,~.$return_products),recursive = F)),recursive = F),recursive = F)
                                   )
@@ -305,8 +314,8 @@ attrib_points<-function(
     mutate(distance_weights=map(attrib,~.$distance_weights)) %>%
     mutate(weighted_attr=map(attrib,~.$weighted_attr)) %>%
     unnest(attrib_out) %>%
-    select(site_id_col,distance_weights,weighted_attr,everything(),-attrib) %>%
-    mutate(across(c(everything(),-site_id_col,-distance_weights,-weighted_attr),as.numeric)) %>%
+    select(any_of(site_id_col),distance_weights,weighted_attr,everything(),-attrib) %>%
+    mutate(across(c(everything(),-any_of(site_id_col),-distance_weights,-weighted_attr),as.numeric)) %>%
     mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .)))
 
 

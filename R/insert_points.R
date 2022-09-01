@@ -81,7 +81,7 @@ insert_points<-function(
 
   snapped_points<-points %>%
     st_join(stream_points %>%
-              filter(link_class %in% c(1,2)) %>%
+              filter(link_type != "Link Node") %>%
               select(ID,link_id),
             join=nngeo::st_nn,
             maxdist = snap_distance,
@@ -91,7 +91,7 @@ insert_points<-function(
     as_tibble() %>%
     select(-geometry) %>%
     left_join(stream_points %>%
-                filter(link_class %in% c(1,2)) %>%
+                filter(link_type != "Link Node") %>%
                 select(ID,link_id),
               by = c("ID", "link_id")) %>%
     st_as_sf() #%>%

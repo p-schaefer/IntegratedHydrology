@@ -10,6 +10,7 @@ generate_vectors(
     "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
   return_products = F,
   temp_dir = NULL,
+  compress = F,
   verbose = F
 )
 }
@@ -21,6 +22,8 @@ generate_vectors(
 \item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
 
 \item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{compress}{logical. Should output rasters be compressed, slower but more space efficient.}
 
 \item{verbose}{logical.}
 }

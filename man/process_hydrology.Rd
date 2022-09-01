@@ -8,6 +8,9 @@ process_hydrology(
   dem,
   output_filename,
   threshold,
+  burn_streams = NULL,
+  burn_depth = 5,
+  depression_corr = c(NULL, "fill", "breach"),
   extra_attr = c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack",
     "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
   points = NULL,
@@ -17,6 +20,7 @@ process_hydrology(
   site_id_col = NULL,
   return_products = F,
   temp_dir = NULL,
+  compress = F,
   verbose = F
 )
 }
@@ -26,6 +30,12 @@ process_hydrology(
 \item{output_filename}{character. File path to write resulting .zip file.}
 
 \item{threshold}{integer. Flow accumulation threshold for stream initiation.}
+
+\item{burn_streams}{character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.}
+
+\item{burn_depth}{numeric. Depth (in meters) to burn stream into the DEM.}
+
+\item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
 
 \item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
 
@@ -41,11 +51,13 @@ process_hydrology(
 
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
 
+\item{compress}{logical. Should output rasters be compressed, slower but more space efficient.}
+
 \item{verbose}{logical.}
 }
 \value{
 If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-\code{ihydro::process_hydrology()} processes a DEM into various geospatial analysis products.
+\code{ihydro::process_hydrology} processes a DEM into various geospatial analysis products.
 }

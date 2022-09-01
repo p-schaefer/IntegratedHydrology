@@ -5,6 +5,7 @@
 #' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
+#' @param compress logical. Should output rasters be compressed, slower but more space efficient.
 #' @param verbose logical.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
@@ -25,6 +26,7 @@ attrib_streamline<-function(
     ),
     return_products=F,
     temp_dir=NULL,
+    compress=F,
     verbose=F
 ) {
   # require(sf)
@@ -36,6 +38,7 @@ attrib_streamline<-function(
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
+  if (!is.logical(compress)) stop("'compress' must be logical")
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
@@ -43,11 +46,18 @@ attrib_streamline<-function(
 
   wbt_options(exe_path=wbt_exe_path(),
               verbose=verbose,
-              wd=temp_dir)
+              wd=temp_dir,
+              compress_rasters =compress)
 
   terra::terraOptions(verbose = verbose,
                       tempdir = temp_dir
   )
+
+  gdal_arg<-NULL
+  if (compress){
+    gdal_arg<-"COMPRESS=NONE"
+  }
+
 
   options(dplyr.summarise.inform = FALSE)
 
@@ -60,11 +70,9 @@ attrib_streamline<-function(
         overwrite=T,
         junkpaths=T)
 
-  # dem_d8_streams<-rast(file.path("/vsizip",zip_loc,"dem_streams_d8.tif"))
-  # writeRaster(dem_d8_streams,file.path(temp_dir,"dem_streams_d8.tif"),overwrite=T,gdal="COMPRESS=NONE")
   dem_final<-rast(file.path(temp_dir,"dem_final.tif"))
   names(dem_final)<-"Elevation"
-  writeRaster(dem_final,file.path(temp_dir,"Elevation.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  writeRaster(dem_final,file.path(temp_dir,"Elevation.tif"),overwrite=T,gdal=gdal_arg)
 
   subb<-st_as_sf(vect(file.path("/vsizip",zip_loc,"Subbasins_poly.shp")))
 

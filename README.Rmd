@@ -123,34 +123,6 @@ writeRaster(ot,file.path(save_dir, "toy_dem.tif"),overwrite=T)
 
 toy_dem<-rast(file.path(save_dir, "toy_dem.tif"))
 
-
-# # Bring in and process stream vector
-# system.file("extdata", "nc", "streams.shp", package = "openSTARS") %>% 
-#   vect() %>% 
-#   st_as_sf() %>% 
-#   st_transform(st_crs(toy_dem)) %>% 
-#   vect() %>% 
-#   writeVector(file.path(save_dir, "toy_streams.shp"),overwrite=T)
-# 
-# burn_lyr<-vect(file.path(save_dir, "toy_streams.shp")) %>% 
-#   rasterize(toy_dem)
-# 
-# # rudimentary stream burning
-# burn_lyr2<-toy_dem
-# burn_lyr2[is.na(burn_lyr)]<-NA 
-# burn_lyr2<-burn_lyr2-5
-# toy_dem[!is.na(burn_lyr2)]<-burn_lyr2[!is.na(burn_lyr2)]
-# 
-# writeRaster(toy_dem,file.path(save_dir, "toy_dem.tif"),overwrite=T)
-
-## Breach depressions to ensure continuous flow
-wbt_breach_depressions(
-  dem = file.path(save_dir, "toy_dem.tif"),
-  output = file.path(save_dir, "toy_dem_breached.tif")
-)
-
-toy_dem<-rast(file.path(save_dir, "toy_dem_breached.tif"))
-
 ## Identify some sampling points
 system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>% 
   vect() %>% 
@@ -255,6 +227,8 @@ output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
 hydro_out<-process_flowdir(
   dem=toy_dem,
   burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
+  burn_depth=5,
+  depression_corr="breach",
   threshold=100L,  
   return_products=T,
   output_filename=output_filename_hydro,
@@ -351,8 +325,9 @@ hydro_out<-insert_points(
   input=hydro_out,
   points=file.path(save_dir, "sites.shp"),
   site_id_col="site_id", # Column name in points layer that corresponds to 
-  #unique IDs that will be available in data products
-  snap_distance=250L,
+  # unique IDs that will be available in data products
+  snap_distance=100L,
+  break_on_noSnap =F, # points that are more than 100m from closest stream are excluded
   return_products=T,
   temp_dir=NULL,
   verbose=F
@@ -374,9 +349,12 @@ hydro_out<-insert_points(
 # If you need to rerun insert_points(), you will have to run generate_vectors() again
 # first to generate new vector layers to split.
 
-tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$snapped_points %>% mutate(site_id=as.numeric(site_id))) + tm_dots(col="site_id",palette = "viridis",legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+tm_shape(rast(hydro_out$dem_final.tif)) + tm_raster(palette = "cividis",legend.show=F) +
+  tm_shape(hydro_out$stream_lines) + tm_lines(col="red",alpha =0.5,legend.show=F,lwd =2) +
+  tm_shape(hydro_out$snapped_points %>% mutate(site_id=as.numeric(site_id))) +
+  tm_dots(col="darkgray",legend.show=F,size=0.35,border.col="black",border.alpha=1,border.lwd=1) +
+  tm_shape(read_sf(file.path(save_dir, "sites.shp"))) +
+  tm_dots(col="black",legend.show=F,size=0.35,border.col="black",border.alpha=1,border.lwd=1)
 
 
 ```
@@ -405,21 +383,21 @@ hydro_out<-trace_flowpaths(
 #                        #    trib_ids, link lengths (in meters) and subbasin areas (in meters^2)
 
 us_777<-hydro_out$us_flowpaths[["777"]] # get all upstream link_ids from link_id 777
-ds_1107.1<-hydro_out$ds_flowpaths[["1107.1"]] # get all downstream link_ids from 
-#                                             # link_id 1107.1 (this corresponds with site_id = 45)
+ds_107.1<-hydro_out$ds_flowpaths[["107.1"]] # get all downstream link_ids from 
+#                                             # link_id 107.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
   filter(link_id %in% us_777$link_id | 
-           link_id %in% ds_1107.1$link_id 
+           link_id %in% ds_107.1$link_id 
   )
 sub_out<-hydro_out$subbasins %>% 
   filter(link_id %in% us_777$link_id | 
-           link_id %in% ds_1107.1$link_id
+           link_id %in% ds_107.1$link_id
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$links %>% filter(link_id %in% c("777","1107.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("777","107.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 
 ```
 
@@ -494,11 +472,16 @@ dmat<-hydro_out$pwise_dist %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
   pivot_wider(names_from=destination,values_from=directed_path_length ,values_fill = 0) %>% 
   data.frame(check.names = F) %>% 
-  tibble::column_to_rownames("link_id") 
+  tibble::column_to_rownames("link_id") %>% 
+  log1p()
 
 # This table describes the proportions of shared catchments at destination points (rows)
 # from upstream origin points (columns)
 dmat2<-hydro_out$pwise_dist %>% 
+  mutate(prop_shared_catchment=case_when(
+    directed_path_length>0  ~ log(origin_catchment)/log(destination_catchment),
+    T ~ 0
+  )) %>%
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
   ) %>% 
@@ -509,13 +492,12 @@ dmat2<-hydro_out$pwise_dist %>%
   mutate(prop_shared_catchment=ifelse(prop_shared_catchment==1 | is.na(prop_shared_catchment),1,prop_shared_catchment)) %>% 
   pivot_wider(names_from=destination,values_from=prop_shared_catchment ,values_fill = 0) %>% 
   data.frame(check.names = F) %>% 
-  tibble::column_to_rownames("link_id") 
+  tibble::column_to_rownames("link_id")
 
 # Here we multiply the matrixes (using the proportions of shared catchments as a rough weighting scheme)
 # then take ln(x+1) to normalize the data a bit, calculate manhattan distances and generate a heatmap
 (dmat*dmat2) %>% 
-  log1p() %>% 
-  dist("manhattan") %>% 
+  dist("man") %>% 
   as.matrix() %>% 
   heatmap()
 
@@ -527,8 +509,7 @@ Using these relationships, we can perform a clustering analysis to identify grou
 
 # Using the above approach, we create 5 groups of spatially proximate points
 km<-(dmat*dmat2) %>% 
-  log1p() %>% 
-  dist("manhattan") %>% 
+  dist("man") %>% 
   hclust() %>% 
   cutree(k=5)
 
@@ -544,7 +525,7 @@ point_groups<-hydro_out$snapped_points %>%
 
 tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
-  tm_shape(point_groups) + tm_dots(col="group", palette = "Set1",legend.show=T,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_shape(point_groups) + tm_dots(col="group", palette = "Dark2",legend.show=T,size=0.45)+
   tm_layout(legend.outside = TRUE)
 
 ```
@@ -565,6 +546,10 @@ response_table<-file.path(save_dir, "sites.shp") %>%
 
 # Combine pairwise data with values and examine spatial relationships. 
 dmat<-hydro_out$pwise_dist %>% 
+  mutate(prop_shared_catchment=case_when(
+    directed_path_length>0  ~ log(origin_catchment)/log(destination_catchment),
+    T ~ 0
+  )) %>%
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
   ) %>% 
@@ -637,6 +622,9 @@ output_filename_hydro_sparse<-file.path(save_dir,"Processed_Hydrology_sparse.zip
 hydro_out_sparse<-process_hydrology(
   dem=toy_dem,
   output_filename=output_filename_hydro_sparse,
+  burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
+  burn_depth=5,
+  depression_corr="breach",
   threshold=500L,
   points=hydro_out$snapped_points, 
   site_id_col="site_id",
@@ -711,7 +699,7 @@ New research is showing that the presence of particular features on the landscap
 
 The `attrib_points()` function can be run with a specification table to specify at which sites loi summaries should be calculated for, which loi to summarize, and type of numeric summary to use for those particular loi. 
 
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+```{r, fig.width = 7, fig.height = 7, message = F, error = F, warning = F}
 
 # This retrieves loi names
 loi<-list(numb=rast(loi_combined$num_inputs),
@@ -738,7 +726,7 @@ final_attributes_sub<-attrib_points(
   input=hydro_out,
   loi_file=output_filename_loi, #output file path from process_loi()
   spec=specification_table,
-  weighting_scheme = c("lumped", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+  weighting_scheme = c("lumped","iFLS", "HAiFLS"),
   OS_combine=F,
   target_streamseg=F, # This will set the target_o parameter as the sampling point
   inv_function = function(x) { # Function used by hydroweight to calculate 
@@ -768,10 +756,10 @@ plot(
         setNames("iFLS Weighting"),
       log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
         setNames("HAiFLS Weighting"),
-      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meandistwtd_sdmaxmeanmin.iFLS_num_rast.loi_dist_rast) %>% 
+      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.iFLS_num_rast.loi_dist_rast) %>% 
         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
         setNames("iFLS Weighted Slope"),
-      rast(final_attributes_sub$weighted_attr[[2]]$cat_rast.mean.iFLS_cat_rast.loi_dist_rast)[[1]] %>% 
+      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.HAiFLS_num_rast.loi_dist_rast)[[1]] %>% 
         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
         setNames("HAiFLS Weighted Landcover Class 1")
     )
@@ -788,7 +776,7 @@ plot(
 
 loi_names<-lapply(loi,names) %>% unlist()
 names(loi_names)<-loi_names
-loi_names<-map(loi_names,~c("distwtd_mean"))
+loi_names<-map(loi_names,~c("mean","sd","distwtd_mean","distwtd_sd"))
 
 # Here we will calculate the attributes for all sampled points
 specification_table<-tibble(
@@ -802,7 +790,7 @@ final_attributes_samples<-attrib_points(
   input=hydro_out,
   loi_file=output_filename_loi,
   spec=specification_table,
-  weighting_scheme = c("HAiFLO", "HAiFLS"),
+  weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
   OS_combine=F,
   target_streamseg=F, # This will set the target_o parameter as the sampling point
   inv_function = function(x) {
@@ -840,8 +828,8 @@ final_attributes_all<-attrib_points(
   spec = specification_table,
   loi_file=output_filename_loi,
   all_reaches=F, # This will calculate attributes for each reach
-  weighting_scheme = c("HAiFLO", "HAiFLS"),
-  loi_numeric_stats = c("distwtd_mean"),
+  weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
+  loi_numeric_stats = c("mean","sd","distwtd_mean","distwtd_sd"),
   OS_combine=F,
   target_streamseg=T # This will set the target_o parameter as the entire reach
 )
@@ -906,6 +894,10 @@ comb_data<-response_table %>%
   ) %>% 
   left_join(
     hydro_out$pwise_dist %>%
+      mutate(prop_shared_catchment=case_when(
+        directed_path_length>0  ~ log(origin_catchment)/log(destination_catchment),
+        T ~ 0
+      )) %>%
       filter(origin %in% sub_id_keep$link_id &
                destination %in% response_table$link_id
       ) %>%

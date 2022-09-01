@@ -1,10 +1,13 @@
 #' Generate geospatial analysis products
 #'
-#' \code{ihydro::process_hydrology()} processes a DEM into various geospatial analysis products.
+#' `ihydro::process_hydrology` processes a DEM into various geospatial analysis products.
 #'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
 #' @param output_filename character. File path to write resulting .zip file.
 #' @param threshold integer. Flow accumulation threshold for stream initiation.
+#' @param burn_streams character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.
+#' @param burn_depth numeric. Depth (in meters) to burn stream into the DEM.
+#' @param depression_corr NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.
 #' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
 #' @param pwise_dist logical. Should `generate_pwisedist()` be run?
@@ -12,6 +15,7 @@
 #' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
+#' @param compress logical. Should output rasters be compressed, slower but more space efficient.
 #' @param verbose logical.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
@@ -22,7 +26,10 @@ process_hydrology<-function(
     dem,
     output_filename,
     threshold,
-    extra_attr=c( # Additional attributes to calculate and add to outputs
+    burn_streams=NULL,
+    burn_depth=5,
+    depression_corr=c(NULL,"fill","breach"),
+    extra_attr=c(
       "link_slope",
       "cont_slope",
       "USChnLn_To",
@@ -39,6 +46,7 @@ process_hydrology<-function(
     site_id_col=NULL,
     return_products=F,
     temp_dir=NULL,
+    compress=F,
     verbose=F
 ) {
 
@@ -46,8 +54,10 @@ process_hydrology<-function(
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.null(snap_distance) && !is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
+  if (!is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
+  if (!is.logical(compress)) stop("'compress' must be logical")
   if (!is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
@@ -71,9 +81,12 @@ process_hydrology<-function(
   hydro_out<-process_flowdir(
     dem=dem,
     threshold=threshold,
+    burn_streams=burn_streams,
+    depression_corr=depression_corr,
     return_products=return_products,
     output_filename=output_filename,
     temp_dir=temp_dir,
+    compress=compress,
     verbose=verbose
   )
 
@@ -91,6 +104,7 @@ process_hydrology<-function(
     extra_attr=extra_attr,
     return_products=return_products,
     temp_dir=temp_dir,
+    compress=compress,
     verbose=verbose
   )
 

@@ -1,12 +1,19 @@
 
 #' Process flow direction/accumulation and extracts streams from DEM
 #'
+#' Process flow direction/accumulation and extracts streams from DEM
+#'
+#' If `return_products` = T, Packed-SpatRaster objects are returned. If `burn_streams` is specified, [whitebox::wbt_fill_burn] is used to burn the stream layer into the DEM. This is followed by [whitebox::wbt_feature_preserving_smoothing] to smooth final DEM. The `depression_corr` argument can be used to apply filling or breaching approaches to enforce flow accumulation from internal pit cells.
+#'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
 #' @param threshold integer. Flow accumulation threshold for stream initiation.
 #' @param burn_streams character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.
+#' @param burn_depth numeric. Depth (in meters) to burn stream into the DEM.
+#' @param depression_corr NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.
 #' @param output_filename character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
+#' @param compress logical. Should output rasters be compressed, slower but more space efficient.
 #' @param verbose logical.
 #'
 #' @seealso [whitebox::wbt_d8_pointer], [whitebox::wbt_d8_flow_accumulation], [whitebox::wbt_extract_streams]
@@ -19,17 +26,22 @@ process_flowdir<-function(
     dem,
     threshold,
     burn_streams=NULL,
+    burn_depth=5,
+    depression_corr=c(NULL,"fill","breach"),
     output_filename,
     return_products=F,
     temp_dir=NULL,
+    compress=F,
     verbose=F
 ) {
 
   options(dplyr.summarise.inform = FALSE)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
+  if (!is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
+  if (!is.logical(compress)) stop("'compress' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
@@ -38,39 +50,80 @@ process_flowdir<-function(
   output_filename<-normalizePath(output_filename,mustWork =F)
   if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
 
+  depression_corr<-match.arg(depression_corr)
+
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
   wbt_options(exe_path=wbt_exe_path(),
               verbose=verbose,
-              wd=temp_dir)
+              wd=temp_dir,
+              compress_rasters =compress)
 
   terra::terraOptions(verbose = verbose,
                       tempdir = temp_dir
   )
 
+  gdal_arg<-NULL
+  if (compress){
+    gdal_arg<-"COMPRESS=NONE"
+  }
+
   dem<-hydroweight::process_input(dem,input_name="dem",working_dir=temp_dir)
   if (!inherits(dem,"SpatRaster")) stop("dem must be a class 'SpatRaster'")
   target_crs<-crs(dem)
 
-  writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal="COMPRESS=NONE")
+  writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
 
   if (!is.null(burn_streams)){
+
+    resol<-terra::res(dem)[1]
 
     burn_streams<-hydroweight::process_input(burn_streams,
                                              target=as.lines(terra::vect("POLYGON ((0 -5, 10 0, 10 -10, 0 -5))",
                                                                          crs = target_crs)),
-                                             clip_region = as.polygons(ext(dem)+c(-1,-1,-1,-1),crs = target_crs),
+                                             clip_region = as.polygons(ext(dem),crs = target_crs), #+c(-resol*1.5,-resol*1.5,-resol*1.5,-resol*1.5)
                                              input_name="burn_streams",
                                              working_dir=temp_dir)
 
     writeVector(burn_streams,file.path(temp_dir,"stream_final.shp"),overwrite=T)
+    # Fillburn is a bit too aggressive in its burning (burns too deep)
+    # wbt_fill_burn(
+    #   dem="dem_final.tif",
+    #   streams="stream_final.shp",
+    #   output="dem_final.tif"
+    # )
 
-    wbt_fill_burn(
+    r1<-dem
+
+    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*3) %>% vect())
+    r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
+    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*2) %>% vect())
+    r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
+    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*1) %>% vect())
+    r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
+    writeRaster(r1,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
+
+    wbt_feature_preserving_smoothing(
       dem="dem_final.tif",
-      streams="stream_final.shp",
       output="dem_final.tif"
     )
+  }
 
+  if (!is.null(depression_corr)){
+    if (depression_corr=="fill") {
+      wbt_fill_depressions(
+        dem="dem_final.tif",
+        output="dem_final.tif"
+      )
+    }
+
+    if (depression_corr=="breach") {
+      wbt_breach_depressions(
+        dem="dem_final.tif",
+        output="dem_final.tif",
+        fill_pits=T
+      )
+    }
   }
 
 
