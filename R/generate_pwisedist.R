@@ -117,8 +117,9 @@ pairwise_dist_fn<-function(
   if (verbose) print("Generating Pairwise Distances")
 
   out_tbl<-tibble(
-    origin=rep(names(ds_flowpaths),each=length(ds_flowpaths)),
-    destination=rep(names(ds_flowpaths),length.out=length(ds_flowpaths)*length(ds_flowpaths)))
+    origin=rep(names(ds_flowpaths),each=as.numeric(length(ds_flowpaths))),
+    destination=rep(names(ds_flowpaths),length.out=as.numeric(length(ds_flowpaths))*as.numeric(length(ds_flowpaths)))
+    )
 
   # Function - Flow Connected Distances
   ds_pwise<-function(x,p) {
