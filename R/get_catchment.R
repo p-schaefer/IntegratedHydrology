@@ -51,8 +51,8 @@ get_catchment<-function(
 
   geo_fn<-function(x,subb=subb,buffer=buffer,tolerance=tolerance) {
     filter(subb,if_any(contains('link_id'), ~.x %in% x$link_id)) %>%
-      st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1) %>%
-      st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
+      # st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1) %>%
+      # st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
       st_union()
   }
 
