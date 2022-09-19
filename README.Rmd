@@ -419,6 +419,7 @@ subbasin_catchments<-get_catchment( # retrieve catchment for an arbitrary reach
 point_catchments<-get_catchment( # retrieve sampling point catchments
   input=hydro_out,
   site_id_col="site_id",
+  # target_points = hydro_out$snapped_points$site_id
   target_points=c("1","25")
 )
 
@@ -907,7 +908,8 @@ comb_data<-response_table %>%
       mutate(origin=paste0("Prop_catch_",origin)) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
-  left_join(clust_data)
+  left_join(clust_data) %>% 
+  filter(!is.na(link_id))
 
 ```
 
@@ -963,8 +965,8 @@ wf<-workflow() %>%
 # Run cross-validation strategies 
 set.seed(1234)
 final_out<-future_map(cv_strats,
-                      ~tune_grid(wf,resamples=.,grid=50) # Choose 50 hyper-parameter
-                      # configurations
+                      ~tune_grid(wf,resamples=.,grid=150) # Choose 150 hyper-parameter
+                                                          # configurations
 )
 
 # We expect the standard cross-validation to have higher accuracy than spatial
