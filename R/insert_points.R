@@ -363,7 +363,7 @@ insert_points<-function(
 
   # I can't get these functions to run faster in parallel for some reason
   #browser()
-  with_progress({
+  with_progress(enable=T,{
     print("Splitting Subbasins")
     p <- progressor(steps = nrow(new_data))
 
@@ -389,7 +389,7 @@ insert_points<-function(
       ))
   })
 
-  with_progress({
+  with_progress(enable=T,{
     print("Splitting Points")
     p <- progressor(steps = nrow(new_data))
 
@@ -408,7 +408,7 @@ insert_points<-function(
       ))
   })
 
-  with_progress({
+  with_progress(enable=T,{
     print("Splitting Lines")
     p <- progressor(steps = nrow(new_data))
 
@@ -428,7 +428,7 @@ insert_points<-function(
   })
 
   #browser()
-  with_progress({
+  with_progress(enable=T,{
     print("Splitting Links")
     p <- progressor(steps = nrow(new_data))
 

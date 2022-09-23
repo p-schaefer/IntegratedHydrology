@@ -106,6 +106,8 @@ library(dplyr)
 # function processing time dramatically. Products can always be retrieved/read
 # in directly from the output .zip file.
 
+# Parallelization is done through the future package, so all parallel backends
+# should be supported i.e.,:
 if (F) plan(multisession)
 
 ## Generate save_dir as a temporary directory
@@ -239,7 +241,7 @@ hydro_out<-process_flowdir(
 # hydro_out$outfile # -> This is the full file path of the resulting .zip file
 
 # remaining outputs only present when `return_products` == T
-# hydro_out$dem_final.tif # -> dem
+# hydro_out$dem_final.tif # -> final dem after stream burning and depression correction 
 # hydro_out$dem_d8.tif # -> d8 flow direction
 # hydro_out$dem_accum_d8.tif # -> d8 flow accumulation (cells)
 # hydro_out$dem_accum_d8_sca.tif # -> d8 flow accumulation (specific catchment areas)
@@ -252,6 +254,8 @@ hydro_out<-process_flowdir(
 # List files present in .zip
 fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extracted
           hydro_out$outfile)
+
+fl
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -325,7 +329,7 @@ hydro_out<-insert_points(
   input=hydro_out,
   points=file.path(save_dir, "sites.shp"),
   site_id_col="site_id", # Column name in points layer that corresponds to 
-  # unique IDs that will be available in data products
+                         # unique IDs that will be available in data products
   snap_distance=100L,
   break_on_noSnap =F, # points that are more than 100m from closest stream are excluded
   return_products=T,
@@ -336,7 +340,7 @@ hydro_out<-insert_points(
 # New layers added by `insert_points()`
 # hydro_out$snapped_points # -> provided points snapped to nearest segment. Any points 
 #                          #   beyond snap distance are removed, with a warning if
-#                          #    break_on_noSnap == F. 
+#                          #   break_on_noSnap == F. 
 
 # This function modifies the existing vector outputs by inserting links, and 
 # splitting lines/subbasins at `points`, and adds the `site_id_col` column to 
@@ -423,8 +427,10 @@ point_catchments<-get_catchment( # retrieve sampling point catchments
   target_points=c("1","25")
 )
 
-tm_shape(bind_rows(subbasin_catchments,point_catchments)) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3)  
+tm_shape(bind_rows(subbasin_catchments,point_catchments)) + 
+  tm_polygons(col="white",alpha =0.2,legend.show=F,lwd =4) +
+  tm_shape(hydro_out$stream_lines) +
+  tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =2)  
 
 ```
 
@@ -773,7 +779,7 @@ plot(
 
 ### 6.2 At all sampling points `attrib_points()`
 
-```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
+```{r, fig.width = 7, fig.height = 7, message = TRUE, error = TRUE, warning = TRUE}
 
 loi_names<-lapply(loi,names) %>% unlist()
 names(loi_names)<-loi_names
@@ -786,14 +792,13 @@ specification_table<-tibble(
   loi=list(loi_names)
 )
 
-
 final_attributes_samples<-attrib_points(
   input=hydro_out,
   loi_file=output_filename_loi,
   spec=specification_table,
   weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
   OS_combine=F,
-  target_streamseg=F, # This will set the target_o parameter as the sampling point
+  target_streamseg=T, # This will set the target_o parameter as the sampling point
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
@@ -830,7 +835,7 @@ final_attributes_all<-attrib_points(
   loi_file=output_filename_loi,
   all_reaches=F, # This will calculate attributes for each reach
   weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
-  loi_numeric_stats = c("mean","sd","distwtd_mean","distwtd_sd"),
+  loi_numeric_stats = c("mean","max","sd","distwtd_mean","distwtd_sd"),
   OS_combine=F,
   target_streamseg=T # This will set the target_o parameter as the entire reach
 )
@@ -1103,7 +1108,7 @@ tm_shape(Streams) +
 
 ## 8 Future Plans
 
-This package is considered in early alpha, and bugs are expected. There is lots of room for improvements in many of the functions. The core functions may still change as the package develops and matures.
+This package is considered in early alpha, and bugs are expected. There is lots of room for improvements in many of the functions. The core functions may still change as the package develops and matures. One big area of improvement will be the handling of the output.zip file structure. It may be replaced by a spatialite database file in the future.
 
 ## 9 References
 

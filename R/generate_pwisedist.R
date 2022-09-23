@@ -171,13 +171,13 @@ pairwise_dist_fn<-function(
 
 
   print("Generating Flow Connected Distances")
-  with_progress({
+  with_progress(enable=T,{
     p <- progressor(steps = length(ds_flowpaths))
     ds_out<-future_map_dfr(ds_flowpaths,~ds_pwise(.,p=p))
   })
 
   print("Generating Flow Unconnected Distances")
-  with_progress({
+  with_progress(enable=T,{
     p <- progressor(steps = length(ds_flowpaths))
     us_out<-future_map2_dfr(ds_flowpaths,
                             us_list, # This is too big to be run in parallel effectively

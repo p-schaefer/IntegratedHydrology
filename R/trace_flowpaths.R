@@ -183,7 +183,7 @@ trace_flowpath_fn<-function(
 
   input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
 
-  with_progress({
+  with_progress(enable=T,{
     p <- progressor(steps = length(unlist(unique_link_id)))
 
     unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(y=.x,input_tib=.y,p=p)) %>%

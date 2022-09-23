@@ -195,7 +195,7 @@ process_loi<-function(
 
   inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
 
-  with_progress({
+  with_progress(enable=T,{
     print("Processing loi")
     p <- progressor(steps = (length(num_inputs) + length(cat_inputs)))
 

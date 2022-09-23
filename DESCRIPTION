@@ -28,6 +28,7 @@ Imports:
     rlang,
 Depends:
     R (>= 4.0),
+    carrier,
     dplyr,
     furrr,
     progressr,
