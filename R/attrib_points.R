@@ -244,6 +244,7 @@ attrib_points<-function(
       mutate(core=rep(1:n_cores,length.out=nrow(.))) %>%
       group_by(core) %>%
       nest() %>%
+      ungroup() %>%
       mutate(data2=map(data, function(x){
         new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
         dir.create(new_temp_dir)
@@ -500,7 +501,6 @@ attrib_points<-function(
     out3<-out2%>%
       unnest(attrib) %>%
       unnest(data) %>%
-      ungroup() %>%
       select(-core) %>%
       arrange(UID)
   })
