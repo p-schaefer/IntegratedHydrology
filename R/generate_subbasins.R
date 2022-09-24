@@ -92,6 +92,8 @@ generate_subbasins<-function(
         as_tibble() %>%
         rename(point=geometry) %>%
         group_by(link_id_base) %>%
+        mutate(temp_dir=temp_dir,
+               target_crs=list(st_crs(subb))) %>%
         nest() %>%
         ungroup() %>%
         left_join(
@@ -102,55 +104,78 @@ generate_subbasins<-function(
       p <- progressor(steps = nrow(new_data))
 
       new_data<-new_data %>%
-        mutate(new_subb=future_pmap(list(data=data,link_id=link_id_base,subb_poly=subb_poly),function(data,link_id,subb_poly){
-          pnt_file<-file.path(temp_dir,paste0("Tempsite_",link_id,".shp"))
-          sf::write_sf(data %>% select(site_id,point) %>% st_as_sf(),pnt_file)
+        mutate(p=rep(list(p),nrow(.))) %>%
+        mutate(new_subb=future_pmap(list(data=data,
+                                         link_id=link_id_base,
+                                         subb_poly=subb_poly,
+                                         temp_dir=temp_dir,
+                                         p=p),
+                                    carrier::crate(function(data,link_id,subb_poly,temp_dir,target_crs,p){
+                                      #print(link_id)
+                                      `%>%` <- magrittr::`%>%`
 
-          cr<-vect(subb_poly)
+                                      if (nrow(data)==1){
+                                        catch_poly<-data %>%
+                                          dplyr::select(link_id) %>%
+                                          dplyr::mutate(geometry=sf::st_geometry(subb_poly)) %>%
+                                          sf::st_as_sf(crs = data$target_crs[[1]]) %>%
+                                          dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
+                                          dplyr::select(link_id,sbbsn_area, geometry)
 
-          terra::rast(file.path(temp_dir,"dem_d8.tif")) %>%
-            terra::crop(y=cr,
-                        mask=T,
-                        overwrite=T,
-                        filename=file.path(temp_dir,paste0("d8_temp_",link_id,".tif"))) %>%
-            terra::writeRaster(
-              filename=file.path(temp_dir,paste0("d8_",link_id,".tif")),
-              overwrite=T
-            )
+                                        p()
 
-          whitebox::wbt_unnest_basins(
-            d8_pntr=file.path(temp_dir,paste0("d8_",link_id,".tif")),
-            pour_pts=pnt_file,
-            output=file.path(temp_dir,paste0("Catch_",link_id,".tif"))
-          )
+                                        return(catch_poly)
+                                      }
 
 
-          catch_fls<-list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"))
-          catch_rast<-terra::rast(file.path(temp_dir,catch_fls))
-          catch_rast[is.na(catch_rast)]<-0
-          catch_rast[catch_rast>0]<-1
-          catch_rast<-terra::app(catch_rast,sum)
+                                      pnt_file<-file.path(temp_dir,paste0("Tempsite_",link_id,".shp"))
 
-          catch_rast[catch_rast==0]<-NA
 
-          catch_poly<-catch_rast %>%
-            terra::as.polygons() %>%
-            sf::st_as_sf() %>%
-            sf::st_join(data %>% st_as_sf()) %>%
-            dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
-            dplyr::select(link_id,sbbsn_area, geometry)
+                                      sf::write_sf(data %>% dplyr::select(site_id,point) %>% sf::st_as_sf(),pnt_file)
 
-          flrm<-unique(c(list.files(temp_dir,pattern=paste0("_",link_id,"."),full.names = T),
-                         list.files(temp_dir,pattern=paste0("_",link_id,"_"),full.names = T)
-          ))
+                                      cr<-terra::vect(subb_poly)
 
-          file.remove(flrm)
+                                      t1<-terra::rast(file.path(temp_dir,"dem_d8.tif")) %>%
+                                        terra::crop(y=cr,
+                                                    mask=T) %>%
+                                        terra::writeRaster(
+                                          filename=file.path(temp_dir,paste0("d8_",link_id,".tif")),
+                                          overwrite=T
+                                        )
 
-          p()
+                                      whitebox::wbt_unnest_basins(
+                                        d8_pntr=paste0("d8_",link_id,".tif"),
+                                        pour_pts=paste0("Tempsite_",link_id,".shp"),
+                                        output=paste0("Catch_",link_id,".tif")
+                                      )
 
-          return(catch_poly)
 
-        }))
+                                      catch_fls<-list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"))
+                                      catch_rast<-terra::rast(file.path(temp_dir,catch_fls))
+                                      catch_rast[is.na(catch_rast)]<-0
+                                      catch_rast[catch_rast>0]<-1
+                                      catch_rast<-terra::app(catch_rast,sum)
+
+                                      catch_rast[catch_rast==0]<-NA
+
+                                      catch_poly<-catch_rast %>%
+                                        terra::as.polygons() %>%
+                                        sf::st_as_sf() %>%
+                                        sf::st_join(data %>% sf::st_as_sf()) %>%
+                                        dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
+                                        dplyr::select(link_id,sbbsn_area, geometry)
+
+                                      flrm<-unique(c(list.files(temp_dir,pattern=paste0("_",link_id,"."),full.names = T),
+                                                     list.files(temp_dir,pattern=paste0("_",link_id,"_"),full.names = T)
+                                      ))
+
+                                      file.remove(flrm)
+
+                                      p()
+
+                                      return(catch_poly)
+
+                                    })))
 
       subb2<-new_data %>%
         select(new_subb) %>%
