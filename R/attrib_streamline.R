@@ -307,9 +307,17 @@ attrib_streamline<-function(
     # Make new stream raster --------------------------------------------------
 
     strm<-final_points %>%
+      # select(link_id,USChnLn_Fr) %>%
+      # group_by(link_id) %>%
+      # arrange(USChnLn_Fr) %>%
+      # select(-USChnLn_Fr) %>%
+      # summarise(do_union=F) %>%
+      # st_cast("LINESTRING")
       select(link_id) %>%
+      arrange(link_id) %>%
       vect() %>%
-      hydroweight::process_input(target=dem_final,input_name="New Stream Raster",resample_type="bilinear") %>%
+      rasterize(y=dem_final,field="link_id") %>%
+      #hydroweight::process_input(target=dem_final,input_name="New Stream Raster",resample_type="near") %>%
       writeRaster(file.path(temp_dir,"new_stream_layer.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
     wbt_raster_streams_to_vector(
@@ -318,10 +326,14 @@ attrib_streamline<-function(
       output = file.path(temp_dir,"new_stream_layer.shp")
     )
 
+    # for some reason wbt_raster_streams_to_vector() rounds numbers weirdly
 
     strm<-read_sf(file.path(temp_dir,"new_stream_layer.shp")) %>%
       select(STRM_VAL) %>%
-      rename(link_id=STRM_VAL)
+      rename(link_id=STRM_VAL) %>%
+      rowwise() %>%
+      mutate(link_id=unique(final_points$link_id)[which.min(abs(link_id-unique(final_points$link_id)))]) %>%
+      ungroup()
     st_crs(strm)<-crs(dem_final)
 
     write_sf(strm,file.path(temp_dir,"stream_lines.shp"))

@@ -142,6 +142,11 @@ attrib_points<-function(
   incorrect_loi<-incorrect_loi[!incorrect_loi %in% loi_rasts_names]
   if (length(incorrect_loi)>0) stop(paste0("'spec$loi' contains names not in specified loi:", paste0(incorrect_loi,collapse = ", ")))
 
+  if (!any(colnames(spec) == "link_id")){
+    spec<-spec %>%
+      left_join(all_points %>%  as_tibble() %>% select(any_of(site_id_col),link_id))
+  }
+
   # loi_cols<-unlist(spec$loi,recursive=F)
   # loi_cols_group<-map_chr(loi_cols,~paste0(sort(.),collapse=""))
   # loi_cols_group<-split(names(loi_cols_group),loi_cols_group)
@@ -165,16 +170,16 @@ attrib_points<-function(
 
     }
 
-    if (any(!spec[[site_id_col]] %in% target_O$link_id)){
-
-      ms<-spec[[site_id_col]][!spec[[site_id_col]] %in% target_O$link_id]
-
-      extra_o<-all_points %>%
-        filter(link_id %in% ms) %>%
-        select(any_of(colnames(target_O)))
-
-      target_O<-bind_rows(target_O,extra_o) %>% distinct()
-    }
+    # if (any(!spec[[site_id_col]] %in% target_O$link_id)){
+    #
+    #   ms<-spec[[site_id_col]][!spec[[site_id_col]] %in% target_O$link_id]
+    #
+    #   extra_o<-all_points %>%
+    #     filter(link_id %in% ms) %>%
+    #     select(any_of(colnames(target_O)))
+    #
+    #   target_O<-bind_rows(target_O,extra_o) %>% distinct()
+    # }
 
 
   } else {
@@ -182,7 +187,7 @@ attrib_points<-function(
   }
 
   target_O<-target_O %>%
-    filter(!!sym(site_id_col) %in% spec[[site_id_col]])
+    filter(link_id %in% spec$link_id)
 
   #browser()
 
@@ -518,7 +523,7 @@ attrib_points<-function(
     mutate(weighted_attr=map(attrib,~.$weighted_attr)) %>%
     unnest(attrib_out) %>%
     select(any_of(site_id_col),distance_weights,weighted_attr,everything(),-attrib) %>%
-    mutate(across(c(everything(),-any_of(site_id_col),-distance_weights,-weighted_attr),as.numeric)) %>%
+    mutate(across(c(everything(),-any_of(site_id_col),-any_of(distance_weights),-any_of(weighted_attr)),as.numeric)) %>%
     mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .)))
 
 
