@@ -44,7 +44,7 @@ attrib_points<-function(
     temp_dir=NULL,
     verbose=F
 ){
-
+  options(scipen = 999)
   options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
 

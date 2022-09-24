@@ -26,6 +26,8 @@ generate_subbasins<-function(
   # require(terra)
   # require(whitebox)
   # require(tidyverse)
+  options(scipen = 999)
+  options(future.rng.onMisuse="ignore")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")

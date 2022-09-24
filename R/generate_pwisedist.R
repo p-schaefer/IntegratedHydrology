@@ -17,6 +17,9 @@ generate_pwisedist<-function(
     temp_dir=NULL,
     verbose=F
 ){
+  options(scipen = 999)
+  options(future.rng.onMisuse="ignore")
+
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
 
@@ -89,6 +92,7 @@ pairwise_dist_fn<-function(
     verbose=F,
     temp_dir=NULL
 ) {
+  options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
   if (is.null(stream_links) & is.null(ds_flowpaths_file)) stop("Either 'ds_flowpaths' or 'stream_links' must be provided")

@@ -16,6 +16,7 @@ trace_flowpaths<-function(
     verbose=F
 ){
   options(future.rng.onMisuse="ignore")
+  options(scipen = 999)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -84,6 +85,8 @@ trace_flowpath_fn<-function(
     input,
     verbose=F
 ) {
+  options(scipen = 999)
+  options(future.rng.onMisuse="ignore")
 
   input_tib<-input %>%
     as_tibble() %>%

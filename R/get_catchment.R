@@ -19,6 +19,8 @@ get_catchment<-function(
     buffer=0.001
 ) {
   options(future.rng.onMisuse="ignore")
+  options(scipen = 999)
+
   tdir<-tempfile()
   dir.create(tdir)
 
@@ -45,7 +47,7 @@ get_catchment<-function(
     as_tibble() %>%
     select(any_of(site_id_col),link_id) %>%
     filter(!if_any(any_of(site_id_col),is.na)) %>%
-    mutate(across(everything(),as.character)) %>%
+    mutate(across(everything(),paste0)) %>%
     filter(if_any(any_of(site_id_col), ~.x %in% target_points))
 
   missing_sites<-target_points[!target_points %in% sites[[1]]]

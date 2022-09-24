@@ -34,6 +34,7 @@ process_flowdir<-function(
     compress=F,
     verbose=F
 ) {
+  options(scipen = 999)
   options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
 

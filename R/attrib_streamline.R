@@ -37,6 +37,7 @@ attrib_streamline<-function(
     compress=F,
     verbose=F
 ) {
+  options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
   extra_attr<-match.arg(extra_attr,several.ok = T)
@@ -70,7 +71,7 @@ attrib_streamline<-function(
     gdal_arg<-"COMPRESS=NONE"
   }
 
-
+  options(scipen = 999)
   options(dplyr.summarise.inform = FALSE)
 
   zip_loc<-input$outfile
@@ -286,7 +287,7 @@ attrib_streamline<-function(
       arrange(link_id,USChnLn_Fr) %>%
       mutate(link_id_new=row_number()) %>%
       mutate(link_id_new=formatC(link_id_new,width=nchar(max(link_id_new)),format="d",flag=0)) %>%
-      mutate(link_id_new=as.numeric(paste0(formatC(link_id,format="d"),".",link_id_new)))
+      mutate(link_id_new=as.numeric(paste0(paste0(link_id),".",link_id_new)))
 
     final_points<-final_points %>%
       filter(!ID %in% new_final_points$ID) %>%
