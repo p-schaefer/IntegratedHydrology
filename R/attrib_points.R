@@ -194,6 +194,7 @@ attrib_points<-function(
   # Generate Catchments
   if (verbose) print("Generating Catchments")
   out<-spec %>%
+    select(any_of(site_id_col),loi) %>%
     setNames(c("UID","loi")) %>%
     left_join(target_O %>%
                 select(any_of(site_id_col)) %>%
@@ -514,6 +515,7 @@ attrib_points<-function(
       arrange(UID)
   })
 
+  #browser()
   out4<-out3 %>%
     #select(-target_O,-loi,-clip_region,-UID) %>%
     select(attrib) %>%
@@ -523,7 +525,7 @@ attrib_points<-function(
     mutate(weighted_attr=map(attrib,~.$weighted_attr)) %>%
     unnest(attrib_out) %>%
     select(any_of(site_id_col),distance_weights,weighted_attr,everything(),-attrib) %>%
-    mutate(across(c(everything(),-any_of(site_id_col),-any_of(distance_weights),-any_of(weighted_attr)),as.numeric)) %>%
+    mutate(across(c(everything(),-any_of(site_id_col),-any_of("distance_weights"),-any_of("weighted_attr")),as.numeric)) %>%
     mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .)))
 
 

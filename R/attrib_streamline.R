@@ -188,7 +188,7 @@ attrib_streamline<-function(
   st_crs(strm)<-crs(dem_final)
   colnames(strm)[1]<-"link_id"
 
-  saveRDS(strm,file.path(temp_dir, "strm_link_id.rds"))
+  #saveRDS(strm,file.path(temp_dir, "strm_link_id.rds"))
 
   # Generate point attributions ---------------------------------------------
   if (verbose) print("Extracting stream link attributes")
@@ -286,7 +286,7 @@ attrib_streamline<-function(
       arrange(link_id,USChnLn_Fr) %>%
       mutate(link_id_new=row_number()) %>%
       mutate(link_id_new=formatC(link_id_new,width=nchar(max(link_id_new)),format="d",flag=0)) %>%
-      mutate(link_id_new=as.numeric(paste0(link_id,".",link_id_new)))
+      mutate(link_id_new=as.numeric(paste0(formatC(link_id,format="d"),".",link_id_new)))
 
     final_points<-final_points %>%
       filter(!ID %in% new_final_points$ID) %>%
