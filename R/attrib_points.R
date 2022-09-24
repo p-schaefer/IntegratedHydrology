@@ -45,6 +45,7 @@ attrib_points<-function(
     verbose=F
 ){
 
+  options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
 
   if (!is.null(spec) && !inherits(spec,"data.frame")) stop("'spec' must be a data frame")
@@ -172,13 +173,16 @@ attrib_points<-function(
         filter(link_id %in% ms) %>%
         select(any_of(colnames(target_O)))
 
-      target_O<-bind_rows(target_O,extra_o)
+      target_O<-bind_rows(target_O,extra_o) %>% distinct()
     }
 
 
   } else {
     target_O<-all_points
   }
+
+  target_O<-target_O %>%
+    filter(!!sym(site_id_col) %in% spec[[site_id_col]])
 
   #browser()
 
@@ -540,7 +544,7 @@ attrib_points<-function(
 
   file.remove(list.files(temp_dir,recursive = T,full.names = T))
 
-  return(out2)
+  return(out4)
 }
 
 

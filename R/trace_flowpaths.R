@@ -15,6 +15,7 @@ trace_flowpaths<-function(
     temp_dir=NULL,
     verbose=F
 ){
+  options(future.rng.onMisuse="ignore")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")

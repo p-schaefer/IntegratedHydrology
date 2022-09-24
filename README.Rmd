@@ -101,14 +101,13 @@ library(dplyr)
 # important to remember that data has to be passed back and forth between the 
 # workers. This means that whatever performance gain you might have gotten from
 # your parallelization can be crushed by moving large amounts of data around.
-# In general, passing objects as file paths will be faster than passing whole 
-# sf or terra objects. Not returning products directly will also speed up 
-# function processing time dramatically. Products can always be retrieved/read
-# in directly from the output .zip file.
+# Not returning products directly will speed up function processing time 
+# dramatically. Products can always be retrieved/read in directly from the
+# output .zip file.
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-if (F) plan(multisession)
+plan(multisession)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -133,7 +132,7 @@ system.file("extdata", "nc", "sites_nc.shp", package = "openSTARS") %>%
   vect() %>% 
   writeVector(file.path(save_dir, "sites.shp"),overwrite=T)
 
-plot(toy_dem)
+plot(toy_dem,main="Elevation")
 
 ```
 
@@ -176,7 +175,7 @@ output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
 # it can be run with at most 2 processes (1 numeric and 1 categorical).
 # Most operations occur out of memory, but the sequential nature means 
 # temporary files won't eat valuable hardrive space.
-plan(multisession(workers=2))
+plan(multisession)
 
 loi_combined<-process_loi(
   dem=toy_dem,
@@ -277,14 +276,20 @@ plot(log10(flow_accum))
 
 This function combines `generate_subbasins()` and `attrib_streamline()` to produce a number of vector layers.
 
+Typically, observed responses are measured at discrete sampling locations along the stream network. If the location information is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow), they must be incorporated into the network. This is done by splitting stream lines and catchments at these points.
+
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-plan(multisession(workers=4)) # improve processing time in some functions with parallel processing
 
 # generates vector layers, including subbasins, stream lines, and links representing
 # pour-points for each subbasin
 hydro_out<-generate_vectors(
   input=hydro_out,
+  points=file.path(save_dir, "sites.shp"), # These are optional
+  site_id_col="site_id", # Column name in points layer that corresponds to 
+                         # unique IDs that will be available in data products
+  snap_distance=100L,
+  break_on_noSnap =F, # points that are more than 100m from closest stream are excluded
   return_products=T,
   temp_dir=NULL,
   verbose=F
@@ -297,6 +302,12 @@ hydro_out<-generate_vectors(
 # `uslink_id` and `dslink_id`  - columns identify upstream and downstream links
 # `ustrib_id` and `dstrib_id`  - columns identify upstream and downstream tributaries
 
+# If 'points' are provided, this function modifies the vector outputs by inserting
+# links, and splitting lines/subbasins at `points`. Inserted points are given "link_id'
+# values that increment with decimal places from downstream to upstream directions 
+# (i.e., 10.0 remains the pout point for the segment, and 10.1, 10.2,... identify
+# sample points in an upstream direction). 
+
 # New layers added by `generate_vectors()`
 # hydro_out$subbasins # -> polygon subbasins attributed with `link_id` and reach
 #                     #    contributing area (in m^2)
@@ -308,6 +319,9 @@ hydro_out<-generate_vectors(
 #                  #     and downstream link and trib IDS and a number of extra attributes
 # hydro_out$links # -> point vector representing pour-points for subbasins,
 #                 #   attributed with `link_id` and extra attributes
+# hydro_out$snapped_points # -> provided points snapped to nearest segment. Any points 
+#                          #   beyond snap distance are removed, with a warning if
+#                          #   break_on_noSnap == F. 
 
 tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",alpha =0.2,legend.show=F) +
   tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
@@ -317,41 +331,13 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",al
 
 [Back to top](#1-introduction)
 
-#### 4.1.3 Split vector geospatial analysis products at sampling points `insert_points()`
+#### 4.1.3 Split vector geospatial analysis products at sampling points `generate_vectors()`
 
-Typically, observed responses are measured at discrete sampling locations along the stream network. If the location information is to be preserved (i.e., if samples are upstream and downstream of a particular effluent outflow), they must be incorporated into the network. This is done by splitting stream lines and catchments at these points.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 # Optional step, inserts sampling points into stream vectors, splitting subbasins
 # and lines at sampling points, additional links inserted at sampling points as well
-hydro_out<-insert_points( 
-  input=hydro_out,
-  points=file.path(save_dir, "sites.shp"),
-  site_id_col="site_id", # Column name in points layer that corresponds to 
-                         # unique IDs that will be available in data products
-  snap_distance=100L,
-  break_on_noSnap =F, # points that are more than 100m from closest stream are excluded
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
-
-# New layers added by `insert_points()`
-# hydro_out$snapped_points # -> provided points snapped to nearest segment. Any points 
-#                          #   beyond snap distance are removed, with a warning if
-#                          #   break_on_noSnap == F. 
-
-# This function modifies the existing vector outputs by inserting links, and 
-# splitting lines/subbasins at `points`, and adds the `site_id_col` column to 
-# all vector outputs. Inserted points are given "link_id' values that increment
-# with decimal places from downstream to upstream directions (i.e., 10.0 remains
-# the pout point for the segment, and 10.1, 10.2,... identify sample points in
-# an upstream direction). 
-
-## !!IMPORTANT!!
-# If you need to rerun insert_points(), you will have to run generate_vectors() again
-# first to generate new vector layers to split.
 
 tm_shape(rast(hydro_out$dem_final.tif)) + tm_raster(palette = "cividis",legend.show=F) +
   tm_shape(hydro_out$stream_lines) + tm_lines(col="red",alpha =0.5,legend.show=F,lwd =2) +
@@ -598,11 +584,12 @@ Finally, we'll do a similar comparison but using percent of shared catchments. H
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 ggplot(dmat %>%
+         filter(prop_shared_catchment>0) %>% 
          select(origin,destination,prop_shared_catchment,value_diff) %>%
          distinct(),
        aes(x=prop_shared_catchment,y=value_diff))+
   geom_hex()+
-  geom_smooth(se=F)+
+  geom_smooth(se=T)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
@@ -644,7 +631,7 @@ hydro_out_sparse<-process_hydrology(
 )
 
 # Since we didn't return the producs, we'll verify the outputs exist in the .zip file
-# unzip(list=T,hydro_out_sparse$outfile)
+unzip(list=T,hydro_out_sparse$outfile)
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -673,7 +660,6 @@ Instead of processing the loi separately (as was done above), they can instead b
 # output. 
 
 if (F) {
-  plan(multisession(workers=2))
   hydro_out<-process_loi(
     input=hydro_out,
     num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
@@ -971,7 +957,7 @@ wf<-workflow() %>%
 set.seed(1234)
 final_out<-future_map(cv_strats,
                       ~tune_grid(wf,resamples=.,grid=150) # Choose 150 hyper-parameter
-                                                          # configurations
+                      # configurations
 )
 
 # We expect the standard cross-validation to have higher accuracy than spatial
@@ -1108,7 +1094,10 @@ tm_shape(Streams) +
 
 ## 8 Future Plans
 
-This package is considered in early alpha, and bugs are expected. There is lots of room for improvements in many of the functions. The core functions may still change as the package develops and matures. One big area of improvement will be the handling of the output.zip file structure. It may be replaced by a spatialite database file in the future.
+This package is considered in early alpha, and bugs are expected. There is lots of room for improvements in many of the functions. The core functions may still change as the package develops and matures.
+* One big area of improvement will be the handling of the output .zip file structure.
+* output .zip may be replaced by a spatialite database file.
+* Many functions can be cleaned and optimized further.
 
 ## 9 References
 

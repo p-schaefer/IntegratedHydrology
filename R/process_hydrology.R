@@ -90,37 +90,19 @@ process_hydrology<-function(
     verbose=verbose
   )
 
-  if (verbose) print("Generate Subbasins")
-  hydro_out<-generate_subbasins(
-    input=hydro_out,
-    return_products=return_products,
-    temp_dir=temp_dir,
-    verbose=verbose
-  )
-
-  if (verbose) print("Attribute Streamlines")
-  hydro_out<-attrib_streamline(
+  if (verbose) print("Generate Vector")
+  hydro_out<-generate_vectors(
     input=hydro_out,
     extra_attr=extra_attr,
+    points=points,
+    site_id_col=site_id_col,
+    snap_distance=snap_distance,
+    break_on_noSnap=break_on_noSnap,
     return_products=return_products,
     temp_dir=temp_dir,
     compress=compress,
     verbose=verbose
   )
-
-  if (!is.null(points)) {
-    if (verbose) print("Inserting Sampling Points")
-    hydro_out<-insert_points(
-      input=hydro_out,
-      points=points,
-      site_id_col=site_id_col,
-      snap_distance=snap_distance,
-      break_on_noSnap=break_on_noSnap,
-      return_products=return_products,
-      temp_dir=temp_dir,
-      verbose=verbose
-    )
-  }
 
   if (verbose) print("Tracing Flowpaths")
   hydro_out<-trace_flowpaths(

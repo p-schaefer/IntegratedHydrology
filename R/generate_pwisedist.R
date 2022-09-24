@@ -89,7 +89,7 @@ pairwise_dist_fn<-function(
     verbose=F,
     temp_dir=NULL
 ) {
-  # require(tidyverse)
+  options(future.rng.onMisuse="ignore")
 
   if (is.null(stream_links) & is.null(ds_flowpaths_file)) stop("Either 'ds_flowpaths' or 'stream_links' must be provided")
   if (is.null(stream_links) & is.null(us_flowpaths_file)) stop("Either 'us_flowpaths' or 'stream_links' must be provided")

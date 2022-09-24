@@ -18,7 +18,7 @@ get_catchment<-function(
     tolerance=0.000001,
     buffer=0.001
 ) {
-
+  options(future.rng.onMisuse="ignore")
   tdir<-tempfile()
   dir.create(tdir)
 
