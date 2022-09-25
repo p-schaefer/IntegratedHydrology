@@ -133,7 +133,7 @@ generate_subbasins<-function(
                                       pnt_file<-file.path(temp_dir,paste0("Tempsite_",link_id,".shp"))
 
 
-                                      sf::write_sf(data %>% dplyr::select(site_id,point) %>% sf::st_as_sf(),pnt_file)
+                                      sf::write_sf(data %>% dplyr::select(link_id,point) %>% sf::st_as_sf(),pnt_file)
 
                                       cr<-terra::vect(subb_poly)
 
