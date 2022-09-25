@@ -158,7 +158,9 @@ attrib_points<-function(
   # Assemble Output Table ---------------------------------------------------
 
   if (target_streamseg) {
-    target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+    target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+      left_join(spec %>% select(link_id,any_of(site_id_col)),
+                by="link_id")
 
     if (all_reaches){
       target_O<-target_O %>%
@@ -201,14 +203,14 @@ attrib_points<-function(
                 setNames(c("UID","geometry")) %>%
                 rename(target_O=geometry),
               by="UID") %>%
-    mutate(clip_region=get_catchment(input=list(outfile=input$outfile),
-                                     site_id_col=site_id_col,
-                                     target_points=UID#,
-                                     #tolerance =tolerance ,
-                                     #buffer =catch_buffer
-    ) %>%
-      select(geometry) %>%
-      rename(clip_region=geometry)) %>%
+    left_join(
+      get_catchment(input=list(outfile=input$outfile),
+                    site_id_col=site_id_col,
+                    target_points=.$UID
+      ) %>%
+        select(any_of(site_id_col),geometry) %>%
+        setNames(c("UID","clip_region")),
+      by="UID") %>%
     unnest(clip_region)
 
 
@@ -289,7 +291,6 @@ attrib_points<-function(
 
       })) %>%
       mutate(attrib=future_map2(data2,data,.options = furrr_options(globals = FALSE),carrier::crate(function(data2,x){
-        # I can't figure out why this wont run in parallel
         #browser()
 
 
