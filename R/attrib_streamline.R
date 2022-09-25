@@ -329,11 +329,12 @@ attrib_streamline<-function(
 
     # for some reason wbt_raster_streams_to_vector() rounds numbers weirdly
 
+    un_ID<-unique(final_points$link_id)
     strm<-read_sf(file.path(temp_dir,"new_stream_layer.shp")) %>%
       select(STRM_VAL) %>%
       rename(link_id=STRM_VAL) %>%
       rowwise() %>%
-      mutate(link_id=unique(final_points$link_id)[which.min(abs(link_id-unique(final_points$link_id)))]) %>%
+      mutate(link_id=un_ID[which.min(abs(link_id-un_ID))]) %>%
       ungroup()
     st_crs(strm)<-crs(dem_final)
 
