@@ -133,6 +133,10 @@ attrib_points<-function(
         mutate(link_id=floor(link_id)) %>%
         distinct()
     }
+
+    spec <- spec %>%
+      mutate(across(any_of(site_id_col),as.character))
+
   }
 
   if (!any(colnames(spec) %in% "loi")) stop("'spec' must have a column named 'loi'")
