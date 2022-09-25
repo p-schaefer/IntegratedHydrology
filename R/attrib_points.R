@@ -122,7 +122,7 @@ attrib_points<-function(
   if (is.null(spec)){
     spec<-tibble(uid=all_points %>%
                    select(any_of(site_id_col)) %>%
-                   filter(!if_any(site_id_col,is.na)) %>%
+                   filter(!if_any(any_of(site_id_col),is.na)) %>%
                    pull(1)
     ) %>%
       setNames(site_id_col) %>%
@@ -135,7 +135,7 @@ attrib_points<-function(
     }
 
     spec <- spec %>%
-      mutate(across(any_of(site_id_col),as.character))
+      mutate(across(c(any_of(site_id_col),any_of("link_id")),as.character))
 
   }
 
@@ -148,7 +148,11 @@ attrib_points<-function(
 
   if (!any(colnames(spec) == "link_id")){
     spec<-spec %>%
-      left_join(all_points %>%  as_tibble() %>% select(any_of(site_id_col),link_id))
+      left_join(all_points %>%
+                  as_tibble() %>%
+                  select(any_of(site_id_col),link_id) %>%
+                  mutate(across(c(link_id,any_of(site_id_col)),as.character))
+                )
   }
 
   # loi_cols<-unlist(spec$loi,recursive=F)
@@ -163,6 +167,7 @@ attrib_points<-function(
 
   if (target_streamseg) {
     target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
       left_join(spec %>% select(link_id,any_of(site_id_col)),
                 by="link_id")
 
@@ -189,7 +194,8 @@ attrib_points<-function(
 
 
   } else {
-    target_O<-all_points
+    target_O<-all_points %>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character))
   }
 
   target_O<-target_O %>%
@@ -273,22 +279,21 @@ attrib_points<-function(
 
         unzip(
           zip_loc,
-          files=c("dem_final.tif","dem_accum_d8.tif"),
+          files=c("dem_final.tif","dem_accum_d8.tif","dem_streams_d8.tif"),
           exdir = new_temp_dir
         )
 
-        stream_w<-file.path(new_temp_dir,paste0("ALL_inv_distances.zip"))
+        unzip(x$stream_weights[[1]],
+              exdir = new_temp_dir)
 
-        fc<-file.copy(
-          x$stream_weights[[1]],
-          stream_w
-        )
+        stream_w<-file.path(new_temp_dir,unzip(list=T,x$stream_weights[[1]])$Name)
 
         return(list(stream_w=stream_w,
                     rast_load=as.list(file.path(new_temp_dir,sapply(x$loi_rasts_exists[[1]], basename))) %>%
                       setNames(gsub("\\.tif$","",sapply(x$loi_rasts_exists[[1]], basename))),
                     flow_accum=file.path(new_temp_dir,"dem_accum_d8.tif"),
                     dem=file.path(new_temp_dir,"dem_final.tif"),
+                    ts=file.path(new_temp_dir,"dem_streams_d8.tif"),
                     new_temp_dir=new_temp_dir
         )
         )
@@ -296,10 +301,21 @@ attrib_points<-function(
       })) %>%
       mutate(attrib=future_map2(data2,data,.options = furrr_options(globals = FALSE),carrier::crate(function(data2,x){
         #browser()
+        `%>%` <- magrittr::`%>%`
 
+        loi_rasts<-purrr::map(data2$rast_load,terra::rast) %>%
+          stats::setNames(names(x$loi_rasts_exists_names[[1]]))
+
+        dem<-terra::rast(data2$dem)
+        #ts<-terra::rast(data2$ts)
+        ts<-NA
+        flow_accum<-terra::rast(data2$flow_accum)
+        stream_weights<-purrr::map(data2$stream_w,terra::rast)
+        names(stream_weights)<-sapply(stream_weights,names)
 
         purrr::pmap(list(UID=x$UID,
                          tar_O=split(x$target_O,1:length(x$target_O)),
+                         ts=rep(list(ts),nrow(x)),
                          clip_region=split(x$clip_region,1:length(x$clip_region)),
                          t_dir=rep(data2$new_temp_dir[[1]],nrow(x)),
                          target_crs=x$target_crs,
@@ -308,18 +324,19 @@ attrib_points<-function(
                          weighting_s=x$weighting_scheme,
                          OS_comb=x$OS_combine,
                          site_id_c=x$site_id_col,
-                         loi_rasts=rep(list(data2$rast_load),nrow(x)),
+                         loi_rasts=rep(list(loi_rasts),nrow(x)),
                          loi_rasts_exists_nm=x$loi_rasts_exists_names,
                          buff=x$buffer,
                          return_p=x$return_products,
-                         stream_weights=rep(list(data2$stream_w),nrow(x)),
-                         flow_accum=rep(list(data2$flow_accum),nrow(x)),
-                         dem=rep(list(data2$dem),nrow(x)),
+                         stream_weights=rep(list(stream_weights),nrow(x)),
+                         flow_accum=rep(list(flow_accum),nrow(x)),
+                         dem=rep(list(dem),nrow(x)),
                          inv_fun=x$inv_fun,
                          p=x$p
         ),
         function(UID,
                  tar_O,
+                 ts,
                  clip_region,
                  t_dir,
                  target_crs,
@@ -340,6 +357,7 @@ attrib_points<-function(
           #browser()
           attrib_fn<-carrier::crate(function(uid,
                                              tar_O,
+                                             ts,
                                              clip_region,
                                              loi_cols,
                                              t_dir,
@@ -381,14 +399,12 @@ attrib_points<-function(
               } else {
                 hw<-hydroweight::hydroweight(hydroweight_dir=t_dir,
                                              target_O = to,
-                                             #target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
+                                             #target_S = ts,
                                              target_uid = uid,
                                              OS_combine = OS_comb,
                                              clip_region = sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1),
                                              dem=dem,
                                              flow_accum=flow_accum,
-                                             #dem=file.path("/vsizip",zip_loc,"dem_final.tif"),
-                                             #flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
                                              weighting_scheme = weighting_s[grepl("FLO",weighting_s)],
                                              inv_function = inv_fun,
                                              clean_tempfiles=T,
@@ -398,11 +414,7 @@ attrib_points<-function(
               t_dir2<-file.path(t_dir,basename(tempfile()))
               dc<-dir.create(t_dir2)
 
-              hw_all_strm_nm<-utils::unzip(list=T,stream_weights)
-
-              final_filepaths<-file.path(t_dir2,hw_all_strm_nm$Name)
-
-              hw_all_strm<-purrr::map(file.path("/vsizip",stream_weights,hw_all_strm_nm$Name),terra::rast)
+              hw_all_strm<-stream_weights
 
               hw_all_strm<-purrr::map(hw_all_strm,~terra::crop(.,
                                                                terra::vect(sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1)),
@@ -493,6 +505,7 @@ attrib_points<-function(
           })
           attrib_fn(uid=UID,
                     tar_O=tar_O,
+                    ts=ts,
                     clip_region=clip_region,
                     loi_cols=loi_cols,
                     t_dir=t_dir,
