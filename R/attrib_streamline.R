@@ -380,7 +380,8 @@ attrib_streamline<-function(
                 setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
     gather("direction","cell_num",-target) %>%
     arrange(target) %>%
-    mutate(on_stream=terra::extract(st_r,.$cell_num)$dem_streams_d8) %>%
+    filter(!is.na(cell_num),!is.nan(cell_num)) %>%
+    mutate(on_stream=data.frame(terra::extract(st_r,xyFromCell(st_r,.$cell_num)))$dem_streams_d8) %>%
     filter(on_stream==1) %>%
     left_join(
       all_cell %>% select(link_id,cell),
@@ -400,7 +401,7 @@ attrib_streamline<-function(
     )
 
   cv2<-cv1  %>%
-    mutate(flow_dir=terra::extract(d8_pntr,.$cell_num)$dem_d8) %>%
+    mutate(flow_dir=terra::extract(d8_pntr,xyFromCell(d8_pntr,.$cell_num))$dem_d8) %>%
     mutate(flow_in=case_when(
       direction=="TL" & flow_dir == 4 ~ T,
       direction=="TM" & flow_dir == 8 ~ T,
@@ -453,7 +454,7 @@ attrib_streamline<-function(
                 setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
     gather("direction","cell_num",-target) %>%
     arrange(target) %>%
-    mutate(on_stream=terra::extract(st_r,.$cell_num)$dem_streams_d8) %>%
+    mutate(on_stream=terra::extract(st_r,xyFromCell(st_r,.$cell_num))$dem_streams_d8) %>%
     filter(on_stream==1) %>%
     left_join(
       all_cell %>% select(link_id,cell),
@@ -473,7 +474,7 @@ attrib_streamline<-function(
     )
 
   cv2<-cv1  %>%
-    mutate(flow_dir=terra::extract(d8_pntr,.$target)$dem_d8) %>%
+    mutate(flow_dir=terra::extract(d8_pntr,xyFromCell(d8_pntr,.$target))$dem_d8) %>%
     mutate(flow_in=case_when(
       direction=="TL" & on_stream & flow_dir == 64 ~ T,
       direction=="TM" & on_stream & flow_dir == 128 ~ T,
