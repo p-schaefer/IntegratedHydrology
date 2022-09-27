@@ -4,13 +4,7 @@
 \alias{get_catchment}
 \title{Generate upstream catchment areas for target points}
 \usage{
-get_catchment(
-  input,
-  site_id_col = NULL,
-  target_points,
-  tolerance = 1e-06,
-  buffer = 0.001
-)
+get_catchment(input, site_id_col = NULL, target_points)
 }
 \arguments{
 \item{input}{output of \code{process_hydrology()} or one containing \code{generate_subbasins()} and \code{trace_flowpaths()}}
@@ -18,10 +12,6 @@ get_catchment(
 \item{site_id_col}{\code{NULL} or character. If Character, must match \code{site_id_col} from \code{insert_points()}}
 
 \item{target_points}{character. Unique site identifier(s) from \code{site_id_col}, or \code{link_id} values corresponding to specific reaches.}
-
-\item{tolerance}{numeric. Tolerance values used for \code{sf::st_snap} in meters}
-
-\item{buffer}{numeric. Tolerance values used for \code{sf::st_buffer} in meters}
 }
 \value{
 polygon of upstream catchments at \code{target_points}

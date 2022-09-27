@@ -25,20 +25,11 @@ trace_flowpaths<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
-  wbt_options(exe_path=wbt_exe_path(),
-              verbose=verbose,
-              wd=temp_dir)
-
-  terra::terraOptions(verbose = verbose,
-                      tempdir = temp_dir
-  )
-
   options(dplyr.summarise.inform = FALSE)
 
   zip_loc<-input$outfile
-  fl<-unzip(list=T,zip_loc)
 
-  final_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
+  final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))
 
   #browser()
 
@@ -46,8 +37,8 @@ trace_flowpaths<-function(
   ds_flowpaths<-fp$final_out_ds
   us_flowpaths<-fp$final_out_us
 
-  saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"))
-  saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"))
+  saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"),compress = F)
+  saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"),compress = F)
 
   dist_list_out<-list(
     "ds_flowpaths.rds",
@@ -65,12 +56,26 @@ trace_flowpaths<-function(
       flags = '-r9Xjq'
   )
 
-  output<-input
+  output<-input[!names(input) %in% c("catchment_poly")]
+
+  all_catch<-get_catchment(input = output,
+                           target_points = final_links[["link_id"]]
+  ) %>%
+    select(link_id)
+
+  write_sf(all_catch %>% select(link_id),file.path(temp_dir,"Catchment_poly.shp"))
+
+  zip(out_file,
+      list.files(temp_dir,"Catchment_poly",full.names = T),
+      flags = '-r9Xjq'
+  )
 
   if (return_products){
     output<-c(
       list(ds_flowpaths=ds_flowpaths,
-           us_flowpaths=us_flowpaths),
+           us_flowpaths=us_flowpaths,
+           catchments=all_catch %>% select(link_id)
+           ),
       output
     )
   }

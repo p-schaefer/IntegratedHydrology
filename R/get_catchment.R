@@ -4,8 +4,6 @@
 #' @param input output of `process_hydrology()` or one containing `generate_subbasins()` and `trace_flowpaths()`
 #' @param site_id_col \code{NULL} or character. If Character, must match `site_id_col` from `insert_points()`
 #' @param target_points character. Unique site identifier(s) from `site_id_col`, or `link_id` values corresponding to specific reaches.
-#' @param tolerance numeric. Tolerance values used for \code{sf::st_snap} in meters
-#' @param buffer numeric. Tolerance values used for \code{sf::st_buffer} in meters
 #'
 #' @return polygon of upstream catchments at `target_points`
 #' @export
@@ -14,9 +12,9 @@
 get_catchment<-function(
     input,
     site_id_col=NULL,
-    target_points,
-    tolerance=0.000001,
-    buffer=0.001
+    target_points#,
+    #tolerance=0.000001,
+    #buffer=0.001
 ) {
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
@@ -38,13 +36,13 @@ get_catchment<-function(
   zip_loc<-input$outfile
 
   subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  unzip(zip_loc,files =c("Subbasins_poly.shp","Subbasins_poly.shx","Subbasins_poly.prj","Subbasins_poly.dbf"),exdir=tdir)
-  points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
+  # unzip(zip_loc,files =c("Subbasins_poly.shp","Subbasins_poly.shx","Subbasins_poly.prj","Subbasins_poly.dbf"),exdir=tdir)
+  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))
 
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
   sites<-points %>%
-    as_tibble() %>%
+    # as_tibble() %>%
     select(any_of(site_id_col),link_id) %>%
     filter(!if_any(any_of(site_id_col),is.na)) %>%
     mutate(across(everything(),paste0)) %>%

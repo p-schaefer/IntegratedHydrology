@@ -72,7 +72,7 @@ generate_vectors<-function(
   hydro_out<-generate_subbasins(
     input=hydro_out,
     points=points,
-    site_id_col=site_id_col,
+    #site_id_col=site_id_col,
     return_products=return_products,
     temp_dir=temp_dir,
     verbose=verbose

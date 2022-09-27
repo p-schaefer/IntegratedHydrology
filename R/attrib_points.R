@@ -279,7 +279,7 @@ attrib_points<-function(
 
         unzip(
           zip_loc,
-          files=c("dem_final.tif","dem_accum_d8.tif","dem_streams_d8.tif"),
+          files=c("dem_final.tif","dem_accum_d8.tif"),#"dem_streams_d8.tif"
           exdir = new_temp_dir
         )
 
@@ -397,6 +397,7 @@ attrib_points<-function(
               if (length(weighting_s[grepl("FLO",weighting_s)])==0){
                 hw<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
               } else {
+                browser() #This is broken
                 hw<-hydroweight::hydroweight(hydroweight_dir=t_dir,
                                              target_O = to,
                                              #target_S = ts,
@@ -408,7 +409,9 @@ attrib_points<-function(
                                              weighting_scheme = weighting_s[grepl("FLO",weighting_s)],
                                              inv_function = inv_fun,
                                              clean_tempfiles=T,
-                                             return_products=F)
+                                             return_products = T,
+                                             wrap_return_products=F,
+                                             save_output=F)
               }
 
               t_dir2<-file.path(t_dir,basename(tempfile()))

@@ -29,8 +29,10 @@ Imports:
 Depends:
     R (>= 4.0),
     carrier,
+    data.table,
     dplyr,
     furrr,
+    future,
     progressr,
     purrr,
     sf,

@@ -3,7 +3,6 @@
 #'
 #' @param input resulting object from `process_flowdir()`
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
-#' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
 #' @param verbose logical.
@@ -17,7 +16,6 @@
 generate_subbasins<-function(
     input,
     points,
-    site_id_col,
     return_products=F,
     temp_dir=NULL,
     verbose=F
@@ -45,7 +43,10 @@ generate_subbasins<-function(
   )
 
   zip_loc<-input$outfile
+
   fl<-unzip(list=T,zip_loc)
+
+  site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
   unzip(zip_loc,
         c("dem_d8.tif","dem_streams_d8.tif"),
@@ -70,15 +71,9 @@ generate_subbasins<-function(
 
   write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
-  fl<-unzip(list=T,zip_loc,overwrite = T,junkpaths =F)
-
-  unzip(zip_loc,
-        c(fl$Name[grepl("stream_links",fl$Name)]),
-        exdir=temp_dir,
-        overwrite=T,
-        junkpaths=T)
-
-  stream_links<-read_sf(file.path(temp_dir,"stream_links.shp"))
+  stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+              by="link_id")
 
   # Split subbasins at sampling points --------------------------------------
 
@@ -202,7 +197,8 @@ generate_subbasins<-function(
                 select(link_id,sbbsn_area),
               by = c("link_id"))
 
-  write_sf(final_links,file.path(temp_dir,"stream_links.shp"))
+  write_sf(final_links %>% select(link_id) ,file.path(temp_dir,"stream_links.shp"))
+  data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
 
   dist_list_out<-list(
     list.files(temp_dir,"Subbasins_poly"),

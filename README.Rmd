@@ -83,9 +83,7 @@ if (F){
 
 ### 3.1 Generate toy terrain dataset and sampling points
 
-Begin by bringing in the digital elevation model and using it to generate terrain products. The DEM must be processed in a way to remove depressions. Whitebox offers methods for breaching and filling DEMs to remove depressions. These tools must be run before applying ***ihydro*** tools. 
-
-Another factor to consider at this step is whether to burn stream vectors into the DEM; the whitebox::wbt_fillburn() tool allows for this, but  there are several caveats associated with this process. See [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois).
+Begin by bringing in the digital elevation model and using it to generate terrain products. 
 
 ```{r, message = FALSE, error = FALSE, warning = FALSE}
 ## Load libraries
@@ -175,7 +173,6 @@ output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
 # it can be run with at most 2 processes (1 numeric and 1 categorical).
 # Most operations occur out of memory, but the sequential nature means 
 # temporary files won't eat valuable hardrive space.
-plan(multisession)
 
 loi_combined<-process_loi(
   dem=toy_dem,
@@ -215,6 +212,10 @@ plot(rast(loi_combined$num_inputs),type="continuous")
 ### 4.1 METHOD 1: With individual function
 
 #### 4.1.1 Generate flow direction/accumulation geospatial analysis products with `process_flowdir()`
+
+The DEM must be processed in a way to remove depressions. Whitebox offers methods for breaching and filling DEMs to remove depressions. 
+
+Another factor to consider at this step is whether to burn stream vectors into the DEM; ***ihydro*** impliments a simplified stream burning method that lowers the levation along the DEM by `burn_depth` meters. See  [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois) for more detailed approaches.
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
@@ -287,9 +288,9 @@ hydro_out<-generate_vectors(
   input=hydro_out,
   points=file.path(save_dir, "sites.shp"), # These are optional
   site_id_col="site_id", # Column name in points layer that corresponds to 
-                         # unique IDs that will be available in data products
-  snap_distance=100L,
-  break_on_noSnap =F, # points that are more than 100m from closest stream are excluded
+  #                      # unique IDs that will be available in data products
+  snap_distance=100L, # points that are more than 100m from closest stream are excluded
+  break_on_noSnap =F, # default is to stop when any points don't snap, this will ignore that
   return_products=T,
   temp_dir=NULL,
   verbose=F
@@ -630,7 +631,7 @@ hydro_out_sparse<-process_hydrology(
   verbose=F
 )
 
-# Since we didn't return the producs, we'll verify the outputs exist in the .zip file
+# Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
@@ -686,55 +687,72 @@ if (F) {
 
 ## 6 Calculate (weighted) spatial summaries:
 
-New research is showing that the presence of particular features on the landscape is not always sufficient to predict the instream response to those features, and the location of those features relative to the locations of streams and areas of higher flow accumulation is very important (Peterson ***et al.*** 2011). ***ihydro*** used the [hydroweight](https://github.com/bkielstr/hydroweight) package to calculate weighted spatial summaries of supplied loi layers. 
+New research is showing that the presence of particular features on the landscape is not always sufficient to predict the in-stream response to those features, and the location of those features relative to the locations of streams and areas of higher flow accumulation is very important (Peterson ***et al.*** 2011). ***ihydro*** used the [hydroweight](https://github.com/bkielstr/hydroweight) package to calculate weighted spatial summaries of supplied loi layers. 
 
-### 6.1 At specific sampling points with site specific attributes `attrib_points()`
+### 6.1 At specific sampling points with site specific attributes `spatweight_attr()`
 
-The `attrib_points()` function can be run with a specification table to specify at which sites loi summaries should be calculated for, which loi to summarize, and type of numeric summary to use for those particular loi. 
+The `spatweight_attr()` function can be run with a specification table to specify at which sites loi summaries should be calculated for, which loi to summarize, and type of numeric summary to use for those particular loi. 
 
 ```{r, fig.width = 7, fig.height = 7, message = F, error = F, warning = F}
 
-# This retrieves loi names
-loi<-list(numb=rast(loi_combined$num_inputs),
-          cat=rast(loi_combined$cat_inputs))
-
-loi_names<-lapply(loi,names) %>% unlist()
-names(loi_names)<-loi_names
-
-# Here we assign which summaries we would like calculated for each loi layer
-loi_names<-map(loi_names,~c("distwtd_mean",  "mean", "distwtd_sd",  "min", "max"))
-
-# A 'spec' table can be given to calculate attributes at only select sampling points,
-# and/or to only calculate a subset of attributes from select sampling points
-specification_table<-tibble(
-  site_id=c("1","25","80"),
-  loi=list(loi_names)
-)
-specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:2)]
-specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
-
-# specification_table$loi[[2]]
-
-final_attributes_sub<-attrib_points(
+final_attributes_sub<-spatweight_attr(
   input=hydro_out,
-  loi_file=output_filename_loi, #output file path from process_loi()
-  spec=specification_table,
-  weighting_scheme = c("lumped","iFLS", "HAiFLS"),
-  OS_combine=F,
-  target_streamseg=F, # This will set the target_o parameter as the sampling point
-  inv_function = function(x) { # Function used by hydroweight to calculate 
-    # spatial weights across the landscape
+  loi_file=output_filename_loi,
+  sample_points=c("1","25","80"),
+  link_id=NULL,
+  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO"),
+  loi_numeric_stats = c("mean", "sd", "max"),
+  approx_distwtdsd=F,
+  inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
-  remove_region=NULL,
-  return_products=T,
   temp_dir=NULL,
   verbose=F
 )
 
-# Site 25 should only contain mean and distwtd_mean variables for slope
-final_attributes_sub %>% 
-  select(site_id,contains("slope"))
+final_attributes_sub
+
+# # This retrieves loi names
+# loi<-list(numb=rast(loi_combined$num_inputs),
+#           cat=rast(loi_combined$cat_inputs))
+# 
+# loi_names<-lapply(loi,names) %>% unlist()
+# names(loi_names)<-loi_names
+# 
+# # Here we assign which summaries we would like calculated for each loi layer
+# loi_names<-map(loi_names,~c("distwtd_mean",  "mean", "distwtd_sd",  "min", "max"))
+# 
+# # A 'spec' table can be given to calculate attributes at only select sampling points,
+# # and/or to only calculate a subset of attributes from select sampling points
+# specification_table<-tibble(
+#   site_id=c("1","25","80"),
+#   loi=list(loi_names)
+# )
+# specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:2)]
+# specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
+# 
+# # specification_table$loi[[2]]
+# 
+# final_attributes_sub<-attrib_points(
+#   input=hydro_out,
+#   loi_file=output_filename_loi, #output file path from process_loi()
+#   spec=specification_table,
+#   weighting_scheme = c("lumped","iFLS", "HAiFLS"),
+#   OS_combine=F,
+#   target_streamseg=F, # This will set the target_o parameter as the sampling point
+#   inv_function = function(x) { # Function used by hydroweight to calculate 
+#     # spatial weights across the landscape
+#     (x * 0.001 + 1)^-1
+#   },
+#   remove_region=NULL,
+#   return_products=T,
+#   temp_dir=NULL,
+#   verbose=F
+# )
+# 
+# # Site 25 should only contain mean and distwtd_mean variables for slope
+# final_attributes_sub %>% 
+#   select(site_id,contains("slope"))
 
 ```
 
@@ -742,91 +760,139 @@ We can also access the weighting layers and weighted attribute layers (if return
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-plot(
-  rast(
-    list(
-      rast(final_attributes_sub$distance_weights[[2]]$iFLS.tif)%>% 
-        setNames("iFLS Weighting"),
-      log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
-        setNames("HAiFLS Weighting"),
-      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.iFLS_num_rast.loi_dist_rast) %>% 
-        project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
-        setNames("iFLS Weighted Slope"),
-      rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.HAiFLS_num_rast.loi_dist_rast)[[1]] %>% 
-        project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
-        setNames("HAiFLS Weighted Landcover Class 1")
-    )
-  )
-)
+# plot(
+#   rast(
+#     list(
+#       rast(final_attributes_sub$distance_weights[[2]]$iFLS.tif)%>% 
+#         setNames("iFLS Weighting"),
+#       log10(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif))%>% 
+#         setNames("HAiFLS Weighting"),
+#       rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.iFLS_num_rast.loi_dist_rast) %>% 
+#         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+#         setNames("iFLS Weighted Slope"),
+#       rast(final_attributes_sub$weighted_attr[[2]]$num_rast.distwtd_meanmean.HAiFLS_num_rast.loi_dist_rast)[[1]] %>% 
+#         project(rast(final_attributes_sub$distance_weights[[2]]$HAiFLS.tif)) %>% 
+#         setNames("HAiFLS Weighted Landcover Class 1")
+#     )
+#   )
+# )
 
 ```
 
 [Back to top](#1-introduction)
 
-### 6.2 At all sampling points `attrib_points()`
+### 6.2 At all sampling points `spatweight_attr()`
 
-```{r, fig.width = 7, fig.height = 7, message = TRUE, error = TRUE, warning = TRUE}
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-loi_names<-lapply(loi,names) %>% unlist()
-names(loi_names)<-loi_names
-loi_names<-map(loi_names,~c("mean","sd","distwtd_mean","distwtd_sd"))
-
-# Here we will calculate the attributes for all sampled points
-specification_table<-tibble(
-  site_id=hydro_out$snapped_points$site_id, # We use the snapped points layer to
-  # get the site_ids of all sample points
-  loi=list(loi_names)
-)
-
-final_attributes_samples<-attrib_points(
+final_attributes<-spatweight_attr(
   input=hydro_out,
   loi_file=output_filename_loi,
-  spec=specification_table,
-  weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
-  OS_combine=F,
-  target_streamseg=T, # This will set the target_o parameter as the sampling point
+  sample_points=hydro_out$snapped_points$site_id,
+  out_filename="sample_points_wgtattr.csv",
+  link_id=NULL,
+  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO"),
+  loi_numeric_stats = c("mean", "sd", "max"),
+  approx_distwtdsd=F,
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
-  remove_region=NULL,
-  return_products=F,
   temp_dir=NULL,
   verbose=F
 )
 
-final_attributes_samples
+# loi_names<-lapply(loi,names) %>% unlist()
+# names(loi_names)<-loi_names
+# loi_names<-map(loi_names,~c("mean","max","sd","distwtd_mean","distwtd_sd"))
+# 
+# # Here we will calculate the attributes for all sampled points
+# specification_table<-tibble(
+#   site_id=hydro_out$snapped_points$site_id, # We use the snapped points layer to
+#   # get the site_ids of all sample points
+#   loi=list(loi_names)
+# )
+# 
+# final_attributes_samples<-attrib_points(
+#   input=hydro_out,
+#   loi_file=output_filename_loi,
+#   spec=specification_table,
+#   weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
+#   OS_combine=F,
+#   target_streamseg=T, # This will set the target_o parameter as the stream segment
+#   inv_function = function(x) {
+#     (x * 0.001 + 1)^-1
+#   },
+#   remove_region=NULL,
+#   return_products=F,
+#   temp_dir=NULL,
+#   verbose=F
+# )
+# 
+# final_attributes_samples
 
 ```
 
 [Back to top](#1-introduction)
 
-### 6.3 Across entire study area `attrib_points()`
+### 6.3 Across entire study area `spatweight_attr()`
 
 In order to make predictions across the landscape, we will need to calculate our predictors acorss the landscape as well. At this point, we may consider switching our target_o parameter from the sampling point (as was done above) to the entire reach by setting `target_streamseg`=T. This will calculate all target_o weighting schemes to be the entire reach. This may be more conservative for predicting beyond sampling points as it integrates landscape factors across the length of the whole reach.
 
 ```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
-# Warning this operation can be very slow - but we will use our sparse
-# hydrology network to speed up calculations
-
-specification_table<-tibble(
-  # Note we use link_id here instead of site_id to get all reaches
-  link_id=read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))$link_id,
-  loi=list(loi_names)
-)
-
-final_attributes_all<-attrib_points(
-  input=hydro_out_sparse,
-  spec = specification_table,
+final_attributes_all<-spatweight_attr(
+  input=hydro_out,
   loi_file=output_filename_loi,
-  all_reaches=F, # This will calculate attributes for each reach
-  weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
-  loi_numeric_stats = c("mean","max","sd","distwtd_mean","distwtd_sd"),
-  OS_combine=F,
-  target_streamseg=T # This will set the target_o parameter as the entire reach
+  sample_points=NULL,
+  link_id=NULL,
+  out_filename="all_points_wgtattr.csv",
+  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO"),
+  loi_numeric_stats = c("mean", "sd", "max"),
+  approx_distwtdsd=F,
+  inv_function = function(x) {
+    (x * 0.001 + 1)^-1
+  },
+  temp_dir=NULL,
+  verbose=F
 )
 
-final_attributes_all
+# # Warning this operation can be very slow - but we will use our sparse
+# # hydrology network to speed up calculations
+# 
+# specification_table<-tibble(
+#   # Note we use link_id here instead of site_id to get all reaches
+#   link_id=as.character(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))$link_id),
+#   loi=list(loi_names)
+# )
+# 
+# spatweight_attr(
+#   input=hydro_out,
+#   loi_file=output_filename_loi,
+#   sample_points=hydro_out$snapped_points$site_id,
+#   link_id=NULL,
+#   weighting_scheme =  c("lumped", "iEucS",  "iFLS", "HAiFLS","iFLO",  "HAiFLO"),
+#   loi_numeric_stats = c("mean", "sd", "median", "min", "max", "sum"),
+#   approx_distwtdsd=F,
+#   inv_function = function(x) {
+#     (x * 0.001 + 1)^-1
+#   },
+#   return_products=F,
+#   temp_dir=NULL,
+#   verbose=F
+# )
+# 
+# final_attributes_all<-attrib_points(
+#   input=hydro_out_sparse,
+#   spec = specification_table,
+#   loi_file=output_filename_loi,
+#   all_reaches=F, # This will calculate attributes for each reach
+#   weighting_scheme = c("lumped","HAiFLO", "HAiFLS"),
+#   loi_numeric_stats = c("mean","max","sd","distwtd_mean","distwtd_sd"),
+#   OS_combine=F,
+#   target_streamseg=T # This will set the target_o parameter as the stream segment
+# )
+# 
+# final_attributes_all
 
 ```
 

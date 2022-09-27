@@ -28,9 +28,9 @@ attrib_streamline<-function(
       "StOrd_Hort",
       "StOrd_Shr"
     ),
-    points,
-    site_id_col,
-    snap_distance,
+    points=NULL,
+    site_id_col=NULL,
+    snap_distance=10L,
     break_on_noSnap=T,
     return_products=F,
     temp_dir=NULL,
@@ -40,14 +40,20 @@ attrib_streamline<-function(
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
+  if (!is.null(points) & is.null(site_id_col)) stop("`site_id_col` can not be NULL if `points` is provided")
+
   extra_attr<-match.arg(extra_attr,several.ok = T)
 
-  if (!is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
-  if (!is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
+  if (!is.null(points) & !is.numeric(snap_distance)) stop("'snap_distance' must be an integer value")
+  if (!is.null(points) & !is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
 
-  if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
-  if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
-  if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
+  if (!is.null(points)) {
+    if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
+    if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
+    if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
+  } else {
+    site_id_col<-"link_id"
+  }
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -236,7 +242,9 @@ attrib_streamline<-function(
   if (!is.null(points)){
     points<-hydroweight::process_input(points,target = vect(final_points),input_name="points")
 
-    write_sf(st_as_sf(points),file.path(temp_dir,"original_points.shp"))
+    write_sf(st_as_sf(points) %>%
+               select(any_of(site_id_col),everything()),
+             file.path(temp_dir,"original_points.shp"))
 
     points<-st_as_sf(points) %>%
       group_by(!!rlang::sym(site_id_col)) %>%
@@ -270,7 +278,8 @@ attrib_streamline<-function(
     if (any(is.na(snapped_points$link_id))) warning(paste0("The following points could not be snapped and were not included: ", paste0(snapped_points[[site_id_col]][is.na(snapped_points$link_id)],collapse = ", ") ))
 
     snapped_points<-snapped_points %>%
-      filter(!is.na(link_id))
+      filter(!is.na(link_id)) %>%
+      select(any_of(site_id_col),everything())
 
     write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))
 
@@ -513,14 +522,19 @@ attrib_streamline<-function(
   if (check_link_id | check_id) warning("Some link_id's and/or ID's are duplicated, this may indicate an issue with the upstream/downstream IDs")
 
 
-  write_sf(final_links,file.path(temp_dir,"stream_links.shp"))
-  write_sf(final_points,file.path(temp_dir,"stream_points.shp"))
+  write_sf(final_links %>% select(link_id),file.path(temp_dir,"stream_links.shp"))
+  write_sf(final_points %>% select(link_id),file.path(temp_dir,"stream_points.shp"))
+
+  data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
+  data.table::fwrite(final_points %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_points.csv"))
+  data.table::fwrite(tibble(site_id_col=site_id_col),file.path(temp_dir,"site_id_col.csv"))
 
   # Generate Output ---------------------------------------------------------
   if (verbose) print("Generating Output")
 
 
   dist_list_out<-c(
+    list.files(temp_dir,"site_id_col"),
     list.files(temp_dir,"snapped_points"),
     list.files(temp_dir,"original_points"),
     list.files(temp_dir,"stream_links"),
@@ -537,7 +551,12 @@ attrib_streamline<-function(
       flags = '-r9Xjq'
   )
 
-  output<-input[!names(input) %in% c("stream_lines","links","points","snapped_points","original_points")]
+  output<-input[!names(input) %in% c("stream_lines",
+                                     "links",
+                                     "points",
+                                     "snapped_points",
+                                     "original_points"
+                                     )]
 
   if (return_products){
     output<-c(

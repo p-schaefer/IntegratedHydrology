@@ -7,7 +7,6 @@
 generate_subbasins(
   input,
   points,
-  site_id_col,
   return_products = F,
   temp_dir = NULL,
   verbose = F
@@ -17,8 +16,6 @@ generate_subbasins(
 \item{input}{resulting object from \code{process_flowdir()}}
 
 \item{points}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.}
-
-\item{site_id_col}{character. Variable name in \code{points} that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same \code{site_id_col}, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
 
