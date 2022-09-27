@@ -70,7 +70,11 @@ attrib_points<-function(
 
   fl<-unzip(list=T,zip_loc)
   fl_loi<-unzip(list=T,loi_loc)
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))
+  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+              by="link_id")
+
+  all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 
   # Get site name column ----------------------------------------------------
   if (any(grepl("snapped_points",fl)) & !all_reaches){
@@ -151,7 +155,8 @@ attrib_points<-function(
       left_join(all_points %>%
                   as_tibble() %>%
                   select(any_of(site_id_col),link_id) %>%
-                  mutate(across(c(link_id,any_of(site_id_col)),as.character))
+                  mutate(across(c(link_id,any_of(site_id_col)),as.character)),
+                by=site_id_col
                 )
   }
 
@@ -204,24 +209,24 @@ attrib_points<-function(
   #browser()
 
   # Generate Catchments
-  if (verbose) print("Generating Catchments")
   out<-spec %>%
-    select(any_of(site_id_col),loi) %>%
-    setNames(c("UID","loi")) %>%
+    select(any_of(site_id_col),loi)%>%
+    left_join(all_catch %>%
+                mutate(link_id=as.character(link_id)) %>%
+                left_join(all_points %>%
+                            as_tibble() %>%
+                            mutate(link_id=as.character(link_id)) %>%
+                            mutate(across(any_of(site_id_col),as.character)) %>%
+                            select(link_id,any_of(site_id_col)),
+                          by="link_id") %>%
+                select(any_of(site_id_col))
+              ,by=site_id_col) %>%
+    setNames(c("UID","loi","clip_region")) %>%
     left_join(target_O %>%
                 select(any_of(site_id_col)) %>%
                 setNames(c("UID","geometry")) %>%
                 rename(target_O=geometry),
-              by="UID") %>%
-    left_join(
-      get_catchment(input=list(outfile=input$outfile),
-                    site_id_col=site_id_col,
-                    target_points=.$UID
-      ) %>%
-        select(any_of(site_id_col),geometry) %>%
-        setNames(c("UID","clip_region")),
-      by="UID") %>%
-    unnest(clip_region)
+              by="UID")
 
 
   if (verbose) print("Generating Stream Level Attributes")
@@ -268,6 +273,7 @@ attrib_points<-function(
       nest() %>%
       ungroup() %>%
       mutate(data2=map(data, function(x){
+        #browser()
         new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
         dir.create(new_temp_dir)
 
@@ -299,7 +305,8 @@ attrib_points<-function(
         )
 
       })) %>%
-      mutate(attrib=future_map2(data2,data,.options = furrr_options(globals = FALSE),carrier::crate(function(data2,x){
+     mutate(attrib=future_map2(data2,data,.options = furrr_options(globals = FALSE),carrier::crate(function(data2,x){
+     # mutate(attrib=map2(data2,data,carrier::crate(function(data2,x){
         #browser()
         `%>%` <- magrittr::`%>%`
 
@@ -397,7 +404,7 @@ attrib_points<-function(
               if (length(weighting_s[grepl("FLO",weighting_s)])==0){
                 hw<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
               } else {
-                browser() #This is broken
+                #browser() #This is broken
                 hw<-hydroweight::hydroweight(hydroweight_dir=t_dir,
                                              target_O = to,
                                              #target_S = ts,
@@ -424,22 +431,24 @@ attrib_points<-function(
                                                                mask=T
               ))
 
-              hw_all_strm<-purrr::map(hw_all_strm,~terra::writeRaster(.,file.path(t_dir2,paste0(names(.),".tif")),overwrite=T,gdal="COMPRESS=NONE"))
-              hw_all_strm<-purrr::map(hw_all_strm,~file.path(t_dir2,paste0(names(.),".tif")))
+              # hw_all_strm<-purrr::map(hw_all_strm,~terra::writeRaster(.,file.path(t_dir2,paste0(names(.),".tif")),overwrite=T,gdal="COMPRESS=NONE"))
+              # hw_all_strm<-purrr::map(hw_all_strm,~file.path(t_dir2,paste0(names(.),".tif")))
+              #
+              # utils::zip(hw,
+              #            unlist(hw_all_strm),
+              #            flags = '-r9Xjq'
+              # )
 
-              utils::zip(hw,
-                         unlist(hw_all_strm),
-                         flags = '-r9Xjq'
-              )
+              save_file<-c(hw,hw_all_strm)
 
             }
 
             if (return_p) {
-              fls<-utils::unzip(hw,list=T)
-              fls<-file.path("/vsizip",hw,fls$Name)
-              distance_weights<-lapply(fls,terra::rast)
+              distance_weights<-save_file
+              # fls<-utils::unzip(hw,list=T)
+              # fls<-file.path("/vsizip",hw,fls$Name)
+              # distance_weights<-lapply(fls,terra::rast)
               distance_weights<-lapply(distance_weights,terra::wrap)
-              names(distance_weights)<-gsub("//.tif","",basename(fls))
             } else {
               distance_weights<-NULL
             }
