@@ -230,6 +230,7 @@ hydro_out<-process_flowdir(
   dem=toy_dem,
   burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
   burn_depth=5,
+  min_length=3,
   depression_corr="breach",
   threshold=100L,  
   return_products=T,
@@ -247,8 +248,8 @@ hydro_out<-process_flowdir(
 # hydro_out$dem_accum_d8_sca.tif # -> d8 flow accumulation (specific catchment areas)
 # hydro_out$dem_streams_d8.tif # -> extracted streams at specified `threshold`
 
-# if `return_products` == F, all produces are also available in the .zip file
-# terra and sf allow access to files directly in the .zip file, whitebox
+# if `return_products` == F, all produces are only available in the .zip file.
+# Terra and sf allow access to files directly in the .zip file, whitebox
 # requires them to be extracted to a folder
 
 # List files present in .zip
@@ -620,7 +621,7 @@ hydro_out_sparse<-process_hydrology(
   site_id_col="site_id",
   snap_distance = 1L, # make sure not to accidentally snap tributary points
   break_on_noSnap=F, # Will run functions with whichever points can be snapped
-  pwise_dist=T,
+  pwise_dist=F,
   return_products=F,
   temp_dir=NULL,
   verbose=F
@@ -1077,6 +1078,11 @@ prediction_tbl<-tibble(
   mutate(`Uncertainty` = p75-p25,
          `Predicted`=p50) 
 
+# We'll only plot the two main watersheds we have data for:
+catch_keep<-c(hydro_out$us_flowpaths$`985`$link_id,
+              hydro_out$us_flowpaths$`669`$link_id
+              )
+
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
 Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>% 
@@ -1084,7 +1090,8 @@ Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>%
   group_by(link_id) %>%              
   summarize(geometry=st_union(geometry)) %>%
   ungroup() %>% 
-  mutate(link_id=as.character(link_id)) 
+  mutate(link_id=as.character(link_id)) %>% 
+  filter(link_id %in% catch_keep)
 
 Streams<-Streams %>% 
   left_join(prediction_tbl)

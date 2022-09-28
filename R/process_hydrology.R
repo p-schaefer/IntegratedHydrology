@@ -7,6 +7,7 @@
 #' @param threshold integer. Flow accumulation threshold for stream initiation.
 #' @param burn_streams character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.
 #' @param burn_depth numeric. Depth (in meters) to burn stream into the DEM.
+#' @param min_length numeric. Minimum tributary length, shorter 1st order tributaries are removed.
 #' @param depression_corr NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.
 #' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
@@ -28,6 +29,7 @@ process_hydrology<-function(
     threshold,
     burn_streams=NULL,
     burn_depth=5,
+    min_length=NULL,
     depression_corr=c(NULL,"fill","breach"),
     extra_attr=c(
       "link_slope",
@@ -56,6 +58,7 @@ process_hydrology<-function(
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.null(snap_distance) && !is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
   if (!is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
+  burn_depth<-as.integer(burn_depth)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(compress)) stop("'compress' must be logical")
@@ -83,6 +86,8 @@ process_hydrology<-function(
     dem=dem,
     threshold=threshold,
     burn_streams=burn_streams,
+    burn_depth=burn_depth,
+    min_length=min_length,
     depression_corr=depression_corr,
     return_products=return_products,
     output_filename=output_filename,

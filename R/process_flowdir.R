@@ -9,6 +9,7 @@
 #' @param threshold integer. Flow accumulation threshold for stream initiation.
 #' @param burn_streams character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.
 #' @param burn_depth numeric. Depth (in meters) to burn stream into the DEM.
+#' @param min_length numeric. Minimum tributary length, shorter 1st order tributaries are removed.
 #' @param depression_corr NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.
 #' @param output_filename character. Full file path (with extension, e.g., "C:/Users/Administrator/Desktop/out.zip") to write resulting .zip file.
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
@@ -26,7 +27,8 @@ process_flowdir<-function(
     dem,
     threshold,
     burn_streams=NULL,
-    burn_depth=5,
+    burn_depth=NULL,
+    min_length=NULL,
     depression_corr=c(NULL,"fill","breach"),
     output_filename,
     return_products=F,
@@ -39,7 +41,8 @@ process_flowdir<-function(
   options(dplyr.summarise.inform = FALSE)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
-  if (!is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
+  if (!is.null(burn_depth) & !is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
+  if (!is.null(min_length) & !is.numeric(min_length)) stop("'min_length' must be an numeric value")
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(compress)) stop("'compress' must be logical")
@@ -159,6 +162,16 @@ process_flowdir<-function(
     output = "dem_streams_d8.tif",
     threshold = threshold
   )
+
+  if (!is.null(min_length)){
+    if (verbose) print("Trimming Streams")
+    wbt_remove_short_streams(
+      d8_pntr="dem_d8.tif",
+      streams="dem_streams_d8.tif",
+      output="dem_streams_d8.tif",
+      min_length=min_length
+    )
+  }
 
   # Prepare Output ----------------------------------------------------------
 

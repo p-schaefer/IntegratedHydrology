@@ -352,11 +352,9 @@ attrib_streamline<-function(
       mutate(link_id=un_ID[which.min(abs(link_id-un_ID))]) %>%
       ungroup()
     st_crs(strm)<-crs(dem_final)
-
-    write_sf(strm,file.path(temp_dir,"stream_lines.shp"))
-    saveRDS(strm,file.path(temp_dir, "strm_link_id.rds"))
-
   }
+
+  write_sf(strm,file.path(temp_dir,"stream_lines.shp"))
 
   # Add columns: for us and ds link_id and trib_id ---------------------------------
 
@@ -538,7 +536,6 @@ attrib_streamline<-function(
 
   # Generate Output ---------------------------------------------------------
   if (verbose) print("Generating Output")
-
 
   dist_list_out<-c(
     list.files(temp_dir,"site_id_col"),
