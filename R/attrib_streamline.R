@@ -281,8 +281,6 @@ attrib_streamline<-function(
       filter(!is.na(link_id)) %>%
       select(any_of(site_id_col),everything())
 
-    write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))
-
     new_final_points<-final_points
     new_final_points$link_class[new_final_points$ID %in% snapped_points$ID]<-6
     new_final_points$link_type[new_final_points$ID %in% snapped_points$ID]<-"Sample Point"
@@ -313,6 +311,12 @@ attrib_streamline<-function(
       select(link_id,everything()) %>%
       ungroup() %>%
       arrange(ID)
+
+    write_sf(final_points %>%
+               select(link_id,any_of(site_id_col)) %>%
+               filter(!is.na(link_id))
+               ,file.path(temp_dir,"snapped_points.shp"))
+
 
     # Make new stream raster --------------------------------------------------
 

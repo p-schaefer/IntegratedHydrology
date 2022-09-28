@@ -217,10 +217,21 @@ fasttrib_points<-function(
     }
   }
 
+  #browser()
+
   # Sort everything by target_IDs
   target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
   all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
   all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
+
+  target_IDs<-target_IDs[match(target_O[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+  target_IDs<-target_IDs[match(all_points[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+  target_IDs<-target_IDs[match(all_catch[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+
+  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
+  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
+  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
+
   us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
 
   all_subb<-all_subb %>%
@@ -269,7 +280,7 @@ fasttrib_points<-function(
   #       exdir = temp_dir)
 
   # dw_s_sum<-extract(rast(hw_streams),all_catch,fun="sum",na.rm=T,method="simple",touches=F,ID=F) %>%
-  #   mutate(link_ID=all_catch$link_id)
+  #   mutate(link_id=all_catch$link_id)
 
   hw_streams_lo<-map(hw_streams_nm,function(x){
     file.path("/vsizip",hw_streams,x)
@@ -290,7 +301,7 @@ fasttrib_points<-function(
           exdir=temp_dir_sub,
           overwrite=T,
           junkpaths=T)
-    write_sf(target_O %>% select(link_id),
+    write_sf(all_points %>% select(link_id),
              file.path(temp_dir_sub,"pour_points.shp"),
              overwrite=T)
 
@@ -318,21 +329,21 @@ fasttrib_points<-function(
       rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
 
       if (length(rast_all)>0){
-        #browser()
-        rast_out<-c(rast_out,map(rast_all,unique))
-        file.remove(unlist(map(rast_all,terra::sources)))
+        rast_out<-c(rast_out,map(rast_all,terra::unique))
+        suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
       }
     }
 
     fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-    rast_all<-map(fl_un,function(x) try(rast,silent=T))
+    rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
     rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
     if (length(rast_all)>0){
-      rast_out<-c(rast_out,map(rast_all,unique))
-      file.remove(unlist(map(rast_all,terra::sources)))
+      rast_out<-c(rast_out,map(rast_all,terra::unique))
+      suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
     }
 
-    target_O_sub<-map(rast_all,~target_O[unlist(.x),] %>% select(link_id))
+    #browser()
+    target_O_sub<-map(rast_out,~target_O[unlist(.x),] %>% select(link_id))
 
     file.remove(fl_un)
 
@@ -366,7 +377,7 @@ fasttrib_points<-function(
       list(
         target_O_subs=suppressWarnings(split(target_O_sub,1:n_cores)),
         all_catch=rep(list(all_catch),n_cores),
-        hw=suppressWarnings(split(hw_streams_lo,1:n_cores)),
+        hw=suppressWarnings(rev(split(hw_streams_lo,1:n_cores))),
         a_subb=rep(list(all_subb),n_cores),
         us_flowpaths=rep(list(us_flowpaths_out),n_cores),
         loi_rasts_exists=rep(list(loi_rasts_exists),n_cores),
@@ -640,7 +651,7 @@ fasttrib_points<-function(
               o_dwmean,
               o_dwSD
             ) %>%
-              dplyr::mutate(link_ID=all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]) %>% dplyr::pull(link_id))
+              dplyr::mutate(link_id=all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]) %>% dplyr::pull(link_id))
 
             p()
             return(o_out)
@@ -663,6 +674,7 @@ fasttrib_points<-function(
       }
       ))
   })
+  #browser()
 
   s_out<-map(loi_dw_out,~.$s_out)
   s_out<-s_out[!sapply(s_out,is.null)]
