@@ -180,13 +180,13 @@ process_loi<-function(
            ot<-writeRaster(output,out_file,overwrite=T,gdal="COMPRESS=NONE")
 
            suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
-           file.remove(list.files(temp_temp_dir,full.names = T,recursive = T))
-           unlink(temp_temp_dir,recursive = T, force = T)
+           suppressWarnings(file.remove(list.files(temp_temp_dir,full.names = T,recursive = T)))
+           suppressWarnings(unlink(temp_temp_dir,recursive = T, force = T))
 
            if (file.exists(file.path(temp_dir,paste0("new_",rln)))){
-             file.remove(file.path(temp_dir,paste0(rln)))
-             file.rename(file.path(temp_dir,paste0("new_",rln)),
-                         file.path(temp_dir,paste0(rln)))
+             suppressWarnings(file.remove(file.path(temp_dir,paste0(rln))))
+             suppressWarnings(file.rename(file.path(temp_dir,paste0("new_",rln)),
+                                          file.path(temp_dir,paste0(rln))))
            }
 
            p()
@@ -241,7 +241,7 @@ process_loi<-function(
     )
   }
 
-  file.remove(list.files(temp_dir,full.names = T,recursive = T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 
   return(output)
 

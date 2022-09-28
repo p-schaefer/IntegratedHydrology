@@ -59,8 +59,7 @@ trace_flowpaths<-function(
   output<-input[!names(input) %in% c("catchment_poly")]
 
   all_catch<-get_catchment(input = output,
-                           target_points = final_links[["link_id"]]
-  ) %>%
+                           target_points = final_links[["link_id"]]) %>%
     select(link_id)
 
   write_sf(all_catch %>% select(link_id),file.path(temp_dir,"Catchment_poly.shp"))
@@ -79,7 +78,7 @@ trace_flowpaths<-function(
       output
     )
   }
-  file.remove(list.files(temp_dir,full.names = T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T)))
 
   return(output)
 
@@ -115,7 +114,7 @@ trace_flowpath_fn<-function(
     pull(link_id) %>%
     unique()
 
-  unique_link_id<-split(unique_link_id,rep(1:future::nbrOfWorkers(),length.out=length(unique_link_id)))
+  unique_link_id<-suppressWarnings(split(unique_link_id,rep(1:future::nbrOfWorkers(),length.out=length(unique_link_id))))
   unique_link_id<-map(unique_link_id,~setNames(.,.))
   names(unique_link_id)<-NULL
   #unique_link_id<-split(unique_link_id,unique_link_id)
@@ -198,7 +197,6 @@ trace_flowpath_fn<-function(
     unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(y=.x,input_tib=.y,p=p)) %>%
       unlist(recursive=F)
   })
-  #browser()
 
   # Get remaining DS distances by unnesting the list
   final_out_ds<-map(unique_link_id,~.$ds_out)

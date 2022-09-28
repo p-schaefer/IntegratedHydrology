@@ -79,7 +79,7 @@ generate_pwisedist<-function(
       output
     )
   }
-  file.remove(list.files(temp_dir,full.names = T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T)))
 
   return(output)
 }

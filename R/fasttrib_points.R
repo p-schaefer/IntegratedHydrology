@@ -157,7 +157,6 @@ fasttrib_points<-function(
 
   target_crs<-crs(vect(all_subb))
 
-
   # Get Upstream flowpaths --------------------------------------------------
   conn<-unz(zip_loc,"us_flowpaths.rds")
   us_flowpaths<-readRDS(gzcon(conn))
@@ -344,8 +343,6 @@ fasttrib_points<-function(
 
     #browser()
     target_O_sub<-map(rast_out,~target_O[unlist(.x),] %>% select(link_id))
-
-    file.remove(fl_un)
 
   } else {
     target_O_sub<-NULL
@@ -698,7 +695,7 @@ fasttrib_points<-function(
   #
   # output[[gsub(".csv","",out_filename)]]<-final_out
 
-  file.remove(list.files(temp_dir,full.names = T,recursive = T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 
   return(final_out)
 }

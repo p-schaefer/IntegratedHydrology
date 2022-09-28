@@ -79,26 +79,27 @@ generate_subbasins<-function(
 
   if (!is.null(points)){
 
+    print("Splitting Subbasins")
+
+    new_data<-stream_links %>%
+      filter(floor(link_id) %in% floor(link_id[!is.na(!!sym(site_id_col))])) %>%
+      mutate(link_id_base=floor(link_id)) %>%
+      select(link_id_base,link_id,any_of(site_id_col)) %>%
+      as_tibble() %>%
+      rename(point=geometry) %>%
+      group_by(link_id_base) %>%
+      mutate(temp_dir=temp_dir,
+             target_crs=list(st_crs(subb))) %>%
+      nest() %>%
+      ungroup() %>%
+      left_join(
+        subb %>% select(-sbbsn_area) %>% as_tibble() %>% rename(subb_poly=geometry),
+        by=c("link_id_base"="link_id")
+      )
+
+    #browser()
+    p <- progressor(steps = nrow(new_data))
     with_progress(enable=T,{
-      print("Splitting Subbasins")
-
-      new_data<-stream_links %>%
-        filter(floor(link_id) %in% floor(link_id[!is.na(!!sym(site_id_col))])) %>%
-        mutate(link_id_base=floor(link_id)) %>%
-        select(link_id_base,link_id,any_of(site_id_col)) %>%
-        as_tibble() %>%
-        rename(point=geometry) %>%
-        group_by(link_id_base) %>%
-        mutate(temp_dir=temp_dir,
-               target_crs=list(st_crs(subb))) %>%
-        nest() %>%
-        ungroup() %>%
-        left_join(
-          subb %>% select(-sbbsn_area) %>% as_tibble() %>% rename(subb_poly=geometry),
-          by=c("link_id_base"="link_id")
-        )
-
-      p <- progressor(steps = nrow(new_data))
 
       new_data<-new_data %>%
         mutate(p=rep(list(p),nrow(.))) %>%
@@ -108,6 +109,7 @@ generate_subbasins<-function(
                                          temp_dir=temp_dir,
                                          p=p),
                                     carrier::crate(function(data,link_id,subb_poly,temp_dir,target_crs,p){
+                                      #browser()
                                       #print(link_id)
                                       `%>%` <- magrittr::`%>%`
 
@@ -166,7 +168,7 @@ generate_subbasins<-function(
                                                      list.files(temp_dir,pattern=paste0("_",link_id,"_"),full.names = T)
                                       ))
 
-                                      file.remove(flrm)
+                                      suppressWarnings(file.remove(flrm))
 
                                       p()
 
@@ -225,7 +227,7 @@ generate_subbasins<-function(
       output
     )
   }
-  file.remove(list.files(temp_dir,full.names = T,recursive=T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive=T)))
 
   return(output)
 }

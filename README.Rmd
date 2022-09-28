@@ -1092,6 +1092,7 @@ Streams<-Streams %>%
 Points<-read_sf(file.path("/vsizip",hydro_out$outfile,"snapped_points.shp")) %>% 
   mutate(link_id=as.character(link_id)) %>% 
   left_join(response_table %>% select(-link_id)) %>% 
+  filter(!is.na(link_id)) %>% 
   mutate(Observed=value)
 
 tm_shape(Streams) + 

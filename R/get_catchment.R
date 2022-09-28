@@ -55,13 +55,6 @@ get_catchment<-function(
   us_flowpaths<-readRDS(gzcon(conn))
   close(conn)
 
-  # geo_fn<-function(x,subb=subb,buffer=buffer,tolerance=tolerance) {
-  #   filter(subb,if_any(contains('link_id'), ~.x %in% x$link_id)) %>%
-  #     select(geometry) %>%
-  #     # st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1) %>%
-  #     # st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
-  #     st_union()
-  # }
 
   with_progress(enable=T,{
     p <- progressor(steps = nrow(sites))
@@ -91,7 +84,7 @@ get_catchment<-function(
       st_as_sf()
   })
 
-  unlink(tdir,force = T,recursive = T)
+  suppressWarnings(unlink(tdir,force = T,recursive = T))
 
   return(out)
 

@@ -78,7 +78,7 @@ attrib_points<-function(
 
   # Get site name column ----------------------------------------------------
   if (any(grepl("snapped_points",fl)) & !all_reaches){
-    site_id_col<-c("link_id",colnames(read_sf(file.path("/vsizip",zip_loc,"snapped_points.shp")))[[1]])
+    site_id_col<-c("link_id",paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv"))))
 
     if (!is.null(spec)) {
       site_id_col<-site_id_col[site_id_col %in% colnames(spec)]
@@ -579,7 +579,7 @@ attrib_points<-function(
     output
   )
 
-  file.remove(list.files(temp_dir,recursive = T,full.names = T))
+  suppressWarnings(file.remove(list.files(temp_dir,recursive = T,full.names = T)))
 
   return(out4)
 }

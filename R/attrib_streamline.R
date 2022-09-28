@@ -240,7 +240,7 @@ attrib_streamline<-function(
   # Instert Points if present -----------------------------------------------
 
   if (!is.null(points)){
-    points<-hydroweight::process_input(points,target = vect(final_points),input_name="points")
+    points<-hydroweight::process_input(points,target = vect(head(final_points[,1])),input_name="points")
 
     write_sf(st_as_sf(points) %>%
                select(any_of(site_id_col),everything()),
@@ -291,7 +291,7 @@ attrib_streamline<-function(
       ) %>%
       filter(!is.na(!!sym(site_id_col))) %>%
       group_by(link_id) %>%
-      arrange(link_id,USChnLn_Fr) %>%
+      arrange(link_id,desc(USChnLn_Fr)) %>%
       mutate(link_id_new=row_number()) %>%
       mutate(link_id_new=formatC(link_id_new,width=nchar(max(link_id_new)),format="d",flag=0)) %>%
       mutate(link_id_new=as.numeric(paste0(paste0(link_id),".",link_id_new)))
@@ -299,8 +299,8 @@ attrib_streamline<-function(
     final_points<-final_points %>%
       filter(!ID %in% new_final_points$ID) %>%
       bind_rows(new_final_points) %>%
-      arrange(link_id,desc(USChnLn_Fr)) %>%
       group_by(link_id) %>%
+      arrange(link_id,desc(USChnLn_Fr)) %>%
       mutate(link_id_new=case_when(
         row_number()==1 & is.na(link_id_new) ~ link_id,
         T ~ link_id_new
@@ -312,10 +312,12 @@ attrib_streamline<-function(
       ungroup() %>%
       arrange(ID)
 
-    write_sf(final_points %>%
-               select(link_id,any_of(site_id_col)) %>%
-               filter(!is.na(link_id))
-               ,file.path(temp_dir,"snapped_points.shp"))
+    snapped_points<-final_points %>%
+      select(link_id,any_of(site_id_col)) %>%
+      filter(!is.na(link_id)) %>%
+      filter(!if_any(any_of(site_id_col),is.na))
+
+    write_sf(snapped_points,file.path(temp_dir,"snapped_points.shp"))
 
 
     # Make new stream raster --------------------------------------------------
@@ -576,7 +578,7 @@ attrib_streamline<-function(
     )
   }
 
-  file.remove(list.files(temp_dir,full.names = T,recursive = T))
+  suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 
   return(output)
 }
