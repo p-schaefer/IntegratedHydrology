@@ -346,11 +346,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-09-28 13:37:00
-#> 2           dem_d8.tif  454212 2022-09-28 13:37:00
-#> 3     dem_accum_d8.tif  904212 2022-09-28 13:37:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-09-28 13:37:00
-#> 5   dem_streams_d8.tif  904212 2022-09-28 13:37:00
+#> 1        dem_final.tif 1804210 2022-09-28 15:50:00
+#> 2           dem_d8.tif  454212 2022-09-28 15:50:00
+#> 3     dem_accum_d8.tif  904212 2022-09-28 15:50:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-09-28 15:50:00
+#> 5   dem_streams_d8.tif  904212 2022-09-28 15:50:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -480,22 +480,22 @@ hydro_out<-trace_flowpaths(
 #                        #    trib_ids, link lengths (in meters) and subbasin areas (in meters^2)
 # hydro_out$catchments   # -> Catchment polygons of each link_id
 
-us_777<-hydro_out$us_flowpaths[["777"]] # get all upstream link_ids from link_id 777
-ds_107.1<-hydro_out$ds_flowpaths[["107.1"]] # get all downstream link_ids from 
-#                                             # link_id 107.1 (this corresponds with site_id = 29)
+us_790<-hydro_out$us_flowpaths[["790"]] # get all upstream link_ids from link_id 606
+ds_145.1<-hydro_out$ds_flowpaths[["145.1"]] # get all downstream link_ids from 
+#                                             # link_id 145.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
-  filter(link_id %in% us_777$link_id | 
-           link_id %in% ds_107.1$link_id 
+  filter(link_id %in% us_790$link_id | 
+           link_id %in% ds_145.1$link_id 
   )
 sub_out<-hydro_out$subbasins %>% 
-  filter(link_id %in% us_777$link_id | 
-           link_id %in% ds_107.1$link_id
+  filter(link_id %in% us_790$link_id | 
+           link_id %in% ds_145.1$link_id
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$links %>% filter(link_id %in% c("777","107.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 ```
 
 <img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
@@ -708,6 +708,7 @@ percent of shared catchments increases.
 ``` r
 
 ggplot(dmat %>%
+         filter(prop_shared_catchment>0) %>% 
          select(origin,destination,prop_shared_catchment,value_diff) %>%
          distinct(),
        aes(x=prop_shared_catchment,y=value_diff))+
@@ -760,44 +761,44 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-09-28 13:42:00
-#> 2            dem_d8.tif  454212 2022-09-28 13:42:00
-#> 3      dem_accum_d8.tif  904212 2022-09-28 13:42:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-09-28 13:42:00
-#> 5    dem_streams_d8.tif  904212 2022-09-28 13:42:00
-#> 6       site_id_col.csv      22 2022-09-28 13:43:00
-#> 7    snapped_points.dbf    3458 2022-09-28 13:43:00
-#> 8    snapped_points.prj     503 2022-09-28 13:43:00
-#> 9    snapped_points.shp     996 2022-09-28 13:43:00
-#> 10   snapped_points.shx     356 2022-09-28 13:43:00
-#> 11  original_points.dbf    4823 2022-09-28 13:43:00
-#> 12  original_points.prj     503 2022-09-28 13:43:00
-#> 13  original_points.shp    1360 2022-09-28 13:43:00
-#> 14  original_points.shx     460 2022-09-28 13:43:00
-#> 15     stream_links.csv   40682 2022-09-28 13:43:00
-#> 16     stream_links.dbf    6266 2022-09-28 13:43:00
-#> 17     stream_links.prj     503 2022-09-28 13:43:00
-#> 18     stream_links.shp    7044 2022-09-28 13:43:00
-#> 19     stream_links.shx    2084 2022-09-28 13:43:00
-#> 20     stream_lines.dbf    6241 2022-09-28 13:43:00
-#> 21     stream_lines.prj     503 2022-09-28 13:43:00
-#> 22     stream_lines.shp   71404 2022-09-28 13:43:00
-#> 23     stream_lines.shx    2076 2022-09-28 13:43:00
-#> 24    stream_points.csv  770045 2022-09-28 13:43:00
-#> 25    stream_points.dbf  138741 2022-09-28 13:43:00
-#> 26    stream_points.prj     503 2022-09-28 13:43:00
-#> 27    stream_points.shp  155416 2022-09-28 13:43:00
-#> 28    stream_points.shx   44476 2022-09-28 13:43:00
-#> 29   Subbasins_poly.dbf   12250 2022-09-28 13:43:00
-#> 30   Subbasins_poly.prj     503 2022-09-28 13:43:00
-#> 31   Subbasins_poly.shp  394044 2022-09-28 13:43:00
-#> 32   Subbasins_poly.shx    2084 2022-09-28 13:43:00
-#> 33     ds_flowpaths.rds  138436 2022-09-28 13:43:00
-#> 34     us_flowpaths.rds  137352 2022-09-28 13:43:00
-#> 35   Catchment_poly.dbf   20154 2022-09-28 13:44:00
-#> 36   Catchment_poly.prj     503 2022-09-28 13:44:00
-#> 37   Catchment_poly.shp 1151320 2022-09-28 13:44:00
-#> 38   Catchment_poly.shx    2084 2022-09-28 13:44:00
+#> 1         dem_final.tif 1804210 2022-09-28 15:55:00
+#> 2            dem_d8.tif  454212 2022-09-28 15:55:00
+#> 3      dem_accum_d8.tif  904212 2022-09-28 15:55:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-09-28 15:55:00
+#> 5    dem_streams_d8.tif  904212 2022-09-28 15:55:00
+#> 6       site_id_col.csv      22 2022-09-28 15:55:00
+#> 7    snapped_points.dbf    3458 2022-09-28 15:55:00
+#> 8    snapped_points.prj     503 2022-09-28 15:55:00
+#> 9    snapped_points.shp     996 2022-09-28 15:55:00
+#> 10   snapped_points.shx     356 2022-09-28 15:55:00
+#> 11  original_points.dbf    4823 2022-09-28 15:55:00
+#> 12  original_points.prj     503 2022-09-28 15:55:00
+#> 13  original_points.shp    1360 2022-09-28 15:55:00
+#> 14  original_points.shx     460 2022-09-28 15:55:00
+#> 15     stream_links.csv   40682 2022-09-28 15:56:00
+#> 16     stream_links.dbf    6266 2022-09-28 15:56:00
+#> 17     stream_links.prj     503 2022-09-28 15:56:00
+#> 18     stream_links.shp    7044 2022-09-28 15:56:00
+#> 19     stream_links.shx    2084 2022-09-28 15:56:00
+#> 20     stream_lines.dbf    6241 2022-09-28 15:55:00
+#> 21     stream_lines.prj     503 2022-09-28 15:55:00
+#> 22     stream_lines.shp   71404 2022-09-28 15:55:00
+#> 23     stream_lines.shx    2076 2022-09-28 15:55:00
+#> 24    stream_points.csv  770045 2022-09-28 15:55:00
+#> 25    stream_points.dbf  138741 2022-09-28 15:55:00
+#> 26    stream_points.prj     503 2022-09-28 15:55:00
+#> 27    stream_points.shp  155416 2022-09-28 15:55:00
+#> 28    stream_points.shx   44476 2022-09-28 15:55:00
+#> 29   Subbasins_poly.dbf   12250 2022-09-28 15:56:00
+#> 30   Subbasins_poly.prj     503 2022-09-28 15:56:00
+#> 31   Subbasins_poly.shp  394044 2022-09-28 15:56:00
+#> 32   Subbasins_poly.shx    2084 2022-09-28 15:56:00
+#> 33     ds_flowpaths.rds  138436 2022-09-28 15:56:00
+#> 34     us_flowpaths.rds  137352 2022-09-28 15:56:00
+#> 35   Catchment_poly.dbf   20154 2022-09-28 15:56:00
+#> 36   Catchment_poly.prj     503 2022-09-28 15:56:00
+#> 37   Catchment_poly.shp 1151320 2022-09-28 15:56:00
+#> 38   Catchment_poly.shx    2084 2022-09-28 15:56:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1073,8 +1074,37 @@ paste0(round(full_time[[3]]/60,2),
        ncol(final_attributes_all)-1,
        " attributes using ", nbrOfWorkers(),
        " cores.")
-#> [1] "22.06 min to calculate attributes for 1199 reaches with 72 attributes using 8 cores."
+#> [1] "20.63 min to calculate attributes for 1199 reaches with 72 attributes using 8 cores."
+
+targ_param<-c("slope_iFLS_mean","LC_1_HAiFLS_prop","GEO_NAME_CZfg_HAiFLO_prop")
+targ_param_nm<-c("iFLS-weighted mean slope",
+                 "HAiFLS-weighted proportion of
+                 Landcover Class 1",
+                 "HAiFLO-weighted proportion of
+                 Geological class CZfg")
+
+attr_lines<-hydro_out$stream_lines %>%
+  mutate(link_id=floor(link_id)) %>% 
+  group_by(link_id) %>%              
+  summarize(geometry=st_union(geometry)) %>%
+  ungroup() %>% 
+  mutate(link_id=as.character(link_id)) %>% 
+  left_join(final_attributes_all) %>% 
+  select(any_of(targ_param))
+
+pout<-map2(targ_param,targ_param_nm,function(x,y) tm_shape(attr_lines) +
+        tm_lines(col=x,
+                 palette = "viridis",
+                 alpha =0.8,
+                 legend.show=T,
+                 scale=1)+
+        tm_layout(y)
+      )
+
+tmap_arrange(pout,ncol=3)
 ```
+
+<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
@@ -1222,7 +1252,7 @@ wf<-workflow() %>%
 set.seed(1234)
 final_out<-future_map(cv_strats,
                       ~tune_grid(wf,resamples=.,grid=50) # Choose 150 hyper-parameter
-#                                                        # configurations
+                      #                                                        # configurations
 )
 
 # We expect the standard cross-validation to have higher accuracy than spatial
@@ -1235,16 +1265,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           34   199    28 rmse    standa…  3.04     5  0.114  Prepro…
-#>  2 standard            5  1497    35 rmse    standa…  3.04     5  0.0735 Prepro…
-#>  3 standard           33  1560    30 rmse    standa…  3.04     5  0.108  Prepro…
-#>  4 standard            2   906    24 rmse    standa…  3.04     5  0.0799 Prepro…
-#>  5 standard           14   273    12 rmse    standa…  3.05     5  0.158  Prepro…
-#>  6 spatial            65    87    36 rmse    standa…  2.93     5  0.346  Prepro…
-#>  7 spatial           106   596    38 rmse    standa…  2.95     5  0.350  Prepro…
-#>  8 spatial            54   300    39 rmse    standa…  2.96     5  0.353  Prepro…
-#>  9 spatial            73  1416    40 rmse    standa…  2.96     5  0.351  Prepro…
-#> 10 spatial           105  1961    38 rmse    standa…  2.96     5  0.347  Prepro…
+#>  1 standard            6  1523    27 rmse    standa…  3.01     5  0.0966 Prepro…
+#>  2 standard           21  1385    30 rmse    standa…  3.03     5  0.103  Prepro…
+#>  3 standard           17  1294    29 rmse    standa…  3.03     5  0.100  Prepro…
+#>  4 standard           88    76    31 rmse    standa…  3.04     5  0.126  Prepro…
+#>  5 standard           26   752    26 rmse    standa…  3.04     5  0.125  Prepro…
+#>  6 spatial            61    72    36 rmse    standa…  2.92     5  0.350  Prepro…
+#>  7 spatial            70  1614    29 rmse    standa…  2.95     5  0.248  Prepro…
+#>  8 spatial            97   445    38 rmse    standa…  2.95     5  0.346  Prepro…
+#>  9 spatial            95   945    40 rmse    standa…  2.95     5  0.348  Prepro…
+#> 10 spatial             5  1879    37 rmse    standa…  2.96     5  0.346  Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1327,11 +1357,6 @@ prediction_tbl<-tibble(
   mutate(`Uncertainty` = p75-p25,
          `Predicted`=p50) 
 
-# We'll only plot the two main watersheds we have data for:
-catch_keep<-c(hydro_out$us_flowpaths$`985`$link_id,
-              hydro_out$us_flowpaths$`669`$link_id
-              )
-
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
 Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>% 
@@ -1339,8 +1364,7 @@ Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>%
   group_by(link_id) %>%              
   summarize(geometry=st_union(geometry)) %>%
   ungroup() %>% 
-  mutate(link_id=as.character(link_id)) %>% 
-  filter(link_id %in% catch_keep)
+  mutate(link_id=as.character(link_id)) 
 
 Streams<-Streams %>% 
   left_join(prediction_tbl)
