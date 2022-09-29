@@ -42,9 +42,11 @@ generate_vectors<-function(
   if (!is.logical(verbose)) stop("'verbose' must be logical")
   if (!is.logical(compress)) stop("'compress' must be logical")
 
-  if (!is.null(site_id_col) & !is.character(site_id_col)) stop("'site_id_col' must be a single character")
-  if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
-  if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
+  if (!is.null(points)) {
+    if (!is.character(site_id_col)) stop("'site_id_col' must be a single character")
+    if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
+    if (site_id_col=="link_id") stop("'site_id_col' cannot be 'link_id'")
+  }
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)

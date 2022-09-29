@@ -29,7 +29,8 @@ trace_flowpaths<-function(
 
   zip_loc<-input$outfile
 
-  final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))
+  final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
+    mutate(across(any_of(site_id_col),na_if,""))
 
   #browser()
 

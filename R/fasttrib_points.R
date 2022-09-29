@@ -85,7 +85,8 @@ fasttrib_points<-function(
 
   all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
   all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+                mutate(across(any_of(site_id_col),na_if,"")),
               by="link_id")
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 

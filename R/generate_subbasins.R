@@ -82,7 +82,8 @@ generate_subbasins<-function(
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
       left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
-                  mutate(across(c(link_id,any_of(site_id_col)),as.character)),
+                  mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+                  mutate(across(any_of(site_id_col),na_if,"")),
                 by = c("link_id")) %>%
       mutate(link_id=as.numeric(link_id))
 
@@ -197,7 +198,8 @@ generate_subbasins<-function(
       write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
       all_stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-        left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+        left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+                    mutate(across(any_of(site_id_col),na_if,"")),
                   by="link_id")
 
       #browser()
@@ -211,7 +213,8 @@ generate_subbasins<-function(
     })
   } else {
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+                  mutate(across(any_of(site_id_col),na_if,"")),
                 by="link_id")
 
     final_links<-stream_links %>%

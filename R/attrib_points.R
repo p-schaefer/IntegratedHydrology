@@ -71,7 +71,8 @@ attrib_points<-function(
   fl<-unzip(list=T,zip_loc)
   fl_loi<-unzip(list=T,loi_loc)
   all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+                mutate(across(any_of(site_id_col),na_if,"")),
               by="link_id")
 
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
