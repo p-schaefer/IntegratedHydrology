@@ -257,6 +257,8 @@ attrib_streamline<-function(
     snapped_points<-points %>%
       st_join(final_points %>%
                 filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
+                group_by(link_id) %>%
+                filter(USChnLn_Fr!=max(USChnLn_Fr)) %>%
                 select(ID,link_id),
               join=nngeo::st_nn,
               maxdist = snap_distance,
@@ -265,7 +267,7 @@ attrib_streamline<-function(
       as_tibble() %>%
       select(-geometry) %>%
       left_join(final_points %>%
-                  filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
+                  #filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
                   select(ID,link_id),
                 by = c("ID", "link_id")) %>%
       st_as_sf()
@@ -279,7 +281,10 @@ attrib_streamline<-function(
 
     snapped_points<-snapped_points %>%
       filter(!is.na(link_id)) %>%
-      select(any_of(site_id_col),everything())
+      select(any_of(site_id_col),everything()) %>%
+      group_by(ID) %>%
+      summarise(across(everything(),head,1)) %>%
+      ungroup()
 
     new_final_points<-final_points
     new_final_points$link_class[new_final_points$ID %in% snapped_points$ID]<-6
@@ -323,17 +328,10 @@ attrib_streamline<-function(
     # Make new stream raster --------------------------------------------------
 
     strm<-final_points %>%
-      # select(link_id,USChnLn_Fr) %>%
-      # group_by(link_id) %>%
-      # arrange(USChnLn_Fr) %>%
-      # select(-USChnLn_Fr) %>%
-      # summarise(do_union=F) %>%
-      # st_cast("LINESTRING")
       select(link_id) %>%
       arrange(link_id) %>%
       vect() %>%
       rasterize(y=dem_final,field="link_id") %>%
-      #hydroweight::process_input(target=dem_final,input_name="New Stream Raster",resample_type="near") %>%
       writeRaster(file.path(temp_dir,"new_stream_layer.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
     wbt_raster_streams_to_vector(
@@ -343,7 +341,6 @@ attrib_streamline<-function(
     )
 
     # for some reason wbt_raster_streams_to_vector() rounds numbers weirdly
-
     un_ID<-unique(final_points$link_id)
     strm<-read_sf(file.path(temp_dir,"new_stream_layer.shp")) %>%
       select(STRM_VAL) %>%
