@@ -116,7 +116,9 @@ generate_subbasins<-function(
                                          subb_poly=subb_poly,
                                          temp_dir=temp_dir,
                                          p=p),
+                                    .options = furrr_options(globals = FALSE),
                                     carrier::crate(function(data,link_id,subb_poly,temp_dir,target_crs,p){
+                                      options(scipen = 999)
                                       #browser()
                                       #print(link_id)
                                       `%>%` <- magrittr::`%>%`
@@ -172,7 +174,9 @@ generate_subbasins<-function(
                                         dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
                                         dplyr::select(link_id,sbbsn_area, geometry)
 
-                                      flrm<-unique(list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"),full.names = T))
+                                      flrm<-unique(c(list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"),full.names = T),
+                                                     list.files(temp_dir,pattern=paste0("d8_",link_id,"_"),full.names = T)
+                                                     ))
 
                                       suppressWarnings(file.remove(flrm))
 

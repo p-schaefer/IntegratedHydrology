@@ -307,10 +307,13 @@ attrib_points<-function(
         )
 
       })) %>%
-     mutate(attrib=future_map2(data2,data,.options = furrr_options(globals = FALSE),carrier::crate(function(data2,x){
+     mutate(attrib=future_map2(data2,data,
+                               .options = furrr_options(globals = FALSE),
+                               carrier::crate(function(data2,x){
      # mutate(attrib=map2(data2,data,carrier::crate(function(data2,x){
         #browser()
-        `%>%` <- magrittr::`%>%`
+       options(scipen = 999)
+       `%>%` <- magrittr::`%>%`
 
         loi_rasts<-purrr::map(data2$rast_load,terra::rast) %>%
           stats::setNames(names(x$loi_rasts_exists_names[[1]]))
@@ -364,6 +367,8 @@ attrib_points<-function(
                  dw_dir,
                  p){
           #browser()
+          options(scipen = 999)
+
           attrib_fn<-carrier::crate(function(uid,
                                              tar_O,
                                              ts,
@@ -384,6 +389,7 @@ attrib_points<-function(
                                              flow_accum,
                                              dw_dir,
                                              p) {
+            options(scipen = 999)
 
             `%>%` <- magrittr::`%>%`
 

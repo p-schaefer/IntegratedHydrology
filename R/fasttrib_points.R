@@ -402,6 +402,7 @@ fasttrib_points<-function(
                               zip_loc,
                               p
       ) {
+        options(scipen = 999)
         #browser()
         `%>%` <- magrittr::`%>%`
 
