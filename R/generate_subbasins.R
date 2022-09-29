@@ -172,9 +172,7 @@ generate_subbasins<-function(
                                         dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
                                         dplyr::select(link_id,sbbsn_area, geometry)
 
-                                      flrm<-unique(c(list.files(temp_dir,pattern=paste0("_",link_id,"."),full.names = T),
-                                                     list.files(temp_dir,pattern=paste0("_",link_id,"_"),full.names = T)
-                                      ))
+                                      flrm<-unique(list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"),full.names = T))
 
                                       suppressWarnings(file.remove(flrm))
 
