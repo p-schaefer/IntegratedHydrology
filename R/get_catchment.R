@@ -37,7 +37,8 @@ get_catchment<-function(
 
   subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
   # unzip(zip_loc,files =c("Subbasins_poly.shp","Subbasins_poly.shx","Subbasins_poly.prj","Subbasins_poly.dbf"),exdir=tdir)
-  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))
+  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))%>%
+    mutate(across(any_of(site_id_col),na_if,""))
 
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
