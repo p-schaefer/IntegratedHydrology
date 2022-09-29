@@ -671,7 +671,13 @@ fasttrib_points<-function(
       }
       ))
   })
-  #browser()
+
+  if (inherits(lumped_numeric,"list")){
+    lumped_numeric<-reduce(lumped_numeric,left_join,by="link_id")
+  }
+  if (inherits(lumped_cat,"list")){
+    lumped_cat<-reduce(lumped_cat,left_join,by="link_id")
+  }
 
   s_out<-map(loi_dw_out,~.$s_out)
   s_out<-s_out[!sapply(s_out,is.null)]
@@ -681,6 +687,8 @@ fasttrib_points<-function(
 
   final_out<-target_IDs %>%
     mutate(link_id=as.character(link_id)) %>%
+    left_join(lumped_numeric %>% mutate(link_id=as.character(link_id)),by="link_id") %>%
+    left_join(lumped_cat %>% mutate(link_id=as.character(link_id)),by="link_id") %>%
     left_join(s_out %>% mutate(link_id=as.character(link_id)),by="link_id") %>%
     left_join(o_out %>% mutate(link_id=as.character(link_id)),by="link_id")
 
