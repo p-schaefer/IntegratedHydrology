@@ -68,6 +68,9 @@ attrib_points<-function(
     dw_fl<-NULL
   }
 
+  fl<-unzip(list=T,zip_loc)
+  fl_loi<-unzip(list=T,loi_loc)
+
   # Get site name column ----------------------------------------------------
   if (any(grepl("snapped_points",fl)) & !all_reaches){
     site_id_col<-c("link_id",paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv"))))
@@ -82,8 +85,6 @@ attrib_points<-function(
     site_id_col<-"link_id"
   }
 
-  fl<-unzip(list=T,zip_loc)
-  fl_loi<-unzip(list=T,loi_loc)
   all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
     left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
                 mutate(across(any_of(site_id_col),na_if,"")),
