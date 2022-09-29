@@ -71,13 +71,20 @@ generate_subbasins<-function(
 
   write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
-  stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
-              by="link_id")
+  # stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>% #stream_links.shp
+  #   left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+  #             by="link_id")
 
   # Split subbasins at sampling points --------------------------------------
 
   if (!is.null(points)){
+
+    stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
+      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+                  mutate(across(c(link_id,any_of(site_id_col)),as.character)),
+                by = c("link_id")) %>%
+      mutate(link_id=as.numeric(link_id))
 
     print("Splitting Subbasins")
 
@@ -179,7 +186,8 @@ generate_subbasins<-function(
       subb2<-new_data %>%
         select(new_subb) %>%
         unnest(cols = c(new_subb)) %>%
-        st_as_sf()
+        st_as_sf() %>%
+        mutate(sbbsn_area=st_area(.))
 
       subb<-subb %>%
         filter(!link_id %in% new_data$link_id_base) %>%
@@ -188,16 +196,32 @@ generate_subbasins<-function(
 
       write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
+      all_stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+        left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+                  by="link_id")
+
+      #browser()
+
+      final_links<-all_stream_links %>%
+        left_join(subb %>%
+                    as_tibble() %>%
+                    select(link_id,sbbsn_area),
+                  by = c("link_id"))
+
     })
+  } else {
+    stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
+                by="link_id")
+
+    final_links<-stream_links %>%
+      left_join(subb %>%
+                  as_tibble() %>%
+                  select(link_id,sbbsn_area),
+                by = c("link_id"))
   }
 
   # Prepare Output ----------------------------------------------------------
-
-  final_links<-stream_links %>%
-    left_join(subb %>%
-                as_tibble() %>%
-                select(link_id,sbbsn_area),
-              by = c("link_id"))
 
   write_sf(final_links %>% select(link_id) ,file.path(temp_dir,"stream_links.shp"))
   data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
