@@ -525,7 +525,7 @@ attrib_streamline<-function(
 
 
   write_sf(final_links %>% select(link_id),file.path(temp_dir,"stream_links.shp"))
-  write_sf(final_points %>% select(link_id),file.path(temp_dir,"stream_points.shp"))
+  write_sf(final_points %>% select(ID),file.path(temp_dir,"stream_points.shp"))
 
   data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
   data.table::fwrite(final_points %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_points.csv"))
