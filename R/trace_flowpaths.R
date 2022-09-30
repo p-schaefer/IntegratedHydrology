@@ -77,7 +77,7 @@ trace_flowpaths<-function(
       list(ds_flowpaths=ds_flowpaths,
            us_flowpaths=us_flowpaths,
            catchments=all_catch %>% select(link_id)
-           ),
+      ),
       output
     )
   }
@@ -86,6 +86,7 @@ trace_flowpaths<-function(
   return(output)
 
 }
+
 
 #' @export
 trace_flowpath_fn<-function(
@@ -112,115 +113,251 @@ trace_flowpath_fn<-function(
     unnest(cols=c(uslink_id1,ustrib_id1)) %>%
     distinct()
 
-  unique_link_id<-input_tib %>%
-    filter(!is.na(link_id)) %>%
-    pull(link_id) %>%
-    unique()
+  # unique_link_id<-input_tib %>%
+  #   filter(!is.na(link_id)) %>%
+  #   pull(link_id) %>%
+  #   unique()
 
-  unique_link_id<-suppressWarnings(split(unique_link_id,rep(1:future::nbrOfWorkers(),length.out=length(unique_link_id))))
-  unique_link_id<-map(unique_link_id,~setNames(.,.))
-  names(unique_link_id)<-NULL
-  #unique_link_id<-split(unique_link_id,unique_link_id)
-  print("Generating Flowpaths")
 
-  safe_in<-function(x,y){
-    as.logical(match(y[!is.na(y)],x[!is.na(x)],nomatch=0))
+  if (T){
+    #working area
+
+
+    #browser()
+
+    # Downstream paths
+    if (verbose) print("Identifying Exit Tributaries")
+
+    int_tribs<-input_tib %>%
+      mutate(trib_id2=trib_id) %>%
+      group_by(trib_id) %>%
+      nest() %>%
+      ungroup() %>%
+      #mutate(exit_trib=future_map_lgl(data,~any(is.na(.$dslink_id1)))) %>%
+      mutate(join_id=future_map(data,
+                                .options = furrr_options(globals = FALSE),
+                                carrier::crate(function(x){
+                                  options(scipen = 999)
+                                  `%>%` <- magrittr::`%>%`
+
+                                  dplyr::arrange(x,USChnLn_Fr) %>%
+                                    utils::tail(1) %>%
+                                    dplyr::select(dslink_id=dslink_id1,dstrib_id=dstrib_id1)
+                                } ))) %>%
+      unnest(join_id) %>%
+      mutate(join_USChnLn_Fr=input_tib$USChnLn_Fr[match(.$dslink_id,input_tib$link_id)])
+
+    # Exiting tribs
+    final_ds_paths<-int_tribs %>%
+      filter(is.na(dslink_id)) %>%
+      select(trib_id,data)
+
+    int_tribs<-int_tribs %>%
+      filter(!trib_id %in% final_ds_paths$trib_id)
+
+    if (verbose) print("Tracing Downstream Flowpaths")
+    while(nrow(int_tribs)>0){
+      int_tribs_int<-int_tribs %>%
+        filter(dstrib_id %in% final_ds_paths$trib_id) %>%
+        mutate(final_paths=list(final_ds_paths)) %>%
+        mutate(data=future_pmap(list(
+          final_paths=final_paths,
+          data=data,
+          dstrib_id=dstrib_id,
+          join_USChnLn_Fr=join_USChnLn_Fr),
+          .options = furrr_options(globals = FALSE),
+          carrier::crate(
+            function(data,dstrib_id,join_USChnLn_Fr,final_paths) {
+              options(scipen = 999)
+              `%>%` <- magrittr::`%>%`
+
+              dplyr::bind_rows(data,
+                               final_paths$data[final_paths$trib_id==dstrib_id][[1]] %>% dplyr::arrange(USChnLn_Fr) %>% dplyr::filter(USChnLn_Fr>=join_USChnLn_Fr))
+            }
+          )
+        ))
+
+      int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
+      final_ds_paths<-bind_rows(final_ds_paths,int_tribs_int %>% select(trib_id,data))
+    }
+
+    #Finalize DS flowpaths
+    if (verbose) print("Finalizing Downstream Flowpaths")
+    final_ds_paths<-final_ds_paths %>%
+      mutate(data2=future_map(data,
+                              .options = furrr_options(globals = FALSE),
+                              carrier::crate(function(x){
+                                options(scipen = 999)
+                                `%>%` <- magrittr::`%>%`
+
+                                x<- x%>%
+                                  dplyr::select(link_id,trib_id=trib_id2,link_lngth,sbbsn_area,USChnLn_Fr) %>%
+                                  dplyr::distinct()
+                                u<-x$link_id
+                                u<-stats::setNames(u,u)
+                                purrr:::map(u, function (y) x[which(x$link_id==y):nrow(x),] %>% dplyr::mutate(origin_id=y))
+                              })))
+
+    final_ds_paths<-final_ds_paths %>%
+      select(data2) %>%
+      unnest(cols=data2) %>%
+      unnest(cols=data2) %>%
+      distinct() %>%
+      select(origin_id,everything())
+
+    #US Paths
+
+    if (verbose) print("Identifying Headwater Tributaries")
+    final_us_paths<-final_ds_paths %>%
+      group_by(link_id) %>%
+      nest() %>%
+      ungroup() %>%
+      mutate(us_links=future_map(data,
+                                 .options = furrr_options(globals = FALSE),
+                                 carrier::crate(function(x){
+                                   options(scipen = 999)
+                                   `%>%` <- magrittr::`%>%`
+
+                                   x %>% dplyr::pull(origin_id) %>% unique()
+                                 })
+      )) %>%
+      mutate(full_data=list(input[,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]))
+
+    if (verbose) print("Finalizing Upstream Flowpaths")
+    final_us_paths<-final_us_paths%>%
+      mutate(data2=future_map2(us_links,full_data,
+                             .options = furrr_options(globals = FALSE),
+                             carrier::crate(function(x,y){
+                               y[y$link_id %in% x,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]
+                             })
+      )) %>%
+      select(source_ID=link_id, data2) %>%
+      unnest(cols=data2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
 
-  id_fn<-function(y,input_tib,p){
 
-    map(y,function(x){
-      x_trib<-input_tib %>%
-        filter(link_id==x) %>%
-        select(link_id,trib_id,USChnLn_Fr,dslink_id1,dstrib_id1,uslink_id1,ustrib_id1)
+  # unique_link_id<-suppressWarnings(split(unique_link_id,rep(1:future::nbrOfWorkers(),length.out=length(unique_link_id))))
+  # unique_link_id<-map(unique_link_id,~setNames(.,.))
+  # names(unique_link_id)<-NULL
+  # #unique_link_id<-split(unique_link_id,unique_link_id)
+  # print("Generating Flowpaths")
+  #
+  # safe_in<-function(x,y){
+  #   as.logical(match(y[!is.na(y)],x[!is.na(x)],nomatch=0))
+  # }
+  #
+  # id_fn<-function(y,input_tib,p){
+  #
+  #   map(y,function(x){
+  #     x_trib<-input_tib %>%
+  #       filter(link_id==x) %>%
+  #       select(link_id,trib_id,USChnLn_Fr,dslink_id1,dstrib_id1,uslink_id1,ustrib_id1)
+  #
+  #     out<-x
+  #
+  #     # Downstream portion
+  #     if (all(!is.na(x_trib$uslink_id1))) {
+  #       ds_out<-NULL
+  #     } else {
+  #
+  #       #print(x)
+  #       repeat {
+  #         ds_id <- input_tib %>%
+  #           filter(link_id %in% out) %>%
+  #           dplyr::select(starts_with("dslink_id")) %>%
+  #           unlist() %>%
+  #           as.character() %>%
+  #           unique() %>%
+  #           .[!is.na(.)]
+  #
+  #         if (all(ds_id %in% out)) break
+  #
+  #         out<-unique(c(out,ds_id))
+  #       }
+  #
+  #       out<-out[!is.na(out)]
+  #       ds_out<-tibble(link_id=out) %>%
+  #         left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
+  #         distinct() %>%
+  #         filter(!is.na(link_id))
+  #
+  #     }
+  #
+  #     # Upstream portion
+  #     out<-x
+  #     repeat {
+  #       us_id <- input_tib %>%
+  #         filter(link_id %in% out) %>%
+  #         dplyr::select(starts_with("uslink_id")) %>%
+  #         unlist() %>%
+  #         as.character() %>%
+  #         unique() %>%
+  #         .[!is.na(.)]
+  #
+  #       if (all(us_id %in% out)) break
+  #
+  #       out<-unique(c(out,us_id))
+  #     }
+  #
+  #     out<-out[!is.na(out)]
+  #
+  #     us_out<-tibble(link_id=out)%>%
+  #       left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
+  #       distinct() %>%
+  #       filter(!is.na(link_id))
+  #
+  #     p()
+  #     return(list(us_out=us_out,ds_out=ds_out))
+  #   })
+  # }
+  #
+  # input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
 
-      out<-x
+  # with_progress(enable=T,{
+  #   p <- progressor(steps = length(unlist(unique_link_id)))
+  #
+  #   unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(y=.x,input_tib=.y,p=p)) %>%
+  #     unlist(recursive=F)
+  # })
+  #
+  # # Get remaining DS distances by unnesting the list
+  # final_out_ds<-map(unique_link_id,~.$ds_out)
+  # final_out_ds<-final_out_ds[!sapply(final_out_ds,is.null)]
+  # final_out_us<-map(unique_link_id,~.$us_out)
+  #
+  # for (i in final_out_ds){
+  #   nrw<-nrow(i)
+  #   new_entries<-lapply(2:nrw,function(x) i[seq(x,nrw),])
+  #   names(new_entries)<-sapply(new_entries,function(x) head(x$link_id,1))
+  #
+  #   keep_entries<-new_entries[!names(new_entries) %in% names(final_out_ds)]
+  #
+  #   final_out_ds<-c(final_out_ds,keep_entries)
+  # }
+  #
+  # final_out_ds<-final_out_ds[order(names(final_out_ds))]
+  # final_out_ds<-final_out_ds[!is.na(names(final_out_ds))]
+  #
+  # final_out_us<-final_out_us[order(names(final_out_us))]
+  # final_out_us<-final_out_us[!is.na(names(final_out_us))]
 
-      # Downstream portion
-      if (all(!is.na(x_trib$uslink_id1))) {
-        ds_out<-NULL
-      } else {
+  final_out_ds<-split(final_ds_paths[,-c(1)],final_ds_paths$origin_id)
 
-        #print(x)
-        repeat {
-          ds_id <- input_tib %>%
-            filter(link_id %in% out) %>%
-            dplyr::select(starts_with("dslink_id")) %>%
-            unlist() %>%
-            as.character() %>%
-            unique() %>%
-            .[!is.na(.)]
-
-          if (all(ds_id %in% out)) break
-
-          out<-unique(c(out,ds_id))
-        }
-
-        out<-out[!is.na(out)]
-        ds_out<-tibble(link_id=out) %>%
-          left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
-          distinct() %>%
-          filter(!is.na(link_id))
-
-      }
-
-      # Upstream portion
-      out<-x
-      repeat {
-        us_id <- input_tib %>%
-          filter(link_id %in% out) %>%
-          dplyr::select(starts_with("uslink_id")) %>%
-          unlist() %>%
-          as.character() %>%
-          unique() %>%
-          .[!is.na(.)]
-
-        if (all(us_id %in% out)) break
-
-        out<-unique(c(out,us_id))
-      }
-
-      out<-out[!is.na(out)]
-
-      us_out<-tibble(link_id=out)%>%
-        left_join(input_tib %>% dplyr::select(link_id,trib_id,link_lngth,sbbsn_area),by="link_id") %>%
-        distinct() %>%
-        filter(!is.na(link_id))
-
-      p()
-      return(list(us_out=us_out,ds_out=ds_out))
-    })
-  }
-
-  input_tib_list<-as.list(rep(list(input_tib),length(unique_link_id)))
-
-  with_progress(enable=T,{
-    p <- progressor(steps = length(unlist(unique_link_id)))
-
-    unique_link_id<-future_map2(unique_link_id,input_tib_list,~id_fn(y=.x,input_tib=.y,p=p)) %>%
-      unlist(recursive=F)
-  })
-
-  # Get remaining DS distances by unnesting the list
-  final_out_ds<-map(unique_link_id,~.$ds_out)
-  final_out_ds<-final_out_ds[!sapply(final_out_ds,is.null)]
-  final_out_us<-map(unique_link_id,~.$us_out)
-
-  for (i in final_out_ds){
-    nrw<-nrow(i)
-    new_entries<-lapply(2:nrw,function(x) i[seq(x,nrw),])
-    names(new_entries)<-sapply(new_entries,function(x) head(x$link_id,1))
-
-    keep_entries<-new_entries[!names(new_entries) %in% names(final_out_ds)]
-
-    final_out_ds<-c(final_out_ds,keep_entries)
-  }
-
-  final_out_ds<-final_out_ds[order(names(final_out_ds))]
-  final_out_ds<-final_out_ds[!is.na(names(final_out_ds))]
-
-  final_out_us<-final_out_us[order(names(final_out_us))]
-  final_out_us<-final_out_us[!is.na(names(final_out_us))]
+  final_out_us<-split(final_us_paths[,-c(1)],final_us_paths$source_ID)
 
   return(list(final_out_us=final_out_us,final_out_ds=final_out_ds))
 
