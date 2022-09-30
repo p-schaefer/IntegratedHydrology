@@ -146,7 +146,9 @@ generate_subbasins<-function(
 
                                       t1<-terra::rast(file.path(temp_dir,"dem_d8.tif")) %>%
                                         terra::crop(y=cr,
-                                                    mask=T) %>%
+                                                    mask=T,
+                                                    filename=file.path(temp_dir,paste0("d8_int_",link_id,".tif")),
+                                                    overwrite=T) %>%
                                         terra::writeRaster(
                                           filename=file.path(temp_dir,paste0("d8_",link_id,".tif")),
                                           overwrite=T
@@ -190,7 +192,7 @@ generate_subbasins<-function(
         select(new_subb) %>%
         unnest(cols = c(new_subb)) %>%
         st_as_sf() %>%
-        mutate(sbbsn_area=st_area(.))
+        mutate(sbbsn_area=sf::st_area(.))
 
       subb<-subb %>%
         filter(!link_id %in% new_data$link_id_base) %>%
