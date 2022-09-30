@@ -178,7 +178,7 @@ generate_subbasins<-function(
                                       #                list.files(temp_dir,pattern=paste0("d8_",link_id,"_"),full.names = T)
                                       #                ))
 
-                                      suppressWarnings(file.remove(flrm))
+                                      # suppressWarnings(file.remove(flrm))
 
                                       p()
 
