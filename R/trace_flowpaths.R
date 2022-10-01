@@ -134,7 +134,7 @@ trace_flowpath_fn<-function(
 
   #browser()
   # Downstream paths
-  if (verbose) print("Identifying Exit Tributaries")
+  if (verbose) print("Calculating Downstream Flowpaths")
   ds_fp<-file.path(temp_dir,"flowpaths_out.db")
   if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp,"Already Exists, please delete the file before proceeding."))
   with_progress(enable=T,{
@@ -192,6 +192,7 @@ trace_flowpath_fn<-function(
 
     #data.table::fwrite(final_ds_paths_out,ds_fp)
     con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+    DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
     ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out[F,])
     ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
     DBI::dbDisconnect(con)
@@ -219,7 +220,6 @@ trace_flowpath_fn<-function(
       return(out2)
     }
 
-    if (verbose) print("Finalizing Downstream Flowpaths")
     while(nrow(int_tribs)>0){
       int_tribs_int<-int_tribs %>%
         filter(dstrib_id %in% final_ds_paths_out) %>%
@@ -380,7 +380,7 @@ trace_flowpath_fn<-function(
 
   #browser()
   #US Paths
-  if (verbose) print("Finalizing Upstream Flowpaths")
+  if (verbose) print("Calculating Upstream Flowpaths")
   with_progress(enable=T,{
 
     con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
@@ -403,12 +403,14 @@ trace_flowpath_fn<-function(
       ds_fp=rep(list(ds_fp),length(chunks)),
       p=rep(list(p),length(chunks))
     ),
+    #.options = furrr::furrr_options(globals = FALSE),
     carrier::crate(
       function(final_us_paths,ds_fp,p){
         #browser()
         options(scipen = 999)
         `%>%` <- magrittr::`%>%`
         con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+        DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
 
         base<-dplyr::tbl(con,"us_flowpaths")
 
@@ -431,11 +433,19 @@ trace_flowpath_fn<-function(
               dplyr::distinct(),
             by="origin_id") %>%
           dplyr::distinct() %>%
-          dplyr::arrange(link_id) %>%
+          dplyr::window_order(link_id) %>%
           dplyr::rename(source_id=link_id,
-                        link_id=origin_id)
+                        link_id=origin_id) %>%
+          dplyr::collect()
 
-        out<-suppressWarnings(dplyr::rows_insert(base,out,conflict = "ignore",in_place=T))
+        ot<-try(DBI::dbAppendTable(con, "us_flowpaths", out),silent=T)
+
+        # out<-try(suppressWarnings(dplyr::rows_insert(base,out,conflict = "ignore",in_place=T)),silent=T)
+        #
+        while(inherits(ot,"try-error")){
+          Sys.sleep(stats::runif(1,0,5))
+          ot<-try(DBI::dbAppendTable(con, "us_flowpaths", out),silent=T)
+        }
 
         DBI::dbDisconnect(con)
 
