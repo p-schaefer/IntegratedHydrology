@@ -181,7 +181,7 @@ trace_flowpath_fn<-function(
 
     #data.table::fwrite(final_ds_paths_out,ds_fp)
     con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
-    ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out)
+    ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out[F,])
     ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
     DBI::dbDisconnect(con)
 
