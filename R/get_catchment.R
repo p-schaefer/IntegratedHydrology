@@ -61,15 +61,15 @@ get_catchment<-function(
 
   us_fp_fun<-function(link_id,db_fp=db_fp){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-    out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_ID IN (",paste0(link_id,collapse = ","),")")) %>%
+    out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
       #distinct() %>%
       #mutate(link_id2=link_id) %>%
-      group_by(source_ID) %>%
+      group_by(source_id) %>%
       nest() %>%
       ungroup()
 
     out2<-out$data
-    names(out2)<-out$source_ID
+    names(out2)<-out$source_id
 
     out2<-out2[link_id]
 

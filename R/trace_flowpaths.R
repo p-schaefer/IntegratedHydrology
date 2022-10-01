@@ -163,12 +163,12 @@ trace_flowpath_fn<-function(
 
                                  x<- x%>%
                                    dplyr::select(link_id,trib_id=trib_id2,link_lngth,sbbsn_area,USChnLn_Fr) #%>%
-                                   #dplyr::distinct()
+                                 #dplyr::distinct()
                                  u<-x$link_id
                                  u<-stats::setNames(u,u)
                                  out<-purrr:::map(u, function (y) x[which(x$link_id==y):nrow(x),] %>% dplyr::mutate(origin_id=y)) %>%
                                    dplyr::bind_rows() #%>%
-                                   #dplyr::distinct()
+                                 #dplyr::distinct()
                                  p()
                                  return(out)
                                })))
@@ -190,79 +190,146 @@ trace_flowpath_fn<-function(
     int_tribs<-int_tribs %>%
       filter(!trib_id %in% final_ds_paths_out)
 
+    ds_fp_fun<-function(dslink_id,db_fp=ds_fp){
+      con <- DBI::dbConnect(RSQLite::SQLite(), db_fp[[1]])
+      out<-DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id IN (",paste0(dslink_id,collapse = ","),")")) %>%
+        #distinct() %>%
+        #mutate(link_id2=link_id) %>%
+        group_by(origin_id) %>%
+        nest() %>%
+        ungroup()
+
+      out2<-out$data
+      names(out2)<-out$origin_id
+
+      out2<-out2[as.character(dslink_id)]
+
+      DBI::dbDisconnect(con)
+      return(out2)
+    }
+
     if (verbose) print("Finalizing Downstream Flowpaths")
     while(nrow(int_tribs)>0){
       int_tribs_int<-int_tribs %>%
         filter(dstrib_id %in% final_ds_paths_out) %>%
-        mutate(ds_fp=ds_fp,
-               p=list(p)) %>%
-        mutate(data=pmap(list( #future_
+        mutate(p=list(p)) %>%
+        mutate(ds_path=ds_fp_fun(dslink_id,db_fp=ds_fp)) %>%
+        mutate(ds_path=future_pmap(list(
           data=data,
-          ds_fp=ds_fp,
-          dstrib_id=dstrib_id,
-          dslink_id=dslink_id,
-          join_USChnLn_Fr=join_USChnLn_Fr,
-          p=p),
-          #.options = furrr_options(globals = FALSE),
-          carrier::crate(
-            function(data,dstrib_id,dslink_id,join_USChnLn_Fr,ds_fp,p) {
-              #browser()
-              options(scipen = 999)
-              `%>%` <- magrittr::`%>%`
+          ds_path=ds_path,
+          p=p
+        ),
+        .options = furrr_options(globals = FALSE),
+        carrier::crate(
+          function(data,ds_path,p){
+            options(scipen = 999)
+            `%>%` <- magrittr::`%>%`
 
-              con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+            out<-dplyr::bind_rows(data %>%
+                                    dplyr::rename(trib_id=trib_id2),
+                                  ds_path %>%
+                                    dplyr::mutate(link_id=as.character(link_id))
+            ) %>%
+              dplyr::distinct()
 
-              #final_paths<-data.table::fread(cmd=paste0('awk -F, \'$1 == "',dstrib_id,'"\' ',ds_fp))
-              #final_paths<-data.table::fread(ds_fp) %>% dplyr::filter(trib_id==dstrib_id)
-              final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
+            x<- out%>%
+              dplyr::select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr) %>%
+              dplyr::distinct()
+            u<-data$link_id
+            u<-stats::setNames(u,u)
+            x<-rep(list(x),length(u))
+            out<-purrr::map2(u,x,
+                             #.options = furrr::furrr_options(globals = FALSE),
+                             carrier::crate(function (y,x) dplyr::mutate(x[which(x$link_id==y):nrow(x),],origin_id=y)))
+            out<-dplyr::bind_rows(out)
 
-              while(inherits(final_paths,"try-error")){
-                Sys.sleep(0.2)
-                final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
-              }
-
-              out<-dplyr::bind_rows(data %>%
-                                      dplyr::rename(trib_id=trib_id2),
-                                    final_paths %>%
-                                      # dplyr::arrange(USChnLn_Fr) %>%
-                                      # dplyr::filter(USChnLn_Fr>=join_USChnLn_Fr) %>%
-                                      dplyr::mutate(link_id=as.character(link_id))
-              ) %>%
-                dplyr::distinct()
-
-              x<- out%>%
-                dplyr::select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr) %>%
-                dplyr::distinct()
-              u<-data$link_id
-              u<-stats::setNames(u,u)
-              x<-rep(list(x),length(u))
-              out<-furrr::future_map2(u,x,
-                               .options = furrr::furrr_options(globals = FALSE),
-                               carrier::crate(function (y,x) dplyr::mutate(x[which(x$link_id==y):nrow(x),],origin_id=y)))
-              out<-dplyr::bind_rows(out)
-
-              ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
-
-              while(inherits(ot,"try-error")){
-                Sys.sleep(0.2)
-                ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
-              }
-
-              DBI::dbDisconnect(con)
-
-              p()
-
-              return(NULL)
-
-            }
-          )
+            p()
+            return(out)
+          })
         ))
 
+      int_tribs_int<-int_tribs_int %>%
+        select(ds_path) %>%
+        unnest(ds_path)
+
       con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+      ot<-DBI::dbAppendTable(con, "ds_flowpaths", int_tribs_int)
       int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
       final_ds_paths_out<-unique(DBI::dbGetQuery(con, "SELECT trib_id FROM ds_flowpaths")$trib_id)
-
       DBI::dbDisconnect(con)
+
+
+      # int_tribs_int<-int_tribs %>%
+      #   filter(dstrib_id %in% final_ds_paths_out) %>%
+      #   mutate(ds_fp=ds_fp,
+      #          p=list(p)) %>%
+      #   mutate(data=pmap(list( #future_
+      #     data=data,
+      #     ds_fp=ds_fp,
+      #     dstrib_id=dstrib_id,
+      #     dslink_id=dslink_id,
+      #     join_USChnLn_Fr=join_USChnLn_Fr,
+      #     p=p),
+      #     #.options = furrr_options(globals = FALSE),
+      #     carrier::crate(
+      #       function(data,dstrib_id,dslink_id,join_USChnLn_Fr,ds_fp,p) {
+      #         #browser()
+      #         options(scipen = 999)
+      #         `%>%` <- magrittr::`%>%`
+      #
+      #         con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+      #
+      #         #final_paths<-data.table::fread(cmd=paste0('awk -F, \'$1 == "',dstrib_id,'"\' ',ds_fp))
+      #         #final_paths<-data.table::fread(ds_fp) %>% dplyr::filter(trib_id==dstrib_id)
+      #         final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
+      #
+      #         while(inherits(final_paths,"try-error")){
+      #           Sys.sleep(0.2)
+      #           final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
+      #         }
+      #
+      #         out<-dplyr::bind_rows(data %>%
+      #                                 dplyr::rename(trib_id=trib_id2),
+      #                               final_paths %>%
+      #                                 # dplyr::arrange(USChnLn_Fr) %>%
+      #                                 # dplyr::filter(USChnLn_Fr>=join_USChnLn_Fr) %>%
+      #                                 dplyr::mutate(link_id=as.character(link_id))
+      #         ) %>%
+      #           dplyr::distinct()
+      #
+      #         x<- out%>%
+      #           dplyr::select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr) %>%
+      #           dplyr::distinct()
+      #         u<-data$link_id
+      #         u<-stats::setNames(u,u)
+      #         x<-rep(list(x),length(u))
+      #         out<-furrr::future_map2(u,x,
+      #                                 .options = furrr::furrr_options(globals = FALSE),
+      #                                 carrier::crate(function (y,x) dplyr::mutate(x[which(x$link_id==y):nrow(x),],origin_id=y)))
+      #         out<-dplyr::bind_rows(out)
+      #
+      #         ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+      #
+      #         while(inherits(ot,"try-error")){
+      #           Sys.sleep(0.2)
+      #           ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+      #         }
+      #
+      #         DBI::dbDisconnect(con)
+      #
+      #         p()
+      #
+      #         return(NULL)
+      #
+      #       }
+      #     )
+      #   ))
+      #
+      # con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+      # int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
+      # final_ds_paths_out<-unique(DBI::dbGetQuery(con, "SELECT trib_id FROM ds_flowpaths")$trib_id)
+      #
+      # DBI::dbDisconnect(con)
 
     }
 
@@ -305,18 +372,22 @@ trace_flowpath_fn<-function(
 
     con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
     final_us_paths<-unique(DBI::dbGetQuery(con, "SELECT link_id FROM ds_flowpaths")$link_id)
-    colnms<-colnames(DBI::dbFetch(DBI::dbSendQuery(con, "SELECT * FROM ds_flowpaths"),n=1) %>% rename(source_ID=origin_id))
+    colnms<-colnames(DBI::dbFetch(DBI::dbSendQuery(con, "SELECT * FROM ds_flowpaths"),n=1) %>% rename(source_id=origin_id))
     final_us<-data.frame(matrix(ncol=length(colnms)))[F,]
     colnames(final_us)<- colnms
     ot<-suppressWarnings(DBI::dbCreateTable(con, "us_flowpaths", final_us))
     DBI::dbDisconnect(con)
 
-    p <- progressor(steps = length(final_us_paths))
+    chunks<-split(final_us_paths,ceiling(seq_along(final_us_paths)/500)) #500 IDs at once shouldn't explode memory, right?
+
+    p <- progressor(steps = length(chunks))
+
+
 
     final_us_paths<-pmap(list(
-      final_us_paths=as.list(final_us_paths),
-      ds_fp=rep(list(ds_fp),length(final_us_paths)),
-      p=rep(list(p),length(final_us_paths))
+      final_us_paths=chunks,
+      ds_fp=rep(list(ds_fp),length(chunks)),
+      p=rep(list(p),length(chunks))
     ),
     carrier::crate(
       function(final_us_paths,ds_fp,p){
@@ -324,39 +395,63 @@ trace_flowpath_fn<-function(
         options(scipen = 999)
         `%>%` <- magrittr::`%>%`
 
-        con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+        us_fp_fun<-function(link_id,db_fp=ds_fp){
+          con <- DBI::dbConnect(RSQLite::SQLite(), db_fp[[1]])
+          out<-DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(link_id,collapse = ","),")")) %>%
+            dplyr::select(link_id,origin_id) %>%
+            dplyr::distinct() %>%
+            dplyr::arrange(link_id)
 
-        final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
-                         silent=T)
+          out<-DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(out$origin_id,collapse = ","),")")) %>%
+            dplyr::select(-origin_id) %>%
+            dplyr::rename(origin_id=link_id) %>%
+            dplyr::distinct() %>%
+            dplyr::full_join(out,by="origin_id") %>%
+            dplyr::distinct() %>%
+            dplyr::arrange(link_id) %>%
+            dplyr::rename(source_id=link_id,
+                          link_id=origin_id)
 
-        # while(inherits(final_paths,"try-error")){
-        #   Sys.sleep(0.2)
-        #   final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
-        #                    silent=T)
-        # }
+          DBI::dbAppendTable(con, "us_flowpaths", out)
 
-        out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
-                 silent=T)
+          DBI::dbDisconnect(con)
+          return(NULL)
+        }
 
-        # while(inherits(out,"try-error")){
-        #   Sys.sleep(0.2)
-        #   out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
-        #            silent=T)
-        # }
-
-        out<-out%>%
-          dplyr::select(-origin_id) %>%
-          dplyr::distinct() %>%
-          dplyr::mutate(source_ID=final_us_paths)
-
-        ot<-try(DBI::dbAppendTable(con, "us_flowpaths", out),silent=T)
-
-        # while(inherits(ot,"try-error")){
-        #   Sys.sleep(0.2)
-        #   ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
-        # }
-
-        DBI::dbDisconnect(con)
+        out<-us_fp_fun(final_us_paths,ds_fp)
+        # con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+        #
+        # final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
+        #                  silent=T)
+        #
+        # # while(inherits(final_paths,"try-error")){
+        # #   Sys.sleep(0.2)
+        # #   final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
+        # #                    silent=T)
+        # # }
+        #
+        # out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
+        #          silent=T)
+        #
+        # # while(inherits(out,"try-error")){
+        # #   Sys.sleep(0.2)
+        # #   out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
+        # #            silent=T)
+        # # }
+        #
+        # out<-out%>%
+        #   dplyr::select(-origin_id) %>%
+        #   dplyr::distinct() %>%
+        #   dplyr::mutate(source_id=final_us_paths)
+        #
+        # ot<-try(DBI::dbAppendTable(con, "us_flowpaths", out),silent=T)
+        #
+        # # while(inherits(ot,"try-error")){
+        # #   Sys.sleep(0.2)
+        # #   ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+        # # }
+        #
+        # DBI::dbDisconnect(con)
 
         p()
         return(NULL)
@@ -389,12 +484,12 @@ trace_flowpath_fn<-function(
   #                              y[y$link_id %in% x,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]
   #                            })
   #   )) %>%
-  #   select(source_ID=link_id, data2) %>%
+  #   select(source_id=link_id, data2) %>%
   #   unnest(cols=data2)
   #
   # final_out_ds<-split(final_ds_paths[,-c(1)],final_ds_paths$origin_id)
   #
-  # final_out_us<-split(final_us_paths[,-c(1)],final_us_paths$source_ID)
+  # final_out_us<-split(final_us_paths[,-c(1)],final_us_paths$source_id)
 
   return(ds_fp)
 
