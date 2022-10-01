@@ -433,7 +433,7 @@ trace_flowpath_fn<-function(
               dplyr::distinct(),
             by="origin_id") %>%
           dplyr::distinct() %>%
-          dplyr::window_order(link_id) %>%
+          dbplyr::window_order(link_id) %>%
           dplyr::rename(source_id=link_id,
                         link_id=origin_id) %>%
           dplyr::collect()
