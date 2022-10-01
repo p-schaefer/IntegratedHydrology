@@ -52,19 +52,43 @@ get_catchment<-function(
   missing_sites<-target_points[!target_points %in% sites[[1]]]
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
-  conn<-unz(zip_loc,"us_flowpaths.rds")
-  us_flowpaths<-readRDS(gzcon(conn))
-  close(conn)
+  # conn<-unz(zip_loc,"us_flowpaths.rds")
+  # us_flowpaths<-readRDS(gzcon(conn))
+  # close(conn)
 
+  unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
+  db_fp<-file.path(tdir,"flowpaths_out.db")
+
+  us_fp_fun<-function(link_id,db_fp=db_fp){
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+    out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_ID IN (",paste0(link_id,collapse = ","),")")) %>%
+      #distinct() %>%
+      #mutate(link_id2=link_id) %>%
+      group_by(source_ID) %>%
+      nest() %>%
+      ungroup()
+
+    out2<-out$data
+    names(out2)<-out$source_ID
+
+    out2<-out2[link_id]
+
+    DBI::dbDisconnect(con)
+    return(out2)
+  }
+
+
+  #con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
 
   with_progress(enable=T,{
     p <- progressor(steps = nrow(sites))
 
     out<-sites %>%
-      mutate(us_flowpaths=us_flowpaths[link_id]) %>%
-      filter(!map_lgl(us_flowpaths,is.null)) %>%
-      filter(map_dbl(us_flowpaths,nrow)>0) %>%
-      #mutate(sub=rep(list(subb),nrow(.))) %>%
+      # #mutate(us_flowpaths=us_flowpaths[link_id]) %>%
+      mutate(us_flowpaths=us_fp_fun(link_id,db_fp=db_fp)) %>%
+      # filter(!map_lgl(us_flowpaths,is.null)) %>%
+      # filter(map_dbl(us_flowpaths,nrow)>0) %>%
+      #mutate(subb=rep(list(subb),nrow(.))) %>%
       mutate(subb=future_map(us_flowpaths,function(x) {
         suppressPackageStartupMessages(library(sf))
         subb %>%
@@ -84,6 +108,8 @@ get_catchment<-function(
       select(-us_flowpaths) %>%
       st_as_sf()
   })
+
+  #DBI::dbDisconnect(con)
 
   suppressWarnings(unlink(tdir,force = T,recursive = T))
 

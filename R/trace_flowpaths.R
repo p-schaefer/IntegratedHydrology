@@ -36,19 +36,19 @@ trace_flowpaths<-function(
 
   #browser()
 
-  fp<-trace_flowpath_fn(input=final_links,verbose=verbose)
-  ds_flowpaths<-fp$final_out_ds
-  us_flowpaths<-fp$final_out_us
-
-  saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"),compress = F)
-  saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"),compress = F)
+  fp<-trace_flowpath_fn(input=final_links,verbose=verbose,temp_dir=temp_dir)
+  # ds_flowpaths<-fp$final_out_ds
+  # us_flowpaths<-fp$final_out_us
+  #
+  # saveRDS(ds_flowpaths,file.path(temp_dir,"ds_flowpaths.rds"),compress = F)
+  # saveRDS(us_flowpaths,file.path(temp_dir,"us_flowpaths.rds"),compress = F)
 
   dist_list_out<-list(
-    "ds_flowpaths.rds",
-    "us_flowpaths.rds"
+    fp
   )
+  #browser()
 
-  dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
+  #dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
 
   out_file<-zip_loc
 
@@ -60,6 +60,8 @@ trace_flowpaths<-function(
   )
 
   output<-input[!names(input) %in% c("catchment_poly")]
+
+  #browser()
 
   all_catch<-get_catchment(input = output,
                            target_points = final_links[["link_id"]]) %>%
@@ -74,8 +76,9 @@ trace_flowpaths<-function(
 
   if (return_products){
     output<-c(
-      list(ds_flowpaths=ds_flowpaths,
-           us_flowpaths=us_flowpaths,
+      list(flowpaths_db=basename(fp),
+           #ds_flowpaths=ds_flowpaths,
+           #us_flowpaths=us_flowpaths,
            catchments=all_catch %>% select(link_id)
       ),
       output
@@ -91,8 +94,10 @@ trace_flowpaths<-function(
 #' @export
 trace_flowpath_fn<-function(
     input,
-    verbose=F
+    verbose=F,
+    temp_dir=NULL
 ) {
+
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
@@ -111,122 +116,287 @@ trace_flowpath_fn<-function(
     mutate(name=ifelse(grepl("trib",name),"ustrib_id1","uslink_id1")) %>%
     pivot_wider(names_from=name,values_from=value,values_fn=list) %>%
     unnest(cols=c(uslink_id1,ustrib_id1)) %>%
-    distinct()
+    select(-uslink_id1,-ustrib_id1) %>%
+    distinct() %>%
+    group_by(trib_id) %>%
+    arrange(USChnLn_Fr) %>%
+    ungroup()
 
+  #browser()
   # Downstream paths
   if (verbose) print("Identifying Exit Tributaries")
+  ds_fp<-file.path(temp_dir,"flowpaths_out.db")
+  with_progress(enable=T,{
 
-  int_tribs<-input_tib %>%
-    mutate(trib_id2=trib_id) %>%
-    group_by(trib_id) %>%
-    nest() %>%
-    ungroup() %>%
-    #mutate(exit_trib=future_map_lgl(data,~any(is.na(.$dslink_id1)))) %>%
-    mutate(join_id=future_map(data,
-                              .options = furrr_options(globals = FALSE),
-                              carrier::crate(function(x){
-                                options(scipen = 999)
-                                `%>%` <- magrittr::`%>%`
+    int_tribs<-input_tib %>%
+      mutate(trib_id2=trib_id) %>%
+      group_by(trib_id) %>%
+      nest() %>%
+      ungroup() %>%
+      #mutate(exit_trib=future_map_lgl(data,~any(is.na(.$dslink_id1)))) %>%
+      mutate(join_id=future_map(data,
+                                .options = furrr_options(globals = FALSE),
+                                carrier::crate(function(x){
+                                  options(scipen = 999)
+                                  `%>%` <- magrittr::`%>%`
 
-                                dplyr::arrange(x,USChnLn_Fr) %>%
-                                  utils::tail(1) %>%
-                                  dplyr::select(dslink_id=dslink_id1,dstrib_id=dstrib_id1)
-                              } ))) %>%
-    unnest(join_id) %>%
-    mutate(join_USChnLn_Fr=input_tib$USChnLn_Fr[match(.$dslink_id,input_tib$link_id)])
+                                  dplyr::arrange(x,USChnLn_Fr) %>%
+                                    utils::tail(1) %>%
+                                    dplyr::select(dslink_id=dslink_id1,dstrib_id=dstrib_id1)
+                                } ))) %>%
+      unnest(join_id) %>%
+      mutate(join_USChnLn_Fr=input_tib$USChnLn_Fr[match(.$dslink_id,input_tib$link_id)])
 
-  # Exiting tribs
-  final_ds_paths<-int_tribs %>%
-    filter(is.na(dslink_id)) %>%
-    select(trib_id,data)
+    #p <- progressor(steps = length(unique(input_tib$link_id)))
+    p <- progressor(steps = nrow(int_tribs))
 
-  int_tribs<-int_tribs %>%
-    filter(!trib_id %in% final_ds_paths$trib_id)
-
-  if (verbose) print("Tracing Downstream Flowpaths")
-  while(nrow(int_tribs)>0){
-    int_tribs_int<-int_tribs %>%
-      filter(dstrib_id %in% final_ds_paths$trib_id) %>%
-      mutate(final_paths=list(final_ds_paths)) %>%
-      mutate(data=future_pmap(list(
-        final_paths=final_paths,
-        data=data,
-        dstrib_id=dstrib_id,
-        join_USChnLn_Fr=join_USChnLn_Fr),
-        .options = furrr_options(globals = FALSE),
-        carrier::crate(
-          function(data,dstrib_id,join_USChnLn_Fr,final_paths) {
-            options(scipen = 999)
-            `%>%` <- magrittr::`%>%`
-
-            dplyr::bind_rows(data,
-                             final_paths$data[final_paths$trib_id==dstrib_id][[1]] %>% dplyr::arrange(USChnLn_Fr) %>% dplyr::filter(USChnLn_Fr>=join_USChnLn_Fr))
-          }
-        )
-      ))
-
-    int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
-    final_ds_paths<-bind_rows(final_ds_paths,int_tribs_int %>% select(trib_id,data))
-  }
-
-  #Finalize DS flowpaths
-  if (verbose) print("Finalizing Downstream Flowpaths")
-  final_ds_paths<-final_ds_paths %>%
-    mutate(data2=future_map(data,
-                            .options = furrr_options(globals = FALSE),
-                            carrier::crate(function(x){
-                              options(scipen = 999)
-                              `%>%` <- magrittr::`%>%`
-
-                              x<- x%>%
-                                dplyr::select(link_id,trib_id=trib_id2,link_lngth,sbbsn_area,USChnLn_Fr) %>%
-                                dplyr::distinct()
-                              u<-x$link_id
-                              u<-stats::setNames(u,u)
-                              purrr:::map(u, function (y) x[which(x$link_id==y):nrow(x),] %>% dplyr::mutate(origin_id=y))
-                            })))
-
-  final_ds_paths<-final_ds_paths %>%
-    select(data2) %>%
-    unnest(cols=data2) %>%
-    unnest(cols=data2) %>%
-    distinct() %>%
-    select(origin_id,everything())
-
-  #US Paths
-
-  if (verbose) print("Identifying Headwater Tributaries")
-  final_us_paths<-final_ds_paths %>%
-    group_by(link_id) %>%
-    nest() %>%
-    ungroup() %>%
-    mutate(us_links=future_map(data,
+    # Exiting tribs
+    final_ds_paths<-int_tribs %>%
+      filter(is.na(dslink_id)) %>%
+      select(trib_id,data) %>%
+      mutate(p=list(p)) %>%
+      mutate(data2=future_map2(data,p,
                                .options = furrr_options(globals = FALSE),
-                               carrier::crate(function(x){
+                               carrier::crate(function(x,p){
                                  options(scipen = 999)
                                  `%>%` <- magrittr::`%>%`
 
-                                 x %>% dplyr::pull(origin_id) %>% unique()
-                               })
-    )) %>%
-    mutate(full_data=list(input[,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]))
+                                 x<- x%>%
+                                   dplyr::select(link_id,trib_id=trib_id2,link_lngth,sbbsn_area,USChnLn_Fr) #%>%
+                                   #dplyr::distinct()
+                                 u<-x$link_id
+                                 u<-stats::setNames(u,u)
+                                 out<-purrr:::map(u, function (y) x[which(x$link_id==y):nrow(x),] %>% dplyr::mutate(origin_id=y)) %>%
+                                   dplyr::bind_rows() #%>%
+                                   #dplyr::distinct()
+                                 p()
+                                 return(out)
+                               })))
 
+
+
+    final_ds_paths_out<-final_ds_paths %>%
+      select(data2) %>%
+      unnest(data2)
+
+    #data.table::fwrite(final_ds_paths_out,ds_fp)
+    con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+    ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out)
+    ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
+    DBI::dbDisconnect(con)
+
+    final_ds_paths_out<-unique(final_ds_paths_out$trib_id)
+
+    int_tribs<-int_tribs %>%
+      filter(!trib_id %in% final_ds_paths_out)
+
+    if (verbose) print("Finalizing Downstream Flowpaths")
+    while(nrow(int_tribs)>0){
+      int_tribs_int<-int_tribs %>%
+        filter(dstrib_id %in% final_ds_paths_out) %>%
+        mutate(ds_fp=ds_fp,
+               p=list(p)) %>%
+        mutate(data=pmap(list( #future_
+          data=data,
+          ds_fp=ds_fp,
+          dstrib_id=dstrib_id,
+          dslink_id=dslink_id,
+          join_USChnLn_Fr=join_USChnLn_Fr,
+          p=p),
+          #.options = furrr_options(globals = FALSE),
+          carrier::crate(
+            function(data,dstrib_id,dslink_id,join_USChnLn_Fr,ds_fp,p) {
+              #browser()
+              options(scipen = 999)
+              `%>%` <- magrittr::`%>%`
+
+              con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+
+              #final_paths<-data.table::fread(cmd=paste0('awk -F, \'$1 == "',dstrib_id,'"\' ',ds_fp))
+              #final_paths<-data.table::fread(ds_fp) %>% dplyr::filter(trib_id==dstrib_id)
+              final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
+
+              while(inherits(final_paths,"try-error")){
+                Sys.sleep(0.2)
+                final_paths<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id='",dslink_id,"'")),silent=T)
+              }
+
+              out<-dplyr::bind_rows(data %>%
+                                      dplyr::rename(trib_id=trib_id2),
+                                    final_paths %>%
+                                      # dplyr::arrange(USChnLn_Fr) %>%
+                                      # dplyr::filter(USChnLn_Fr>=join_USChnLn_Fr) %>%
+                                      dplyr::mutate(link_id=as.character(link_id))
+              ) %>%
+                dplyr::distinct()
+
+              x<- out%>%
+                dplyr::select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr) %>%
+                dplyr::distinct()
+              u<-data$link_id
+              u<-stats::setNames(u,u)
+              x<-rep(list(x),length(u))
+              out<-furrr::future_map2(u,x,
+                               .options = furrr::furrr_options(globals = FALSE),
+                               carrier::crate(function (y,x) dplyr::mutate(x[which(x$link_id==y):nrow(x),],origin_id=y)))
+              out<-dplyr::bind_rows(out)
+
+              ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+
+              while(inherits(ot,"try-error")){
+                Sys.sleep(0.2)
+                ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+              }
+
+              DBI::dbDisconnect(con)
+
+              p()
+
+              return(NULL)
+
+            }
+          )
+        ))
+
+      con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+      int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
+      final_ds_paths_out<-unique(DBI::dbGetQuery(con, "SELECT trib_id FROM ds_flowpaths")$trib_id)
+
+      DBI::dbDisconnect(con)
+
+    }
+
+    # con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+    # final_ds_paths<-DBI::dbGetQuery(con, "SELECT * FROM ds_flowpaths") %>%
+    #   group_by(trib_id) %>%
+    #   nest() %>%
+    #   ungroup()
+    # DBI::dbDisconnect(con)
+
+    #Finalize DS flowpaths
+    # if (verbose) print("Finalizing Downstream Flowpaths")
+    # final_ds_paths<-final_ds_paths %>%
+    #   mutate(data2=future_map(data,
+    #                           .options = furrr_options(globals = FALSE),
+    #                           carrier::crate(function(x){
+    #                             options(scipen = 999)
+    #                             `%>%` <- magrittr::`%>%`
+    #
+    #                             x<- x%>%
+    #                               dplyr::select(link_id,trib_id=trib_id2,link_lngth,sbbsn_area,USChnLn_Fr) %>%
+    #                               dplyr::distinct()
+    #                             u<-x$link_id
+    #                             u<-stats::setNames(u,u)
+    #                             purrr:::map(u, function (y) x[which(x$link_id==y):nrow(x),] %>% dplyr::mutate(origin_id=y))
+    #                           })))
+    #
+    # final_ds_paths<-final_ds_paths %>%
+    #   select(data2) %>%
+    #   unnest(cols=data2) %>%
+    #   unnest(cols=data2) %>%
+    #   distinct() %>%
+    #   select(origin_id,everything())
+  })
+
+  #browser()
+  #US Paths
   if (verbose) print("Finalizing Upstream Flowpaths")
-  final_us_paths<-final_us_paths%>%
-    mutate(data2=future_map2(us_links,full_data,
-                             .options = furrr_options(globals = FALSE),
-                             carrier::crate(function(x,y){
-                               y[y$link_id %in% x,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]
-                             })
-    )) %>%
-    select(source_ID=link_id, data2) %>%
-    unnest(cols=data2)
+  with_progress(enable=T,{
 
-  final_out_ds<-split(final_ds_paths[,-c(1)],final_ds_paths$origin_id)
+    con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+    final_us_paths<-unique(DBI::dbGetQuery(con, "SELECT link_id FROM ds_flowpaths")$link_id)
+    colnms<-colnames(DBI::dbFetch(DBI::dbSendQuery(con, "SELECT * FROM ds_flowpaths"),n=1) %>% rename(source_ID=origin_id))
+    final_us<-data.frame(matrix(ncol=length(colnms)))[F,]
+    colnames(final_us)<- colnms
+    ot<-suppressWarnings(DBI::dbCreateTable(con, "us_flowpaths", final_us))
+    DBI::dbDisconnect(con)
 
-  final_out_us<-split(final_us_paths[,-c(1)],final_us_paths$source_ID)
+    p <- progressor(steps = length(final_us_paths))
 
-  return(list(final_out_us=final_out_us,final_out_ds=final_out_ds))
+    final_us_paths<-pmap(list(
+      final_us_paths=as.list(final_us_paths),
+      ds_fp=rep(list(ds_fp),length(final_us_paths)),
+      p=rep(list(p),length(final_us_paths))
+    ),
+    carrier::crate(
+      function(final_us_paths,ds_fp,p){
+        #browser()
+        options(scipen = 999)
+        `%>%` <- magrittr::`%>%`
+
+        con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+
+        final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
+                         silent=T)
+
+        # while(inherits(final_paths,"try-error")){
+        #   Sys.sleep(0.2)
+        #   final_paths<-try(unique(DBI::dbGetQuery(con, paste0("SELECT origin_id FROM ds_flowpaths WHERE link_id='",final_us_paths,"'"))$origin_id),
+        #                    silent=T)
+        # }
+
+        out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
+                 silent=T)
+
+        # while(inherits(out,"try-error")){
+        #   Sys.sleep(0.2)
+        #   out<-try(DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE link_id IN (",paste0(final_paths,collapse = ","),")")),
+        #            silent=T)
+        # }
+
+        out<-out%>%
+          dplyr::select(-origin_id) %>%
+          dplyr::distinct() %>%
+          dplyr::mutate(source_ID=final_us_paths)
+
+        ot<-try(DBI::dbAppendTable(con, "us_flowpaths", out),silent=T)
+
+        # while(inherits(ot,"try-error")){
+        #   Sys.sleep(0.2)
+        #   ot<-try(DBI::dbAppendTable(con, "ds_flowpaths", out),silent=T)
+        # }
+
+        DBI::dbDisconnect(con)
+
+        p()
+        return(NULL)
+
+      }))
+  })
+
+  #browser()
+
+  # final_us_paths<-final_ds_paths %>%
+  #   group_by(link_id) %>%
+  #   nest() %>%
+  #   ungroup() %>%
+  #   mutate(us_links=future_map(data,
+  #                              .options = furrr_options(globals = FALSE),
+  #                              carrier::crate(function(x){
+  #                                options(scipen = 999)
+  #                                `%>%` <- magrittr::`%>%`
+  #
+  #                                x %>% dplyr::pull(origin_id) %>% unique()
+  #                              })
+  #   )) %>%
+  #   mutate(full_data=list(input[,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]))
+  #
+  # if (verbose) print("Finalizing Upstream Flowpaths")
+  # final_us_paths<-final_us_paths%>%
+  #   mutate(data2=future_map2(us_links,full_data,
+  #                            .options = furrr_options(globals = FALSE),
+  #                            carrier::crate(function(x,y){
+  #                              y[y$link_id %in% x,c("link_id","trib_id","link_lngth","sbbsn_area","USChnLn_Fr")]
+  #                            })
+  #   )) %>%
+  #   select(source_ID=link_id, data2) %>%
+  #   unnest(cols=data2)
+  #
+  # final_out_ds<-split(final_ds_paths[,-c(1)],final_ds_paths$origin_id)
+  #
+  # final_out_us<-split(final_us_paths[,-c(1)],final_us_paths$source_ID)
+
+  return(ds_fp)
 
 }
 
