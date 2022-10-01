@@ -13,6 +13,7 @@ trace_flowpaths<-function(
     input,
     return_products=F,
     temp_dir=NULL,
+    chunck_size=100,
     verbose=F
 ){
   options(future.rng.onMisuse="ignore")
@@ -20,6 +21,8 @@ trace_flowpaths<-function(
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
+
+  if (!is.numeric(chunck_size)) stop("'chunck_size' must be numeric")
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
@@ -36,7 +39,10 @@ trace_flowpaths<-function(
 
   #browser()
 
-  fp<-trace_flowpath_fn(input=final_links,verbose=verbose,temp_dir=temp_dir)
+  fp<-trace_flowpath_fn(input=final_links,
+                        verbose=verbose,
+                        temp_dir=temp_dir,
+                        chunck_size=chunck_size)
   # ds_flowpaths<-fp$final_out_ds
   # us_flowpaths<-fp$final_out_us
   #
@@ -95,8 +101,11 @@ trace_flowpaths<-function(
 trace_flowpath_fn<-function(
     input,
     verbose=F,
+    chunck_size=100, #100 IDs at once shouldn't explode memory, right?
     temp_dir=NULL
 ) {
+
+  chunck_size<-as.integer(chunck_size)
 
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
@@ -126,6 +135,7 @@ trace_flowpath_fn<-function(
   # Downstream paths
   if (verbose) print("Identifying Exit Tributaries")
   ds_fp<-file.path(temp_dir,"flowpaths_out.db")
+  if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp,"Already Exists, please delete the file before proceeding."))
   with_progress(enable=T,{
 
     int_tribs<-input_tib %>%
@@ -213,7 +223,9 @@ trace_flowpath_fn<-function(
       int_tribs_int<-int_tribs %>%
         filter(dstrib_id %in% final_ds_paths_out) %>%
         mutate(p=list(p)) %>%
-        mutate(ds_path=ds_fp_fun(dslink_id,db_fp=ds_fp)) %>%
+        mutate(ds_path=ds_fp_fun(dslink_id,db_fp=ds_fp))
+
+      int_tribs_int<-int_tribs_int %>%
         mutate(ds_path=future_pmap(list(
           data=data,
           ds_path=ds_path,
@@ -378,7 +390,7 @@ trace_flowpath_fn<-function(
     ot<-suppressWarnings(DBI::dbCreateTable(con, "us_flowpaths", final_us))
     DBI::dbDisconnect(con)
 
-    chunks<-split(final_us_paths,ceiling(seq_along(final_us_paths)/500)) #500 IDs at once shouldn't explode memory, right?
+    chunks<-split(final_us_paths,ceiling(seq_along(final_us_paths)/chunck_size))
 
     p <- progressor(steps = length(chunks))
 
