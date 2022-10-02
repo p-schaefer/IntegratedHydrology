@@ -20,7 +20,8 @@ trace_flowpaths<-function(
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
 
-  match.arg(calc_catch)
+  calc_catch<-calc_catch[1]
+  match.arg(calc_catch,several.ok = F)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")

@@ -30,6 +30,7 @@ process_hydrology<-function(
     burn_depth=5,
     min_length=NULL,
     depression_corr=c(NULL,"fill","breach"),
+    calc_catch=c("all","none","sample_points"),
     extra_attr=c(
       "link_slope",
       "cont_slope",
@@ -52,6 +53,9 @@ process_hydrology<-function(
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
+
+  calc_catch<-calc_catch[1]
+  match.arg(calc_catch,several.ok = F)
 
   if (!is.integer(threshold)) stop("'threshold' must be an integer value")
   if (!is.null(snap_distance) && !is.integer(snap_distance)) stop("'snap_distance' must be an integer value")
@@ -113,6 +117,7 @@ process_hydrology<-function(
     input=hydro_out,
     return_products=return_products,
     temp_dir=temp_dir,
+    calc_catch=calc_catch,
     verbose=verbose
   )
 
