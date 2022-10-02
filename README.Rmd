@@ -22,6 +22,10 @@ knitr::opts_chunk$set(
 )
 ```
 
+<!-- badges: start -->
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+<!-- badges: end -->
+
 ## 1 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '100%', fig.align = 'center'}
@@ -263,8 +267,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
                            fl$Name[grepl("dem_accum_d8.tif",fl$Name)] # finally specify the file to extract
 )
 
-# > flow_accum_path
-# [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpMnq0AY\\Processed_Hydrology.zip/dem_accum_d8.tif"
+flow_accum_path
 
 flow_accum<-rast(flow_accum_path)
 
@@ -369,56 +372,38 @@ hydro_out<-trace_flowpaths(
 )
 
 # New layers added by `trace_flowpaths()`
-# hydro_out$flowpaths_db # -> name of the sqlite database in the zip file containing tables:
+# hydro_out$db_loc       # -> sqlite database file path containing tables:
 #                        #    "us_flowpaths", "ds_flowpaths", and "pairwise_dist"
 # hydro_out$catchments   # -> Catchment polygons of each link_id
 
-# hydro_out$catchments
-# 
-# unzip(hydro_out$outfile,files =c("flowpaths_out.db"),exdir=tempdir())
-# db_fp<-file.path(tempdir(),"flowpaths_out.db")
-# 
-# con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-# out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths")) %>%
-#   distinct() %>%
-#   #mutate(link_id2=link_id) %>%
-#   group_by(source_id) %>%
-#   nest() %>%
-#   ungroup() #%>%
-#   #split(.$data,.$source_ID)
-#   #arrange(match(link_id,source_ID)) %>%
-#   #pull(data)
-# DBI::dbDisconnect(con)
-# 
-# t1<-out %>%
-#   filter(source_id==909.1) %>%
-#   pull(data) %>%
-#   .[[1]] %>%
-#   pull(link_id)
-# 
-# t2<-hydro_out$subbasins %>% filter(link_id %in% t1)
-# mapview::mapview(t2)
 
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
+DBI::dbListTables(con)
 
-# tail(hydro_out$ds_flowpaths,2)
-# 
-# us_790<-hydro_out$us_flowpaths[["790"]] # get all upstream link_ids from link_id 606
-# ds_145.1<-hydro_out$ds_flowpaths[["145.1"]] # get all downstream link_ids from 
-# #                                             # link_id 145.1 (this corresponds with site_id = 29)
-# 
-# lines_out<-hydro_out$stream_lines %>% 
-#   filter(link_id %in% us_790$link_id | 
-#            link_id %in% ds_145.1$link_id 
-#   )
-# sub_out<-hydro_out$subbasins %>% 
-#   filter(link_id %in% us_790$link_id | 
-#            link_id %in% ds_145.1$link_id
-#   )
-# 
-# tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
-#   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-#   tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+hydro_out$us_flowpaths <-collect(tbl(con,"us_flowpaths"))
+hydro_out$ds_flowpaths <-collect(tbl(con,"ds_flowpaths"))
 
+DBI::dbDisconnect(con)
+
+us_790<-hydro_out$us_flowpaths %>%
+  filter(source_id == "790") # get all upstream link_ids from link_id 790
+ds_145.1<-hydro_out$ds_flowpaths %>%
+  filter(origin_id == "145.1") # get all downstream link_ids from 
+#                              # link_id 145.1 (this corresponds with site_id = 29)
+
+lines_out<-hydro_out$stream_lines %>% 
+  filter(link_id %in% us_790$link_id | 
+           link_id %in% ds_145.1$link_id 
+  )
+sub_out<-hydro_out$subbasins %>% 
+  filter(link_id %in% us_790$link_id | 
+           link_id %in% ds_145.1$link_id
+  )
+
+tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) +
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 ```
 
 [Back to top](#1-introduction)
@@ -460,32 +445,21 @@ Below we calculate pairwise distances between sampled areas. We take these dista
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-tdir<-tempfile()
-dir.create(tdir)
-
-unzip(hydro_out$outfile,files =c("flowpaths_out.db"),exdir=tdir)
-db_fp<-file.path(tdir,"flowpaths_out.db")
-
-con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
 DBI::dbListTables(con)
 
 hydro_out$pwise_dist<-collect(tbl(con,"pairwise_dist"))
 
+DBI::dbDisconnect(con)
+
 hydro_out$pwise_dist
 
-# hydro_out<-generate_pwisedist(
-#   input=hydro_out,
-#   return_products=T,
-#   temp_dir=NULL,
-#   chunck_size = 200,
-#   verbose=F
-# )
-
-# New layers added by `generate_pwisedist()`
-# hydro_out$pwise_dist # -> table of downstream path lengths between each pair of link_ids,
-#                                 #    with flow-connected in-stream distances (directed_path_length),
-#                                 #    flow-unconnected in-stream distances (undirected_path_length),
-#                                 #    and proportions of shared catchments (prop_shared_catchment)
+# New data available in `pairwise_dist`
+# pairwise_dist # -> table of downstream path lengths between each pair of link_ids,
+#                   #    with flow-connected in-stream distances (directed_path_length),
+#                   #    flow-unconnected in-stream distances (undirected_path_length),
+#                   #    and proportions of shared catchments (prop_shared_catchment)
+#                   #    and log-transformed catchment proportions (prop_shared_logcatchment)
 
 #hydro_out$pwise_dist
 
@@ -513,7 +487,7 @@ dmat<-hydro_out$pwise_dist %>%
   tibble::column_to_rownames("link_id") %>% 
   log1p()
 
-dmat
+head(dmat)
 
 # This table describes the proportions of shared catchments at destination points (rows)
 # from upstream origin points (columns)
@@ -532,7 +506,7 @@ dmat2<-hydro_out$pwise_dist %>%
   data.frame(check.names = F) %>% 
   tibble::column_to_rownames("link_id")
 
-dmat2
+head(dmat2)
 
 # Here we multiply the matrices (using the proportions of shared catchments as a rough weighting scheme)
 # calculate manhattan distances and generate a heatmap
@@ -1040,7 +1014,8 @@ comb_data<-response_table %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
   left_join(clust_data) %>% 
-  filter(!is.na(link_id))
+  filter(!is.na(link_id)) %>% 
+  mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
 
 comb_data
 
@@ -1124,12 +1099,22 @@ wf<-workflow() %>%
   add_recipe(recip)
 
 # Run cross-validation strategies 
+
+# tune_grid() can only work in parallel with the doParallel package
+plan(sequential)
+
+library(doParallel)
+cl <- makeCluster(8)
+registerDoParallel(cl)
 set.seed(1234)
-final_out<-future_map(cv_strats,
-                      ~tune_grid(wf,resamples=.,grid=100) # Choose 150 hyper-parameter
-                      #                                                        # configurations
+
+final_out<-map(cv_strats,
+               ~tune_grid(wf,resamples=.,
+                          grid=50  # Choose 50 hyper-parameter configurations
+                          ) 
 )
 
+stopCluster(cl)
 # We expect the standard cross-validation to have higher accuracy than spatial
 # cross-validation because the spatial autocorrelation variables should allow more accurate
 # predictions from nearby sites. Conversely, the spatial cross-validation models
@@ -1190,7 +1175,8 @@ prediction_data<-final_attributes_all %>%
       filter(prop_shared_catchment!=0) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0),
     by=c("link_id")
-  ) 
+  ) %>% 
+  mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
 
 prediction_data
 ```
