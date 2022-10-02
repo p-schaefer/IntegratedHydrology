@@ -30,7 +30,7 @@ trace_flowpaths<-function(
   zip_loc<-input$outfile
   # out_file<-zip_loc
 
-  db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),"flowpaths_out.db")
+  db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),gsub(".zip",".db",basename(zip_loc)))
 
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 

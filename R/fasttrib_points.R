@@ -389,6 +389,7 @@ fasttrib_points<-function(
                               zip_loc,
                               p
       ) {
+        if (is.null(hw) & is.null(target_O_subs)) return(NULL)
         options(scipen = 999)
         #browser()
         `%>%` <- magrittr::`%>%`
