@@ -28,6 +28,7 @@ trace_flowpaths<-function(
   options(dplyr.summarise.inform = FALSE)
 
   zip_loc<-input$outfile
+  # out_file<-zip_loc
 
   db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),"flowpaths_out.db")
 
@@ -46,7 +47,6 @@ trace_flowpaths<-function(
   #   fp
   # )
   #
-  # out_file<-zip_loc
   #
   # if (verbose) print("Generating Output")
   #
@@ -65,7 +65,7 @@ trace_flowpaths<-function(
 
   write_sf(all_catch %>% select(link_id),file.path(temp_dir,"Catchment_poly.shp"))
 
-  zip(out_file,
+  zip(zip_loc,
       list.files(temp_dir,"Catchment_poly",full.names = T),
       flags = '-r9Xjq'
   )
