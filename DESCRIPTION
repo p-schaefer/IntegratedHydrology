@@ -30,6 +30,7 @@ Depends:
     R (>= 4.0),
     carrier,
     data.table,
+    dbplyr,
     dplyr,
     furrr,
     future,

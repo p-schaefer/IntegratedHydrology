@@ -18,6 +18,7 @@ generate_pwisedist<-function(
     chunck_size=250,
     verbose=F
 ){
+  stop("Function is depreciated, pairwise distances now calculated with 'trace_flowpaths()'")
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 

@@ -369,30 +369,55 @@ hydro_out<-trace_flowpaths(
 )
 
 # New layers added by `trace_flowpaths()`
-# hydro_out$ds_flowpaths # -> named list of all link_ids, giving all downstream link_ids
-#                        #    trib_ids, link lengths (in meters) and subbasin areas (in meters^2)
-# hydro_out$us_flowpaths # -> named list of all link_ids, giving all upstream link_ids
-#                        #    trib_ids, link lengths (in meters) and subbasin areas (in meters^2)
+# hydro_out$flowpaths_db # -> name of the sqlite database in the zip file containing tables:
+#                        #    "us_flowpaths", "ds_flowpaths", and "pairwise_dist"
 # hydro_out$catchments   # -> Catchment polygons of each link_id
 
-tail(hydro_out$ds_flowpaths,2)
+# hydro_out$catchments
+# 
+# unzip(hydro_out$outfile,files =c("flowpaths_out.db"),exdir=tempdir())
+# db_fp<-file.path(tempdir(),"flowpaths_out.db")
+# 
+# con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+# out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths")) %>%
+#   distinct() %>%
+#   #mutate(link_id2=link_id) %>%
+#   group_by(source_id) %>%
+#   nest() %>%
+#   ungroup() #%>%
+#   #split(.$data,.$source_ID)
+#   #arrange(match(link_id,source_ID)) %>%
+#   #pull(data)
+# DBI::dbDisconnect(con)
+# 
+# t1<-out %>%
+#   filter(source_id==909.1) %>%
+#   pull(data) %>%
+#   .[[1]] %>%
+#   pull(link_id)
+# 
+# t2<-hydro_out$subbasins %>% filter(link_id %in% t1)
+# mapview::mapview(t2)
 
-us_790<-hydro_out$us_flowpaths[["790"]] # get all upstream link_ids from link_id 606
-ds_145.1<-hydro_out$ds_flowpaths[["145.1"]] # get all downstream link_ids from 
-#                                             # link_id 145.1 (this corresponds with site_id = 29)
 
-lines_out<-hydro_out$stream_lines %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id 
-  )
-sub_out<-hydro_out$subbasins %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id
-  )
-
-tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+# tail(hydro_out$ds_flowpaths,2)
+# 
+# us_790<-hydro_out$us_flowpaths[["790"]] # get all upstream link_ids from link_id 606
+# ds_145.1<-hydro_out$ds_flowpaths[["145.1"]] # get all downstream link_ids from 
+# #                                             # link_id 145.1 (this corresponds with site_id = 29)
+# 
+# lines_out<-hydro_out$stream_lines %>% 
+#   filter(link_id %in% us_790$link_id | 
+#            link_id %in% ds_145.1$link_id 
+#   )
+# sub_out<-hydro_out$subbasins %>% 
+#   filter(link_id %in% us_790$link_id | 
+#            link_id %in% ds_145.1$link_id
+#   )
+# 
+# tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
+#   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
+#   tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) + tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 
 ```
 
@@ -408,7 +433,7 @@ tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
 subbasin_catchments<-get_catchment( # retrieve catchment for an arbitrary reach
   input=hydro_out,
   site_id_col=NULL,
-  target_points=c("838")
+  target_points=c("838") 
 )
 
 point_catchments<-get_catchment( # retrieve sampling point catchments
@@ -427,7 +452,7 @@ tm_shape(bind_rows(subbasin_catchments,point_catchments)) +
 
 [Back to top](#1-introduction)
 
-#### 4.1.6 Generate pairwise distances with `generate_pwisedist()`
+#### 4.1.6 Examine pairwise distances 
 
 For more complete and thorough treatment on spatial autocorrelation in stream systems, see [Zimmerman and Hoef (2007)](https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgegramForFluvialVariography.pdf).
 
@@ -435,12 +460,26 @@ Below we calculate pairwise distances between sampled areas. We take these dista
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-hydro_out<-generate_pwisedist(
-  input=hydro_out,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=F
-)
+tdir<-tempfile()
+dir.create(tdir)
+
+unzip(hydro_out$outfile,files =c("flowpaths_out.db"),exdir=tdir)
+db_fp<-file.path(tdir,"flowpaths_out.db")
+
+con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+DBI::dbListTables(con)
+
+hydro_out$pwise_dist<-collect(tbl(con,"pairwise_dist"))
+
+hydro_out$pwise_dist
+
+# hydro_out<-generate_pwisedist(
+#   input=hydro_out,
+#   return_products=T,
+#   temp_dir=NULL,
+#   chunck_size = 200,
+#   verbose=F
+# )
 
 # New layers added by `generate_pwisedist()`
 # hydro_out$pwise_dist # -> table of downstream path lengths between each pair of link_ids,
@@ -448,7 +487,7 @@ hydro_out<-generate_pwisedist(
 #                                 #    flow-unconnected in-stream distances (undirected_path_length),
 #                                 #    and proportions of shared catchments (prop_shared_catchment)
 
-hydro_out$pwise_dist
+#hydro_out$pwise_dist
 
 # Examine relationships among sampled sites. 
 
@@ -464,11 +503,12 @@ dmat<-hydro_out$pwise_dist %>%
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
   rename(link_id=origin) %>%
-  select(-origin_catchment,-destination_catchment) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
-  pivot_wider(names_from=destination,values_from=directed_path_length ,values_fill = 0) %>% 
+  distinct() %>% 
+  filter(directed_path_length!=0) %>% 
+  pivot_wider(names_from=destination,values_from=directed_path_length,values_fill = 0) %>% 
   data.frame(check.names = F) %>% 
   tibble::column_to_rownames("link_id") %>% 
   log1p()
@@ -478,19 +518,17 @@ dmat
 # This table describes the proportions of shared catchments at destination points (rows)
 # from upstream origin points (columns)
 dmat2<-hydro_out$pwise_dist %>% 
-  mutate(prop_shared_catchment=case_when(
-    directed_path_length>0  ~ log(origin_catchment)/log(destination_catchment),
-    T ~ 0
-  )) %>%
   filter(origin %in% sel_link_id$link_id &
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-directed_path_length,-undirected_path_length) %>%
+  select(-directed_path_length,-undirected_path_length,-prop_shared_catchment) %>%
   rename(link_id=origin) %>%
-  select(-origin_catchment,-destination_catchment) %>%
-  mutate(prop_shared_catchment=ifelse(prop_shared_catchment==1 | is.na(prop_shared_catchment),1,prop_shared_catchment)) %>% 
-  pivot_wider(names_from=destination,values_from=prop_shared_catchment ,values_fill = 0) %>% 
+  mutate(prop_shared_logcatchment=ifelse(prop_shared_logcatchment==1 | is.na(prop_shared_logcatchment),
+                                         1,prop_shared_logcatchment)) %>% 
+  distinct() %>% 
+  filter(prop_shared_logcatchment!=0) %>% 
+  pivot_wider(names_from=destination,values_from=prop_shared_logcatchment ,values_fill = 0) %>% 
   data.frame(check.names = F) %>% 
   tibble::column_to_rownames("link_id")
 
@@ -841,22 +879,22 @@ fasttrib_points_time_big<-system.time(
 pmap(
   list(
     list("attrib_points()","fasttrib_points()",
-      "attrib_points()","fasttrib_points()"),
+         "attrib_points()","fasttrib_points()"),
     list(attrib_points_time_small,
-      fasttrib_points_time_small,
-      attrib_points_time_big,
-      fasttrib_points_time_big),
-    list(final_attributes_sub_slow,
-      final_attributes_sub,
-      final_attributes_slow,
-      final_attributes)),
+         fasttrib_points_time_small,
+         attrib_points_time_big,
+         fasttrib_points_time_big),
+    list(final_attributes_sub_slow %>% select(-distance_weights,-weighted_attr),
+         final_attributes_sub,
+         final_attributes_slow %>% select(-distance_weights,-weighted_attr),
+         final_attributes)),
   function(.z,.x,.y) paste0(.z," took ",
-          round(.x[[3]]/60,2),
-          " min to calculate for ",
-          nrow(.y)," reaches with ",
-          ncol(.y)-1,
-          " attributes using ", nbrOfWorkers(),
-          " cores.")
+                            round(.x[[3]]/60,2),
+                            " min to calculate for ",
+                            nrow(.y)," reaches with ",
+                            ncol(.y)-1,
+                            " attributes using ", nbrOfWorkers(),
+                            " cores.")
 )
 
 
@@ -969,10 +1007,11 @@ response_table
 clust_data<-hydro_out$pwise_dist %>% 
   filter(origin %in% response_table$link_id) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
   rename(link_id=origin) %>%
-  select(-origin_catchment,-destination_catchment) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
+  distinct() %>% 
+  filter(directed_path_length!=0) %>% 
   pivot_wider(names_from=destination,values_from=directed_path_length ,values_fill = 0) %>% 
   data.frame(check.names = F) %>% 
   tibble::column_to_rownames("link_id")  %>% 
@@ -994,7 +1033,10 @@ comb_data<-response_table %>%
       select(origin,destination,prop_shared_catchment) %>%
       filter(origin!=destination) %>%
       rename(link_id=destination) %>%
-      mutate(origin=paste0("Prop_catch_",origin)) %>%
+      mutate(origin=paste0("Prop_catch_",origin))%>%
+      mutate(prop_shared_catchment=ifelse(prop_shared_catchment==1 | is.na(prop_shared_catchment),0,prop_shared_catchment)) %>% 
+      distinct() %>% 
+      filter(prop_shared_catchment!=0) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0)
   ) %>%
   left_join(clust_data) %>% 
@@ -1143,6 +1185,9 @@ prediction_data<-final_attributes_all %>%
       filter(origin!=destination) %>%
       rename(link_id=destination) %>%
       mutate(origin=paste0("Prop_catch_",origin)) %>%
+      mutate(prop_shared_catchment=ifelse(prop_shared_catchment==1 | is.na(prop_shared_catchment),0,prop_shared_catchment)) %>% 
+      distinct() %>% 
+      filter(prop_shared_catchment!=0) %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0),
     by=c("link_id")
   ) 
