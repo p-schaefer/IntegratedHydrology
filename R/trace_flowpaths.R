@@ -272,7 +272,7 @@ trace_flowpath_fn<-function(
                   link_id=origin_id) %>%
     sql_render()
 
-  sql_code2<-paste0("CREATE VIEW us_flowpaths AS ",gsub("\n","",sql_code))
+  sql_code2<-paste0("CREATE TABLE us_flowpaths AS ",gsub("\n","",sql_code))
 
   build_view<-DBI::dbExecute(con,sql_code2)
 
@@ -355,7 +355,7 @@ trace_flowpath_fn<-function(
     distinct() %>%
     sql_render()
 
-  sql_code2<-paste0("CREATE VIEW pairwise_dist AS ",gsub("\n"," ",final_sql))
+  sql_code2<-paste0("CREATE TABLE pairwise_dist AS ",gsub("\n"," ",final_sql))
 
   build_view<-DBI::dbExecute(con,sql_code2)
 
