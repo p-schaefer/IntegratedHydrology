@@ -178,7 +178,7 @@ trace_flowpath_fn<-function(
     con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
     #DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
     ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out[F,])
-    build_view<-DBI::dbExecute(con,"CREATE UNIQUE INDEX inx_ds_flowpaths ON ds_flowpaths (link_id, source_id)")
+    build_view<-DBI::dbExecute(con,"CREATE UNIQUE INDEX inx_ds_flowpaths ON ds_flowpaths (link_id, origin_id)")
 
     ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
     DBI::dbDisconnect(con)
@@ -277,7 +277,7 @@ trace_flowpath_fn<-function(
   sql_code2<-paste0("CREATE VIEW us_flowpaths AS ",gsub("\n","",sql_code))
 
   build_view<-DBI::dbExecute(con,sql_code2)
-  build_view<-DBI::dbExecute(con,"CREATE UNIQUE INDEX inx_us_flowpaths ON us_flowpaths (link_id, origin_id)")
+  build_view<-DBI::dbExecute(con,"CREATE UNIQUE INDEX inx_us_flowpaths ON us_flowpaths (link_id, source_id)")
 
   # Pairwise distance View --------------------------
 
