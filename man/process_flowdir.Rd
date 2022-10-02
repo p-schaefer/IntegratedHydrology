@@ -8,7 +8,8 @@ process_flowdir(
   dem,
   threshold,
   burn_streams = NULL,
-  burn_depth = 5,
+  burn_depth = NULL,
+  min_length = NULL,
   depression_corr = c(NULL, "fill", "breach"),
   output_filename,
   return_products = F,
@@ -25,6 +26,8 @@ process_flowdir(
 \item{burn_streams}{character. (full file path with extension, e.g., "C:/Users/Administrator/Desktop/input.shp"), sf, SpatVector, PackedSpatVector, RasterLayer, SpatRaster, or PackedSpatRaster. Stream vector to burn into DEM.}
 
 \item{burn_depth}{numeric. Depth (in meters) to burn stream into the DEM.}
+
+\item{min_length}{numeric. Minimum tributary length, shorter 1st order tributaries are removed.}
 
 \item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
 

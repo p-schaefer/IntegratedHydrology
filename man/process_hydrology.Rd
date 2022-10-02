@@ -10,11 +10,11 @@ process_hydrology(
   threshold,
   burn_streams = NULL,
   burn_depth = 5,
+  min_length = NULL,
   depression_corr = c(NULL, "fill", "breach"),
   extra_attr = c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack",
     "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
   points = NULL,
-  pwise_dist = T,
   snap_distance = NULL,
   break_on_noSnap = T,
   site_id_col = NULL,
@@ -35,13 +35,13 @@ process_hydrology(
 
 \item{burn_depth}{numeric. Depth (in meters) to burn stream into the DEM.}
 
+\item{min_length}{numeric. Minimum tributary length, shorter 1st order tributaries are removed.}
+
 \item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
 
 \item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
 
 \item{points}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.}
-
-\item{pwise_dist}{logical. Should \code{generate_pwisedist()} be run?}
 
 \item{snap_distance}{integer. Maximum distance which points will be snapped to stream lines in map units}
 

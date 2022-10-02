@@ -19,7 +19,7 @@ attrib_points(
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
-  tolerance = 1e-06,
+  tolerance = 0.000001,
   catch_buffer = 0.001,
   return_products = F,
   remove_region = NULL,
