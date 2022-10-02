@@ -261,7 +261,7 @@ attrib_points<-function(
              loi_rasts_exists=rep(list(loi_rasts_exists),nrow(out)),
              inv_fun=rep(list(inv_function),nrow(out)),
              loi_rasts_exists_names=rep(list(loi_rasts_exists_names),nrow(out)),
-             buffer=buffer,
+             buffer=catch_buffer,
              return_products=return_products,
              stream_weights=hw_streams,
              p=rep(list(p),nrow(out))

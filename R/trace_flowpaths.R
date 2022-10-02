@@ -120,7 +120,12 @@ trace_flowpath_fn<-function(
   # Downstream paths
   if (verbose) print("Calculating Flowpaths")
   ds_fp<-db_loc
-  if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp,"Already Exists, please delete the file before proceeding."))
+  # if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp," Already Exists, please delete the file before proceeding."))
+  if (file.exists(ds_fp)) {
+    warning(paste0("sqlite database: ",ds_fp," Already Exists, it was deleted and replaced."))
+    file.remove(ds_fp)
+    }
+
   with_progress(enable=T,{
 
     int_tribs<-input_tib %>%
@@ -257,12 +262,12 @@ trace_flowpath_fn<-function(
   sql_code<-dplyr::tbl(con,"ds_flowpaths") %>%
     dplyr::select(link_id,origin_id) %>%
     dplyr::distinct() %>%
-    window_order(link_id) %>% # up to here, is a list of every origin ID draining into each link_id
+    #window_order(link_id) %>% # up to here, is a list of every origin ID draining into each link_id
     left_join(dplyr::tbl(con,"ds_flowpaths") %>% #This adds the extra info from each orgin link to the table
                 select(-origin_id),
               by=c("origin_id"="link_id")) %>%
-    window_order(link_id) %>%
-    dplyr::distinct() %>%
+    #window_order(link_id) %>%
+    #dplyr::distinct() %>%
     dplyr::rename(source_id=link_id,
                   link_id=origin_id) %>%
     sql_render()
@@ -309,21 +314,21 @@ trace_flowpath_fn<-function(
     select(-origin_catchment,-destination_catchment)
 
   # Reverse are not directly connected, but indirectly are connected
-  flowconn_out_rev<-tbl(con,"ds_flowpaths") %>%
-    mutate(origin=origin_id) %>%
-    mutate(destination=link_id) %>%
-    group_by(origin_id) %>%
-    window_order(USChnLn_Fr) %>%
-    mutate(directed_path_length=cumsum(link_lngth)) %>%
-    ungroup() %>%
-    select(origin,destination,directed_path_length) %>%
-    distinct() %>%
-    mutate(undirected_path_length=directed_path_length) %>%
-    rename(origin = destination,
-           destination = origin) %>%
-    mutate(directed_path_length = 0,
-           prop_shared_catchment = 0,
-           prop_shared_logcatchment = 0)
+  # flowconn_out_rev<-tbl(con,"ds_flowpaths") %>%
+  #   mutate(origin=origin_id) %>%
+  #   mutate(destination=link_id) %>%
+  #   group_by(origin_id) %>%
+  #   window_order(USChnLn_Fr) %>%
+  #   mutate(directed_path_length=cumsum(link_lngth)) %>%
+  #   ungroup() %>%
+  #   select(origin,destination,directed_path_length) %>%
+  #   distinct() %>%
+  #   mutate(undirected_path_length=directed_path_length) %>%
+  #   rename(origin = destination,
+  #          destination = origin) %>%
+  #   mutate(directed_path_length = 0,
+  #          prop_shared_catchment = 0,
+  #          prop_shared_logcatchment = 0)
 
   #un-directed path-lengths
 
@@ -345,7 +350,7 @@ trace_flowpath_fn<-function(
            prop_shared_logcatchment=0)
 
   final_sql<-flowconn_out %>%
-    rows_append(flowconn_out_rev) %>%
+    #rows_append(flowconn_out_rev) %>%
     rows_append(flowUNconn_out) %>%
     distinct() %>%
     sql_render()
