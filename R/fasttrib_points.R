@@ -159,8 +159,9 @@ fasttrib_points<-function(
 
   # Get Upstream flowpaths --------------------------------------------------
 
-  unzip(zip_loc,files =c("flowpaths_out.db"),exdir=temp_dir)
-  db_fp<-file.path(temp_dir,"flowpaths_out.db")
+  # unzip(zip_loc,files =c("flowpaths_out.db"),exdir=temp_dir)
+  # db_fp<-file.path(temp_dir,"flowpaths_out.db")
+  db_fp<-input$db_loc
 
   us_fp_fun<-function(link_id,db_fp=db_fp){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)

@@ -29,6 +29,8 @@ trace_flowpaths<-function(
 
   zip_loc<-input$outfile
 
+  db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),"flowpaths_out.db")
+
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
   final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
@@ -37,23 +39,25 @@ trace_flowpaths<-function(
 
   fp<-trace_flowpath_fn(input=final_links,
                         verbose=verbose,
+                        db_loc=db_loc,
                         temp_dir=temp_dir)
 
-  dist_list_out<-list(
-    fp
-  )
-
-  out_file<-zip_loc
-
-  if (verbose) print("Generating Output")
-
-  zip(out_file,
-      unlist(dist_list_out),
-      flags = '-r9Xjq'
-  )
+  # dist_list_out<-list(
+  #   fp
+  # )
+  #
+  # out_file<-zip_loc
+  #
+  # if (verbose) print("Generating Output")
+  #
+  # zip(out_file,
+  #     unlist(dist_list_out),
+  #     flags = '-r9Xjq'
+  # )
 
   output<-input[!names(input) %in% c("catchment_poly")]
 
+  output$db_loc<-db_loc
 
   all_catch<-get_catchment(input = output,
                            target_points = final_links[["link_id"]]) %>%
@@ -68,8 +72,7 @@ trace_flowpaths<-function(
 
   if (return_products){
     output<-c(
-      list(flowpaths_db=basename(fp),
-           catchments=all_catch %>% select(link_id)
+      list(catchments=all_catch %>% select(link_id)
       ),
       output
     )
@@ -84,6 +87,7 @@ trace_flowpaths<-function(
 #' @export
 trace_flowpath_fn<-function(
     input,
+    db_loc,
     verbose=F,
     temp_dir=NULL
 ) {
@@ -115,7 +119,7 @@ trace_flowpath_fn<-function(
 
   # Downstream paths
   if (verbose) print("Calculating Flowpaths")
-  ds_fp<-file.path(temp_dir,"flowpaths_out.db")
+  ds_fp<-db_loc
   if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp,"Already Exists, please delete the file before proceeding."))
   with_progress(enable=T,{
 

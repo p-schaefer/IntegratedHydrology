@@ -50,8 +50,8 @@ get_catchment<-function(
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
 
-  unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
-  db_fp<-file.path(tdir,"flowpaths_out.db")
+  # unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
+  db_fp<-input$db_loc
 
   us_fp_fun<-function(link_id,db_fp=db_fp){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
