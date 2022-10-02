@@ -4,7 +4,13 @@
 \alias{trace_flowpaths}
 \title{Generate upstream and downstream flow direction lists originating from each subbasin (and sampling point)}
 \usage{
-trace_flowpaths(input, return_products = F, temp_dir = NULL, verbose = F)
+trace_flowpaths(
+  input,
+  return_products = F,
+  temp_dir = NULL,
+  calc_catch = c("none", "sample_points", "all"),
+  verbose = F
+)
 }
 \arguments{
 \item{input}{resulting object from \code{attrib_streamline()} or \code{insert_points()}}
@@ -12,6 +18,8 @@ trace_flowpaths(input, return_products = F, temp_dir = NULL, verbose = F)
 \item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
 
 \item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
+
+\item{calc_catch}{character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output}
 
 \item{verbose}{logical.}
 }

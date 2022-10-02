@@ -3,6 +3,7 @@
 #'
 #' @param input resulting object from `attrib_streamline()` or `insert_points()`
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
+#' @param calc_catch character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
 #' @param verbose logical.
 #'
@@ -13,10 +14,13 @@ trace_flowpaths<-function(
     input,
     return_products=F,
     temp_dir=NULL,
+    calc_catch=c("all","none","sample_points"),
     verbose=F
 ){
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
+
+  match.arg(calc_catch)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -59,16 +63,33 @@ trace_flowpaths<-function(
 
   output$db_loc<-db_loc
 
-  all_catch<-get_catchment(input = output,
-                           target_points = final_links[["link_id"]]) %>%
-    select(link_id)
 
-  write_sf(all_catch %>% select(link_id),file.path(temp_dir,"Catchment_poly.shp"))
+  if (calc_catch=="none"){
+    all_catch<-NULL
+  } else {
+    if (calc_catch=="all") {
+      all_catch<-get_catchment(input = output,
+                               target_points = final_links[["link_id"]]) %>%
+        select(link_id)
+    }
+    if (calc_catch=="sample_points"){
+      all_catch<-get_catchment(input = output,
+                               target_points = final_links[[site_id_col]]) %>%
+        select(link_id)
 
-  zip(zip_loc,
-      list.files(temp_dir,"Catchment_poly",full.names = T),
-      flags = '-r9Xjq'
-  )
+    }
+
+    write_sf(all_catch,file.path(temp_dir,"Catchment_poly.shp"))
+
+    zip(zip_loc,
+        list.files(temp_dir,"Catchment_poly",full.names = T),
+        flags = '-r9Xjq'
+    )
+  }
+
+
+
+
 
   if (return_products){
     output<-c(
