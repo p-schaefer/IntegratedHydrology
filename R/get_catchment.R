@@ -12,9 +12,7 @@
 get_catchment<-function(
     input,
     site_id_col=NULL,
-    target_points#,
-    #tolerance=0.000001,
-    #buffer=0.001
+    target_points
 ) {
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
@@ -36,14 +34,13 @@ get_catchment<-function(
   zip_loc<-input$outfile
 
   subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  # unzip(zip_loc,files =c("Subbasins_poly.shp","Subbasins_poly.shx","Subbasins_poly.prj","Subbasins_poly.dbf"),exdir=tdir)
-  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")))%>%
+
+  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
     mutate(across(any_of(site_id_col),na_if,""))
 
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
   sites<-points %>%
-    # as_tibble() %>%
     select(any_of(site_id_col),link_id) %>%
     filter(!if_any(any_of(site_id_col),is.na)) %>%
     mutate(across(everything(),paste0)) %>%
@@ -52,9 +49,6 @@ get_catchment<-function(
   missing_sites<-target_points[!target_points %in% sites[[1]]]
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
-  # conn<-unz(zip_loc,"us_flowpaths.rds")
-  # us_flowpaths<-readRDS(gzcon(conn))
-  # close(conn)
 
   unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
   db_fp<-file.path(tdir,"flowpaths_out.db")
@@ -62,8 +56,6 @@ get_catchment<-function(
   us_fp_fun<-function(link_id,db_fp=db_fp){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
     out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
-      #distinct() %>%
-      #mutate(link_id2=link_id) %>%
       group_by(source_id) %>%
       nest() %>%
       ungroup()
@@ -78,28 +70,18 @@ get_catchment<-function(
   }
 
 
-  #con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-
   with_progress(enable=T,{
     p <- progressor(steps = nrow(sites))
 
     out<-sites %>%
-      # #mutate(us_flowpaths=us_flowpaths[link_id]) %>%
       mutate(us_flowpaths=us_fp_fun(link_id,db_fp=db_fp)) %>%
-      # filter(!map_lgl(us_flowpaths,is.null)) %>%
-      # filter(map_dbl(us_flowpaths,nrow)>0) %>%
-      #mutate(subb=rep(list(subb),nrow(.))) %>%
       mutate(subb=future_map(us_flowpaths,function(x) {
         suppressPackageStartupMessages(library(sf))
         subb %>%
-        #y %>%
-          #read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp")) %>%
           filter(link_id %in% x$link_id)
       })) %>%
       mutate(geometry=future_map(subb,function(x) {
         out<-select(x,geometry) %>%
-          # st_buffer(units::set_units(buffer,"m"),nQuadSegs = 1) %>%
-          # st_snap(x=.,y=., tolerance = units::set_units(tolerance,"m")) %>%
           st_union()
         p()
         return(out)
@@ -108,8 +90,6 @@ get_catchment<-function(
       select(-us_flowpaths) %>%
       st_as_sf()
   })
-
-  #DBI::dbDisconnect(con)
 
   suppressWarnings(unlink(tdir,force = T,recursive = T))
 

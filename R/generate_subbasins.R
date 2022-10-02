@@ -20,10 +20,6 @@ generate_subbasins<-function(
     temp_dir=NULL,
     verbose=F
 ) {
-  # require(sf)
-  # require(terra)
-  # require(whitebox)
-  # require(tidyverse)
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
@@ -71,10 +67,6 @@ generate_subbasins<-function(
 
   write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
-  # stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>% #stream_links.shp
-  #   left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")),
-  #             by="link_id")
-
   # Split subbasins at sampling points --------------------------------------
 
   if (!is.null(points)){
@@ -119,8 +111,6 @@ generate_subbasins<-function(
                                     .options = furrr_options(globals = FALSE),
                                     carrier::crate(function(data,link_id,subb_poly,temp_dir,target_crs,p){
                                       options(scipen = 999)
-                                      #browser()
-                                      #print(link_id)
                                       `%>%` <- magrittr::`%>%`
 
                                       if (nrow(data)==1){
@@ -176,12 +166,6 @@ generate_subbasins<-function(
                                         dplyr::mutate(sbbsn_area=sf::st_area(.)) %>%
                                         dplyr::select(link_id,sbbsn_area, geometry)
 
-                                      # flrm<-unique(c(list.files(temp_dir,pattern=paste0("Catch_",link_id,"_"),full.names = T),
-                                      #                list.files(temp_dir,pattern=paste0("d8_",link_id,"_"),full.names = T)
-                                      #                ))
-
-                                      # suppressWarnings(file.remove(flrm))
-
                                       p()
 
                                       return(catch_poly)
@@ -205,8 +189,6 @@ generate_subbasins<-function(
         left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
                     mutate(across(any_of(site_id_col),na_if,"")),
                   by="link_id")
-
-      #browser()
 
       final_links<-all_stream_links %>%
         left_join(subb %>%

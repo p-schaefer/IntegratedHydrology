@@ -11,7 +11,6 @@
 #' @param depression_corr NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.
 #' @param extra_attr character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
-#' @param pwise_dist logical. Should `generate_pwisedist()` be run?
 #' @param snap_distance integer. Maximum distance which points will be snapped to stream lines in map units
 #' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
@@ -42,7 +41,6 @@ process_hydrology<-function(
       "StOrd_Shr"
     ),
     points=NULL,
-    pwise_dist=T,
     snap_distance=NULL,
     break_on_noSnap=T,
     site_id_col=NULL,
@@ -117,16 +115,6 @@ process_hydrology<-function(
     temp_dir=temp_dir,
     verbose=verbose
   )
-
-  if (pwise_dist) {
-    if (verbose) print("Generating Pairwise Distances")
-    hydro_out<-generate_pwisedist(
-      input=hydro_out,
-      return_products=return_products,
-      temp_dir=temp_dir,
-      verbose=verbose
-    )
-  }
 
   return(hydro_out)
 }

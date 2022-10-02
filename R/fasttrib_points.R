@@ -158,45 +158,31 @@ fasttrib_points<-function(
   target_crs<-crs(vect(all_subb))
 
   # Get Upstream flowpaths --------------------------------------------------
-  conn<-unz(zip_loc,"us_flowpaths.rds")
-  us_flowpaths<-readRDS(gzcon(conn))
-  close(conn)
-  # conn<-unz(zip_loc,"ds_flowpaths.rds")
-  # ds_flowpaths<-readRDS(gzcon(conn))
-  # close(conn)
+
+  unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
+  db_fp<-file.path(tdir,"flowpaths_out.db")
+
+  us_fp_fun<-function(link_id,db_fp=db_fp){
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+    out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
+      group_by(source_id) %>%
+      nest() %>%
+      ungroup()
+
+    out2<-out$data
+    names(out2)<-out$source_id
+
+    out2<-out2[link_id]
+
+    DBI::dbDisconnect(con)
+    return(out2)
+  }
 
   # browser()
   us_flowpaths_out<-target_IDs %>%
     select(link_id) %>%
     mutate(link_id=as.character(link_id)) %>%
-    mutate(us_flowpaths=us_flowpaths[link_id])
-  #
-  # us_flowpaths_out2<-us_flowpaths_out %>%
-  #   mutate(link_id=as.character(link_id)) %>%
-  #   mutate(ds_flowpaths=map(ds_flowpaths,~rename(.,us_id=link_id) %>% pull(us_id))) %>%
-  #   unnest(ds_flowpaths) %>%
-  #   mutate(link=1) %>%
-  #   pivot_wider(id_cols=link_id,
-  #               names_from =ds_flowpaths,
-  #               values_from = link,
-  #               values_fill=0) %>%
-  #   data.frame(check.names = F) %>%
-  #   tibble::column_to_rownames("link_id")
-  # #
-  # t1<-data.frame(as.matrix(dist(us_flowpaths_out2,method="binary")),check.names = F) %>%
-  #   tibble::rownames_to_column("link_id") %>%
-  #   pivot_longer(c(everything(),-link_id),names_to = "link_id_dist",values_to = "dist")
-  #
-  # t2<-hclust(dist(us_flowpaths_out2,method="manhattan"),"single")
-  # t3<-cutree(t2,h=111)
-  #
-  # groups<-split(names(t3),t3)
-  # max_iter<-max(sapply(groups,length))
-  # out_groups<-map(1:max_iter,function(y) sapply(groups,function(x) x[y]))
-  # out_groups<-map(out_groups,~.[!is.na(.)])
-  #
-  #
-  # mapview::mapview(all_catch[all_catch$link_id %in% out_groups[[1]],])
+    mutate(us_flowpaths=us_fp_fun(link_id,db_fp=db_fp))
 
   # Select correct target for O -------------------------------------
   if (target_o_type=="point"){
