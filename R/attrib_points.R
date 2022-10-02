@@ -12,8 +12,6 @@
 #' @param all_reaches logical. If \code{TRUE}, attributes are calculated for all reaches (sampling points are ignored). Warning, can be very slow.
 #' @param OS_combine logical. Should target_O and target_S be merged as targets for iEucS, iFLS, and/or HAiFLS? Use \code{TRUE} or \code{FALSE}. This allows cells surrounding \code{target_O} to flow directly into \code{target_O} rather than be forced through \code{target_S}.
 #' @param target_streamseg logical. If \code{TRUE}, `target_O` is considered the entire stream segment, else `target_O` is just the most downstream sampling point
-#' @param buffer numeric. Amount to buffer the catchment (in meters) when calculating `hydroweight::hydroweight()`. `hydroweight::hydroweight()` sometimes misses point `target_O` values unless buffered. Doesn't affect attribute values
-#' @param tolerance numeric. Tolerance values used for \code{sf::st_snap} in meters in `get_catchment()`.
 #' @param catch_buffer numeric. Tolerance values used for \code{sf::st_buffer} in meters in `get_catchment()`.
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
@@ -33,11 +31,9 @@ attrib_points<-function(
     OS_combine=F,
     dw_dir=NULL,
     target_streamseg=F,
-    buffer=30,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
-    tolerance=0.000001,
     catch_buffer=0.001,
     return_products=F,
     remove_region=NULL,

@@ -15,11 +15,9 @@ attrib_points(
   OS_combine = F,
   dw_dir = NULL,
   target_streamseg = F,
-  buffer = 30,
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
-  tolerance = 0.000001,
   catch_buffer = 0.001,
   return_products = F,
   remove_region = NULL,
@@ -46,11 +44,7 @@ attrib_points(
 
 \item{target_streamseg}{logical. If \code{TRUE}, \code{target_O} is considered the entire stream segment, else \code{target_O} is just the most downstream sampling point}
 
-\item{buffer}{numeric. Amount to buffer the catchment (in meters) when calculating \code{hydroweight::hydroweight()}. \code{hydroweight::hydroweight()} sometimes misses point \code{target_O} values unless buffered. Doesn't affect attribute values}
-
 \item{inv_function}{function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.}
-
-\item{tolerance}{numeric. Tolerance values used for \code{sf::st_snap} in meters in \code{get_catchment()}.}
 
 \item{catch_buffer}{numeric. Tolerance values used for \code{sf::st_buffer} in meters in \code{get_catchment()}.}
 
