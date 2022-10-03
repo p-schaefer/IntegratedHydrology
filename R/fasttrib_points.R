@@ -63,6 +63,7 @@ fasttrib_points<-function(
   loi_numeric_stats<-setNames(loi_numeric_stats,loi_numeric_stats)
 
   zip_loc<-input$outfile
+  db_loc<-input$db_loc
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
 
@@ -85,8 +86,8 @@ fasttrib_points<-function(
 
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
-  db_fp<-input$db_loc
-  con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+  db_loc<-input$db_loc
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
   stream_links<-collect(tbl(con,"stream_links")) %>%
     mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
     mutate(across(any_of(site_id_col),na_if,""))
@@ -171,10 +172,9 @@ fasttrib_points<-function(
   # Get Upstream flowpaths --------------------------------------------------
 
   # unzip(zip_loc,files =c("flowpaths_out.db"),exdir=temp_dir)
-  # db_fp<-file.path(temp_dir,"flowpaths_out.db")
-  db_fp<-input$db_loc
+  # db_loc<-file.path(temp_dir,"flowpaths_out.db")
 
-  us_fp_fun<-function(link_id_in,db_fp=db_fp){
+  us_fp_fun<-function(link_id_in,db_loc=db_loc){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
     out<-tbl(con,"us_flowpaths") %>%
       filter(pour_point_id %in% link_id_in) %>%
@@ -193,7 +193,7 @@ fasttrib_points<-function(
     return(out2)
 
 
-    # con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+    # con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
     # out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
     #   group_by(source_id) %>%
     #   nest() %>%
@@ -212,7 +212,7 @@ fasttrib_points<-function(
   us_flowpaths_out<-target_IDs %>%
     select(link_id) %>%
     mutate(link_id=as.character(link_id)) %>%
-    mutate(us_flowpaths=us_fp_fun(link_id,db_fp=db_fp))
+    mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
 
   # Select correct target for O -------------------------------------
   if (target_o_type=="point"){
@@ -255,19 +255,80 @@ fasttrib_points<-function(
   # Calculate Lumped Stats --------------------------------------------------
 
   if (lumped_scheme){
+    #browser()
+
+    custfun <- function(x, type) {
+      switch(type,
+             mean = mean(x,na.rm=T),
+             median = median(x,na.rm=T),
+             sd = mean(x,na.rm=T),
+             min = min(x,na.rm=T),
+             max = max(x,na.rm=T),
+             sum = sum(x,na.rm=T)
+      )
+    }
+
     if (verbose) print("Calculating Lumped Attributes")
 
     lumped_numeric<-map(loi_numeric_stats,function(x){
-      out<-extract(loi_rasts$num_rast,all_catch,fun=x,na.rm=T,method="simple",touches=F,ID=F)
+      out<-extract(loi_rasts$num_rast,all_subb,fun=x,na.rm=T,method="simple",touches=F,ID=F)
       names(out)<-paste0(names(out),"_lumped_",x)
-      mutate(out,link_id=all_catch$link_id)
+      out<-mutate(out,link_id=all_subb$link_id)
+
+      out %>%
+        as_tibble() %>%
+        left_join(us_flowpaths_out %>%
+                    transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
+                    unnest(us_flowpaths) %>%
+                    mutate(link_id=as.numeric(link_id)),
+                  by="link_id"
+                  ) %>%
+        group_by(link_id_upper) %>%
+        summarize(
+          across(contains("_lumped_"),custfun,x)
+        ) %>%
+        rename(link_id=link_id_upper)
     })
 
-    lumped_cat<-extract(loi_rasts$cat_rast,all_catch,
-                        fun=function(x,na.rm=T) sum(x,na.rm=na.rm)/length(x),
+    lumped_cat_part1<-extract(loi_rasts$cat_rast,all_subb,
+                        fun=function(x,na.rm=T) sum(x,na.rm=na.rm),
                         na.rm=T,method="simple",touches=F,ID=F) %>%
-      dplyr::rename_with(~paste0(.x,"_lumped_prop")) %>%
-      mutate(link_id=all_catch$link_id)
+      mutate(link_id=all_subb$link_id) %>%
+      as_tibble() %>%
+      left_join(us_flowpaths_out %>%
+                  transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
+                  unnest(us_flowpaths) %>%
+                  mutate(link_id=as.numeric(link_id)),
+                by="link_id"
+      ) %>%
+      group_by(link_id_upper) %>%
+      summarize(
+        across(c(everything(),-contains("link_id")),sum)
+      ) %>%
+      rename(link_id=link_id_upper)
+
+
+    lumped_cat_part2<-extract(loi_rasts$cat_rast[[1]],all_subb,
+                              fun=function(x,na.rm=T) length(x),
+                              na.rm=T,method="simple",touches=F,ID=F) %>%
+      mutate(link_id=all_subb$link_id)%>%
+      as_tibble() %>%
+      left_join(us_flowpaths_out %>%
+                  transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
+                  unnest(us_flowpaths) %>%
+                  mutate(link_id=as.numeric(link_id)),
+                by="link_id"
+      ) %>%
+      group_by(link_id_upper) %>%
+      summarize(
+        across(c(everything(),-contains("link_id")),sum)
+      ) %>%
+      setNames(c("link_id","cell_sum"))
+
+    lumped_cat<-lumped_cat_part1 %>%
+      mutate(across(c(everything(),-contains("link_id")),~./lumped_cat_part2$cell_sum))
+
+
   } else {
     lumped_numeric<-NULL
     lumped_cat<-NULL
