@@ -12,6 +12,7 @@ process_hydrology(
   burn_depth = 5,
   min_length = NULL,
   depression_corr = c(NULL, "fill", "breach"),
+  calc_catch = c("all", "none", "sample_points"),
   extra_attr = c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack",
     "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
   points = NULL,

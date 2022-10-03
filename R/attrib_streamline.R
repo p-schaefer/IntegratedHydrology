@@ -82,6 +82,14 @@ attrib_streamline<-function(
 
   zip_loc<-input$outfile
   fl<-unzip(list=T,zip_loc)
+  db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),gsub(".zip",".db",basename(zip_loc)))
+  ds_fp<-db_loc
+  if (file.exists(ds_fp)) {
+    stop(paste0("sqlite database: ",ds_fp," Already Exists, please delete the file before proceeding."))
+    #warning(paste0("sqlite database: ",ds_fp," Already Exists, it was deleted and replaced."))
+    #file.remove(ds_fp)
+  }
+  con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
 
   unzip(zip_loc,
         c("dem_d8.tif","dem_streams_d8.tif","dem_final.tif"),
@@ -524,11 +532,44 @@ attrib_streamline<-function(
   if (check_link_id | check_id) warning("Some link_id's and/or ID's are duplicated, this may indicate an issue with the upstream/downstream IDs")
 
 
+  #browser()
   write_sf(final_links %>% select(link_id),file.path(temp_dir,"stream_links.shp"))
   write_sf(final_points %>% select(ID),file.path(temp_dir,"stream_points.shp"))
 
-  data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
-  data.table::fwrite(final_points %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_points.csv"))
+  ot<-final_links %>%
+    as_tibble() %>%
+    select(-geometry) %>%
+    copy_to(df=.,
+            con,
+            "stream_links",
+            overwrite =T,
+            temporary =F,
+            indexes=c("link_id","trib_id"),
+            analyze=T,
+            in_transaction=T)
+
+  #DBI::dbExecute(con,"CREATE INDEX inx_stream_links ON stream_links (link_id,trib_id)")
+
+  ot<-final_points %>%
+    as_tibble() %>%
+    select(-geometry) %>%
+    copy_to(df=.,
+            con,
+            "stream_points",
+            overwrite =T,
+            temporary =F,
+            unique_indexes=c("ID"),
+            indexes=c("link_id","trib_id"),
+            analyze=T,
+            in_transaction=T)
+
+  #DBI::dbExecute(con,"CREATE INDEX inx_stream_points ON stream_points (ID,link_id,trib_id)")
+
+  DBI::dbDisconnect(con)
+
+  # data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
+  # data.table::fwrite(final_points %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_points.csv"))
+
   data.table::fwrite(tibble(site_id_col=site_id_col),file.path(temp_dir,"site_id_col.csv"))
 
   # Generate Output ---------------------------------------------------------
@@ -557,7 +598,7 @@ attrib_streamline<-function(
                                      "points",
                                      "snapped_points",
                                      "original_points"
-                                     )]
+  )]
 
   if (return_products){
     output<-c(
@@ -571,6 +612,8 @@ attrib_streamline<-function(
       output
     )
   }
+
+  output$db_loc<-db_loc
 
   suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 

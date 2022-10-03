@@ -314,6 +314,8 @@ hydro_out<-generate_vectors(
 # sample points in an upstream direction). 
 
 # New layers added by `generate_vectors()`
+# hydro_out$db_loc       # -> sqlite database file path containing tables:
+#                        #    "stream_links", "stream_points"
 # hydro_out$subbasins # -> polygon subbasins attributed with `link_id` and reach
 #                     #    contributing area (in m^2)
 # hydro_out$stream_lines # -> line vectors attributed with `link_id`, `trib_id`, upstream
@@ -367,14 +369,17 @@ To more efficiently generate catchments, look-ups are created that identify the 
 hydro_out<-trace_flowpaths(
   input=hydro_out,
   return_products=T,
+  calc_catch="all",
   temp_dir=NULL,
   verbose=F
 )
 
 # New layers added by `trace_flowpaths()`
-# hydro_out$db_loc       # -> sqlite database file path containing tables:
-#                        #    "us_flowpaths", "ds_flowpaths", and "pairwise_dist"
-# hydro_out$catchments   # -> Catchment polygons of each link_id
+# hydro_out$db_loc       # -> sqlite database file path with added tables:
+#                        #    "us_flowpaths", "ds_flowpaths", "fcon_pwise_dist",
+#                        #    and "funcon_pwise_dist"
+#                        #    
+# hydro_out$catchments   # -> Catchment polygons by link_id
 
 
 con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
@@ -385,19 +390,23 @@ hydro_out$ds_flowpaths <-collect(tbl(con,"ds_flowpaths"))
 
 DBI::dbDisconnect(con)
 
+head(hydro_out$us_flowpaths)
+
+head(hydro_out$ds_flowpaths)
+
 us_790<-hydro_out$us_flowpaths %>%
-  filter(source_id == "790") # get all upstream link_ids from link_id 790
+  filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
 ds_145.1<-hydro_out$ds_flowpaths %>%
-  filter(origin_id == "145.1") # get all downstream link_ids from 
+  filter(origin_link_id == "145.1") # get all downstream link_ids from 
 #                              # link_id 145.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id 
+  filter(link_id %in% us_790$origin_link_id | 
+           link_id %in% ds_145.1$destination_link_id  
   )
 sub_out<-hydro_out$subbasins %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id
+  filter(link_id %in% us_790$origin_link_id | 
+           link_id %in% ds_145.1$destination_link_id 
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -448,7 +457,9 @@ Below we calculate pairwise distances between sampled areas. We take these dista
 con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
 DBI::dbListTables(con)
 
-hydro_out$pwise_dist<-collect(tbl(con,"pairwise_dist"))
+hydro_out$pwise_dist<-bind_rows(collect(tbl(con,"fcon_pwise_dist")),
+                                collect(tbl(con,"funcon_pwise_dist"))
+)
 
 DBI::dbDisconnect(con)
 

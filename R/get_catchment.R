@@ -32,11 +32,18 @@ get_catchment<-function(
   if (length(site_id_col)>1 | length(site_id_col)==0) stop("length 'site_id_col' must be 1")
 
   zip_loc<-input$outfile
+  db_loc<-input$db_loc
 
   subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
 
-  points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  points<-collect(tbl(con,"stream_links")) %>%
+    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
     mutate(across(any_of(site_id_col),na_if,""))
+  DBI::dbDisconnect(con)
+
+  # points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
+  #   mutate(across(any_of(site_id_col),na_if,""))
 
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
@@ -50,20 +57,21 @@ get_catchment<-function(
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
 
 
-  # unzip(zip_loc,files =c("flowpaths_out.db"),exdir=tdir)
-  db_fp<-input$db_loc
-
-  us_fp_fun<-function(link_id,db_fp=db_fp){
-    con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-    out<-DBI::dbGetQuery(con, paste0("SELECT source_id,link_id FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
-      group_by(source_id) %>%
+  us_fp_fun<-function(link_id_in,db_loc=db_loc){
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+    out<-tbl(con,"us_flowpaths") %>%
+      filter(pour_point_id %in% link_id_in) %>%
+      rename(link_id=origin_link_id) %>%
+      collect() %>%
+      # DBI::dbGetQuery(con, paste0("SELECT source_id,link_id FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
+      group_by(pour_point_id) %>%
       nest() %>%
       ungroup()
 
     out2<-out$data
-    names(out2)<-out$source_id
+    names(out2)<-out$pour_point_id
 
-    out2<-out2[link_id]
+    out2<-out2[link_id_in]
 
     DBI::dbDisconnect(con)
     return(out2)
@@ -74,7 +82,7 @@ get_catchment<-function(
     p <- progressor(steps = nrow(sites))
 
     out<-sites %>%
-      mutate(us_flowpaths=us_fp_fun(link_id,db_fp=db_fp)) %>%
+      mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc)) %>%
       mutate(subb=future_map(us_flowpaths,function(x) {
         suppressPackageStartupMessages(library(sf))
         subb %>%

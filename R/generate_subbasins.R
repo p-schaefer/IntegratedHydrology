@@ -68,14 +68,19 @@ generate_subbasins<-function(
   write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
   # Split subbasins at sampling points --------------------------------------
+  db_fp<-input$db_loc
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
 
   if (!is.null(points)){
+    #browser()
+
+    stream_links<-collect(tbl(con,"stream_links")) %>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+      mutate(across(any_of(site_id_col),na_if,""))
 
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
-      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
-                  mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-                  mutate(across(any_of(site_id_col),na_if,"")),
+      left_join(stream_links,
                 by = c("link_id")) %>%
       mutate(link_id=as.numeric(link_id))
 
@@ -185,22 +190,30 @@ generate_subbasins<-function(
 
       write_sf(subb,file.path(temp_dir,"Subbasins_poly.shp"))
 
+      all_stream_links<-collect(tbl(con,"stream_links")) %>%
+        mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+        mutate(across(any_of(site_id_col),na_if,""))
+
       all_stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-        left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
-                    mutate(across(any_of(site_id_col),na_if,"")),
-                  by="link_id")
+        mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+        left_join(all_stream_links, by="link_id")
 
       final_links<-all_stream_links %>%
         left_join(subb %>%
                     as_tibble() %>%
-                    select(link_id,sbbsn_area),
+                    select(link_id,sbbsn_area) %>%
+                    mutate(across(link_id,as.character)),
                   by = c("link_id"))
 
     })
   } else {
+    stream_links<-collect(tbl(con,"stream_links")) %>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+      mutate(across(any_of(site_id_col),na_if,""))
+    DBI::dbDisconnect(con)
+
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-      left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
-                  mutate(across(any_of(site_id_col),na_if,"")),
+      left_join(stream_links,
                 by="link_id")
 
     final_links<-stream_links %>%
@@ -213,7 +226,26 @@ generate_subbasins<-function(
   # Prepare Output ----------------------------------------------------------
 
   write_sf(final_links %>% select(link_id) ,file.path(temp_dir,"stream_links.shp"))
-  data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
+
+  db_fp<-input$db_loc
+
+  ot<-final_links %>%
+    as_tibble() %>%
+    select(-geometry) %>%
+    copy_to(df=.,
+            con,
+            "stream_links",
+            overwrite =T,
+            temporary =F,
+            indexes=c("link_id","trib_id"),
+            analyze=T,
+            in_transaction=T)
+
+  # DBI::dbExecute(con,"CREATE INDEX inx_stream_links ON stream_links (link_id,trib_id)")
+
+  DBI::dbDisconnect(con)
+
+  #data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
 
   dist_list_out<-list(
     list.files(temp_dir,"Subbasins_poly"),

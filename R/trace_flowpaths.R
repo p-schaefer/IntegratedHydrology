@@ -39,13 +39,19 @@ trace_flowpaths<-function(
 
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
-  final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
-    mutate(across(any_of(site_id_col),na_if,""))
+  # final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
+  #   mutate(across(any_of(site_id_col),na_if,""))
 
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  final_links<-collect(tbl(con,"stream_links")) %>%
+    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+    mutate(across(any_of(site_id_col),na_if,""))
+  DBI::dbDisconnect(con)
 
   fp<-trace_flowpath_fn(input=final_links,
                         verbose=verbose,
                         db_loc=db_loc,
+                        site_id_col=site_id_col,
                         temp_dir=temp_dir)
 
   # dist_list_out<-list(
@@ -75,6 +81,7 @@ trace_flowpaths<-function(
     }
     if (calc_catch=="sample_points"){
       all_catch<-get_catchment(input = output,
+                               site_id_col=site_id_col,
                                target_points = final_links[[site_id_col]]) %>%
         select(link_id)
 
@@ -110,10 +117,12 @@ trace_flowpaths<-function(
 trace_flowpath_fn<-function(
     input,
     db_loc,
+    site_id_col,
     verbose=F,
     temp_dir=NULL
 ) {
-
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  DBI::dbExecute(con,"DROP TABLE IF EXISTS ds_flowpaths")
 
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
@@ -141,12 +150,6 @@ trace_flowpath_fn<-function(
 
   # Downstream paths
   if (verbose) print("Calculating Flowpaths")
-  ds_fp<-db_loc
-  # if (file.exists(ds_fp)) stop(paste0("sqlite database: ",ds_fp," Already Exists, please delete the file before proceeding."))
-  if (file.exists(ds_fp)) {
-    warning(paste0("sqlite database: ",ds_fp," Already Exists, it was deleted and replaced."))
-    file.remove(ds_fp)
-    }
 
   with_progress(enable=T,{
 
@@ -197,13 +200,25 @@ trace_flowpath_fn<-function(
       select(data2) %>%
       unnest(data2)
 
-    con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
-    #DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
-    ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out[F,])
-    build_view<-DBI::dbExecute(con,"CREATE INDEX inx_ds_flowpaths ON ds_flowpaths (link_id, origin_id)")
+    # con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+    # DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
 
-    ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
-    DBI::dbDisconnect(con)
+    ot<-final_ds_paths_out %>%
+      select(destination_link_id=link_id,origin_link_id=origin_id) %>%
+      copy_to(df=.,
+              con,
+              "ds_flowpaths",
+              overwrite =T,
+              temporary =F,
+              indexes=c("destination_link_id","origin_link_id"),
+              analyze=T,
+              in_transaction=T)
+
+    # ot<-DBI::dbCreateTable(con, "ds_flowpaths", final_ds_paths_out[F,])
+    # build_view<-DBI::dbExecute(con,"CREATE INDEX inx_ds_flowpaths ON ds_flowpaths (link_id, origin_id)")
+
+    # ot<-DBI::dbAppendTable(con, "ds_flowpaths", final_ds_paths_out)
+    # DBI::dbDisconnect(con)
 
     final_ds_paths_out<-unique(final_ds_paths_out$trib_id)
 
@@ -211,20 +226,21 @@ trace_flowpath_fn<-function(
       filter(!trib_id %in% final_ds_paths_out)
 
     ds_fp_fun<-function(dslink_id,db_fp=ds_fp){
-      con <- DBI::dbConnect(RSQLite::SQLite(), db_fp[[1]])
-      out<-DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_id IN (",paste0(dslink_id,collapse = ","),")")) %>%
-        group_by(origin_id) %>%
+      #con <- DBI::dbConnect(RSQLite::SQLite(), db_fp[[1]])
+      out<-DBI::dbGetQuery(con, paste0("SELECT * FROM ds_flowpaths WHERE origin_link_id IN (",paste0(dslink_id,collapse = ","),")")) %>%
+        group_by(origin_link_id) %>%
         nest() %>%
         ungroup()
 
       out2<-out$data
-      names(out2)<-out$origin_id
+      names(out2)<-out$origin_link_id
 
       out2<-out2[as.character(dslink_id)]
 
-      DBI::dbDisconnect(con)
+      #DBI::dbDisconnect(con)
       return(out2)
     }
+
 
     while(nrow(int_tribs)>0){
       int_tribs_int<-int_tribs %>%
@@ -241,24 +257,24 @@ trace_flowpath_fn<-function(
         .options = furrr_options(globals = FALSE),
         carrier::crate(
           function(data,ds_path,p){
+            #browser()
             options(scipen = 999)
             `%>%` <- magrittr::`%>%`
 
             out<-dplyr::bind_rows(data %>%
-                                    dplyr::rename(trib_id=trib_id2),
-                                  ds_path %>%
-                                    dplyr::mutate(link_id=as.character(link_id))
-            ) %>%
-              dplyr::distinct()
+                                    dplyr::select(link_id) %>%
+                                    dplyr::rename(destination_link_id=link_id),
+                                  ds_path
+            ) #%>%
+            #dplyr::distinct()
 
             x<- out%>%
-              dplyr::select(link_id,trib_id,link_lngth,sbbsn_area,USChnLn_Fr) %>%
               dplyr::distinct()
             u<-data$link_id
             u<-stats::setNames(u,u)
             x<-rep(list(x),length(u))
             out<-purrr::map2(u,x,
-                             carrier::crate(function (y,x) dplyr::mutate(x[which(x$link_id==y):nrow(x),],origin_id=y)))
+                             carrier::crate(function (y,x) dplyr::mutate(x[which(x$destination_link_id==y):nrow(x),],origin_link_id=y)))
             out<-dplyr::bind_rows(out)
 
             p()
@@ -270,125 +286,224 @@ trace_flowpath_fn<-function(
         select(ds_path) %>%
         unnest(ds_path)
 
-      con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+      #con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
       ot<-DBI::dbAppendTable(con, "ds_flowpaths", int_tribs_int)
-      int_tribs<-int_tribs %>% filter(!trib_id %in% int_tribs_int$trib_id)
-      final_ds_paths_out<-unique(DBI::dbGetQuery(con, "SELECT DISTINCT trib_id FROM ds_flowpaths")$trib_id)
-      DBI::dbDisconnect(con)
+
+      ot<-tbl(con,"ds_flowpaths") %>%
+        left_join(
+          tbl(con,"stream_links") %>%
+            select(link_id,trib_id),
+          by=c("destination_link_id"="link_id")
+        ) %>%
+        collect()
+
+      int_tribs<-int_tribs %>% filter(!trib_id %in% ot$trib_id)
+
+      final_ds_paths_out<-tbl(con,"ds_flowpaths") %>%
+        left_join(
+          tbl(con,"stream_links") %>%
+            select(link_id,trib_id),
+          by=c("destination_link_id"="link_id")
+        ) %>%
+        select(trib_id) %>%
+        distinct() %>%
+        collect() %>%
+        pull(trib_id)
+      #final_ds_paths_out<-unique(DBI::dbGetQuery(con, "SELECT DISTINCT trib_id FROM ds_flowpaths")$trib_id)
+      #DBI::dbDisconnect(con)
 
     }
   })
 
+  #browser()
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+  #con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
 
   # Upstream portion is saved as a view
-  sql_code<-dplyr::tbl(con,"ds_flowpaths") %>%
-    dplyr::select(link_id,origin_id) %>%
-    dplyr::distinct() %>%
-    #window_order(link_id) %>% # up to here, is a list of every origin ID draining into each link_id
-    left_join(dplyr::tbl(con,"ds_flowpaths") %>% #This adds the extra info from each orgin link to the table
-                select(-origin_id),
-              by=c("origin_id"="link_id")) %>%
-    #window_order(link_id) %>%
-    #dplyr::distinct() %>%
-    dplyr::rename(source_id=link_id,
-                  link_id=origin_id) %>%
-    sql_render()
 
-  sql_code2<-paste0("CREATE TABLE us_flowpaths AS ",gsub("\n","",sql_code))
+  DBI::dbExecute(con,"DROP TABLE IF EXISTS us_flowpaths")
 
-  build_view<-DBI::dbExecute(con,sql_code2)
-  build_view<-DBI::dbExecute(con,"CREATE INDEX inx_us_flowpaths ON us_flowpaths (link_id, source_id)")
+  sql_code<-tbl(con,"ds_flowpaths") %>%
+    select(pour_point_id=origin_link_id) %>%
+    distinct() %>%
+    full_join(
+      tbl(con,"ds_flowpaths") ,
+      by=c("pour_point_id"="destination_link_id")
+    ) %>%
+    copy_to(df=.,
+            con,
+            "us_flowpaths",
+            overwrite =T,
+            temporary =F,
+            indexes=c("pour_point_id","origin_link_id"),
+            analyze=T,
+            in_transaction=T)
+  #%>%
+  #dbplyr::sql_render()
+
+  #sql_code2<-paste0("CREATE TABLE us_flowpaths AS ",gsub("\n","",sql_code))
+
+  #build_view<-DBI::dbExecute(con,sql_code2)
+
+  # sql_code<-dplyr::tbl(con,"ds_flowpaths") %>%
+  #   dplyr::select(link_id,origin_id) %>%
+  #   dplyr::distinct() %>%
+  #   #window_order(link_id) %>% # up to here, is a list of every origin ID draining into each link_id
+  #   left_join(dplyr::tbl(con,"ds_flowpaths") %>% #This adds the extra info from each orgin link to the table
+  #               select(-origin_id),
+  #             by=c("origin_id"="link_id")) %>%
+  #   #window_order(link_id) %>%
+  #   #dplyr::distinct() %>%
+  #   dplyr::rename(source_id=link_id,
+  #                 link_id=origin_id) %>%
+  #   sql_render()
+  #
+  # sql_code2<-paste0("CREATE TABLE us_flowpaths AS ",gsub("\n","",sql_code))
+  #
+  # build_view<-DBI::dbExecute(con,sql_code2)
+  # build_view<-DBI::dbExecute(con,"CREATE INDEX inx_us_flowpaths ON us_flowpaths (link_id, source_id)")
 
   # Pairwise distance View --------------------------
 
-  # DS directed path-lengths
-  flowconn_out<-tbl(con,"ds_flowpaths") %>%
-    mutate(origin=origin_id) %>%
-    mutate(destination=link_id) %>%
-    group_by(origin_id) %>%
-    window_order(USChnLn_Fr) %>%
-    mutate(directed_path_length=cumsum(link_lngth)) %>%
-    ungroup() %>%
-    select(origin,destination,directed_path_length) %>%
-    distinct() %>%
-    left_join(
-      tbl(con,"us_flowpaths") %>%
-        group_by(source_id) %>%
-        summarize(origin_catchment=sum(sbbsn_area)) %>%
-        rename(origin=source_id),
-      by="origin"
-    ) %>%
-    left_join(
-      tbl(con,"us_flowpaths") %>%
-        group_by(source_id) %>%
-        summarize(destination_catchment=sum(sbbsn_area)) %>%
-        rename(destination=source_id),
-      by="destination"
-    ) %>%
-    mutate(prop_shared_catchment=case_when(
-      directed_path_length>0 ~ as.numeric(origin_catchment) / as.numeric(destination_catchment),
-      T ~ 0
-    )) %>%
-    mutate(prop_shared_logcatchment=case_when(
-      directed_path_length>0 ~ log(as.numeric(origin_catchment)) / log(as.numeric(destination_catchment)),
-      T ~ 0
-    )) %>%
-    mutate(undirected_path_length=directed_path_length) %>%
-    select(-origin_catchment,-destination_catchment)
+  if (site_id_col != "link_id"){
 
-  # Reverse are not directly connected, but indirectly are connected
-  # flowconn_out_rev<-tbl(con,"ds_flowpaths") %>%
-  #   mutate(origin=origin_id) %>%
-  #   mutate(destination=link_id) %>%
-  #   group_by(origin_id) %>%
-  #   window_order(USChnLn_Fr) %>%
-  #   mutate(directed_path_length=cumsum(link_lngth)) %>%
-  #   ungroup() %>%
-  #   select(origin,destination,directed_path_length) %>%
-  #   distinct() %>%
-  #   mutate(undirected_path_length=directed_path_length) %>%
-  #   rename(origin = destination,
-  #          destination = origin) %>%
-  #   mutate(directed_path_length = 0,
-  #          prop_shared_catchment = 0,
-  #          prop_shared_logcatchment = 0)
+    #browser()
+    # UID<-tbl(con,"stream_links") %>%
+    #   filter(!is.na(!!sym(site_id_col))) %>%
+    #   select(link_id) %>%
+    #   collect() %>%
+    #   pull(link_id)
 
-  #un-directed path-lengths
+    # DS directed path-lengths
+    flowconn_out<-tbl(con,"stream_links") %>%
+      filter(!is.na(!!sym(site_id_col))) %>%
+      select(link_id) %>%
+      rename(origin_link_id=link_id) %>%
+      left_join(
+        tbl(con,"ds_flowpaths"),
+        by=c("origin_link_id")
+      ) %>%
+      left_join(
+        tbl(con,"stream_links") %>%
+          select(link_id,link_lngth,USChnLn_Fr,sbbsn_area),
+        by=c("destination_link_id"="link_id")
+      ) %>%
+      mutate(origin=origin_link_id) %>%
+      mutate(destination=destination_link_id) %>%
+      group_by(origin) %>%
+      dbplyr::window_order(USChnLn_Fr) %>%
+      mutate(directed_path_length=cumsum(link_lngth)) %>%
+      ungroup() %>%
+      select(origin,destination,directed_path_length) %>%
+      distinct() %>%
+      left_join(
+        tbl(con,"us_flowpaths") %>%
+          left_join(
+            tbl(con,"stream_links") %>%
+              select(link_id,sbbsn_area),
+            by=c("pour_point_id"="link_id")
+          ) %>%
+          group_by(pour_point_id) %>%
+          summarize(origin_catchment=sum(sbbsn_area)) %>%
+          rename(origin=pour_point_id),
+        by="origin"
+      ) %>%
+      left_join(
+        tbl(con,"us_flowpaths") %>%
+          left_join(
+            tbl(con,"stream_links") %>%
+              select(link_id,sbbsn_area),
+            by=c("pour_point_id"="link_id")
+          ) %>%
+          group_by(pour_point_id) %>%
+          summarize(destination_catchment=sum(sbbsn_area)) %>%
+          rename(destination=pour_point_id),
+        by="destination"
+      ) %>%
+      mutate(prop_shared_catchment=case_when(
+        directed_path_length>0 ~ as.numeric(origin_catchment) / as.numeric(destination_catchment),
+        T ~ 0
+      )) %>%
+      mutate(prop_shared_logcatchment=case_when(
+        directed_path_length>0 ~ log(as.numeric(origin_catchment)) / log(as.numeric(destination_catchment)),
+        T ~ 0
+      )) %>%
+      mutate(undirected_path_length=directed_path_length) %>%
+      select(-origin_catchment,-destination_catchment)
 
-  flowUNconn_out<-dplyr::full_join(flowconn_out %>% select(origin,destination,directed_path_length),
-                                   flowconn_out %>% select(origin,destination,directed_path_length),
-                                   by=c("destination"="origin"),
-                                   suffix=c("_p1","_p2")) %>%
-    filter(!is.na(origin)) %>%
-    left_join(flowconn_out %>% select(origin,destination,directed_path_length_dir1=directed_path_length),
-              by=c("destination_p2"="origin",
-                   "destination_p1"="destination")) %>%
-    mutate(undirected_path_length=case_when(
-      is.na(directed_path_length_dir1) ~ as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2),
-      T ~ 0
-    )) %>%
-    select(origin,destination=destination_p2,undirected_path_length) %>%
-    mutate(directed_path_length=0,
-           prop_shared_catchment=0,
-           prop_shared_logcatchment=0)
+    DBI::dbExecute(con,"DROP TABLE IF EXISTS fcon_pwise_dist")
+    t1<-flowconn_out %>%
+      copy_to(df=.,
+              con,
+              "fcon_pwise_dist",
+              overwrite =T,
+              temporary =F,
+              indexes=c("origin","destination"),
+              analyze=T,
+              in_transaction=T)
 
-  final_sql<-flowconn_out %>%
-    #rows_append(flowconn_out_rev) %>%
-    rows_append(flowUNconn_out) %>%
-    distinct() %>%
-    sql_render()
 
-  sql_code2<-paste0("CREATE TABLE pairwise_dist AS ",gsub("\n"," ",final_sql))
+    #un-directed path-lengths
 
-  build_view<-DBI::dbExecute(con,sql_code2)
-  build_view<-DBI::dbExecute(con,"CREATE INDEX inx_pairwise_dist ON pairwise_dist (origin, destination)")
+    flowUNconn_out<-dplyr::full_join(tbl(con,"fcon_pwise_dist") %>% select(origin,destination,directed_path_length),
+                                     tbl(con,"fcon_pwise_dist") %>% select(origin,destination,directed_path_length),
+                                     by=c("destination"="origin"),
+                                     suffix=c("_p1","_p2")) %>%
+      filter(!is.na(origin)) %>%
+      left_join(tbl(con,"fcon_pwise_dist") %>% select(origin,destination,directed_path_length_dir1=directed_path_length),
+                by=c("destination_p2"="origin",
+                     "destination_p1"="destination")) %>%
+      mutate(undirected_path_length=case_when(
+        is.na(directed_path_length_dir1) ~ as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2),
+        T ~ 0
+      )) %>%
+      select(origin,destination=destination_p2,undirected_path_length) %>%
+      mutate(directed_path_length=0,
+             prop_shared_catchment=0,
+             prop_shared_logcatchment=0)
+
+    DBI::dbExecute(con,"DROP TABLE IF EXISTS funcon_pwise_dist")
+
+
+
+    t1<-flowconn_out %>%
+      copy_to(df=.,
+              con,
+              "funcon_pwise_dist",
+              overwrite =T,
+              temporary =F,
+              indexes=c("origin","destination"),
+              analyze=T,
+              in_transaction=T)
+
+    # final_sql<-flowconn_out %>%
+    #   rows_append(flowUNconn_out) %>%
+    #   distinct() %>%
+    #   copy_to(df=.,
+    #           con,
+    #           "pairwise_dist",
+    #           overwrite =T,
+    #           temporary =F,
+    #           indexes=c("origin","destination"),
+    #           analyze=T,
+    #           in_transaction=T)
+
+
+    # final_sql<-flowconn_out %>%
+    #   rows_append(flowUNconn_out) %>%
+    #   distinct() %>%
+    #   dbplyr::sql_render()
+    #
+    # sql_code2<-paste0("CREATE VIEW pairwise_dist AS ",gsub("\n"," ",final_sql))
+    #
+    # build_view<-DBI::dbExecute(con,sql_code2)
+  }
+
 
 
   DBI::dbDisconnect(con)
 
-  return(ds_fp)
+  return(db_loc)
 
 }
 

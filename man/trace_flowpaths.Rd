@@ -8,7 +8,7 @@ trace_flowpaths(
   input,
   return_products = F,
   temp_dir = NULL,
-  calc_catch = c("none", "sample_points", "all"),
+  calc_catch = c("all", "none", "sample_points"),
   verbose = F
 )
 }

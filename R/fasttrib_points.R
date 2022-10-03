@@ -85,11 +85,22 @@ fasttrib_points<-function(
 
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
+  db_fp<-input$db_loc
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+  stream_links<-collect(tbl(con,"stream_links")) %>%
+    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
+    mutate(across(any_of(site_id_col),na_if,""))
+  DBI::dbDisconnect(con)
+
+  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
+    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
+    left_join(stream_links, by = c("link_id"))
+
   all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
-    left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
-                mutate(across(any_of(site_id_col),na_if,"")),
-              by="link_id")
+  # all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+  #   left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
+  #               mutate(across(any_of(site_id_col),na_if,"")),
+  #             by="link_id")
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 
   # Get target link_id ------------------------------------------------------

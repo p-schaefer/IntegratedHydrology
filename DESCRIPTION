@@ -22,15 +22,17 @@ RoxygenNote: 7.2.1
 Remotes:
     p-schaefer/hydroweight
 Imports:
+    carrier,
+    data.table,
+    DBI,
+    dbplyr,
     nngeo,
     parallel,
     units,
     rlang,
+    RSQLite,
 Depends:
     R (>= 4.0),
-    carrier,
-    data.table,
-    dbplyr,
     dplyr,
     furrr,
     future,
