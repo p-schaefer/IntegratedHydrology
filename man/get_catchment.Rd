@@ -4,7 +4,7 @@
 \alias{get_catchment}
 \title{Generate upstream catchment areas for target points}
 \usage{
-get_catchment(input, site_id_col = NULL, target_points)
+get_catchment(input, site_id_col = NULL, target_points, temp_dir = NULL)
 }
 \arguments{
 \item{input}{output of \code{process_hydrology()} or one containing \code{generate_subbasins()} and \code{trace_flowpaths()}}
@@ -12,6 +12,8 @@ get_catchment(input, site_id_col = NULL, target_points)
 \item{site_id_col}{\code{NULL} or character. If Character, must match \code{site_id_col} from \code{insert_points()}}
 
 \item{target_points}{character. Unique site identifier(s) from \code{site_id_col}, or \code{link_id} values corresponding to specific reaches.}
+
+\item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
 }
 \value{
 polygon of upstream catchments at \code{target_points}

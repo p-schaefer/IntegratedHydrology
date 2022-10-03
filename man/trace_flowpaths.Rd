@@ -9,17 +9,23 @@ trace_flowpaths(
   return_products = F,
   temp_dir = NULL,
   calc_catch = c("all", "none", "sample_points"),
+  pwise_dist = F,
+  pwise_all_links = F,
   verbose = F
 )
 }
 \arguments{
-\item{input}{resulting object from \code{attrib_streamline()} or \code{insert_points()}}
+\item{input}{resulting object from \code{generate_vectors()}}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.}
 
 \item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
 
 \item{calc_catch}{character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output}
+
+\item{pwise_dist}{logical. Calculate pairwise distances.}
+
+\item{pwise_all_links}{logical. Should all pairwise distances be calculate, or only those originating from sampling points}
 
 \item{verbose}{logical.}
 }

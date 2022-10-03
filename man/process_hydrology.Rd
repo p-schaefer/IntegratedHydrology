@@ -19,6 +19,8 @@ process_hydrology(
   snap_distance = NULL,
   break_on_noSnap = T,
   site_id_col = NULL,
+  pwise_dist = F,
+  pwise_all_links = F,
   return_products = F,
   temp_dir = NULL,
   compress = F,
@@ -40,6 +42,8 @@ process_hydrology(
 
 \item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
 
+\item{calc_catch}{character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output}
+
 \item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
 
 \item{points}{character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.}
@@ -47,6 +51,10 @@ process_hydrology(
 \item{snap_distance}{integer. Maximum distance which points will be snapped to stream lines in map units}
 
 \item{site_id_col}{character. Variable name in \code{points} that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same \code{site_id_col}, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.}
+
+\item{pwise_dist}{logical. Calculate pairwise distances.}
+
+\item{pwise_all_links}{logical. Should all pairwise distances be calculate, or only those originating from sampling points}
 
 \item{return_products}{logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.}
 

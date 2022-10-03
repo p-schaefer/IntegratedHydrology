@@ -210,15 +210,16 @@ generate_subbasins<-function(
     stream_links<-collect(tbl(con,"stream_links")) %>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
       mutate(across(any_of(site_id_col),na_if,""))
-    DBI::dbDisconnect(con)
 
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
+      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
       left_join(stream_links,
                 by="link_id")
 
     final_links<-stream_links %>%
       left_join(subb %>%
                   as_tibble() %>%
+                  mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
                   select(link_id,sbbsn_area),
                 by = c("link_id"))
   }

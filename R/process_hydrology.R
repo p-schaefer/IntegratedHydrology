@@ -13,6 +13,9 @@
 #' @param points character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/points.shp"), or any GIS data object that will be converted to spatial points. Points representing sampling locations.
 #' @param snap_distance integer. Maximum distance which points will be snapped to stream lines in map units
 #' @param site_id_col character. Variable name in `points` that corresponds to unique site identifiers. This column will be included in all vector geospatial analysis products. Note, if multiple points have the same `site_id_col`, their centroid will be used and returned; if multiple points overlap after snapping, only the first is used.
+#' @param calc_catch character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output
+#' @param pwise_dist logical. Calculate pairwise distances.
+#' @param pwise_all_links logical. Should all pairwise distances be calculate, or only those originating from sampling points
 #' @param return_products logical. If \code{TRUE}, a list containing all geospatial analysis products. If \code{FALSE}, folder path to resulting .zip file.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param compress logical. Should output rasters be compressed, slower but more space efficient.
@@ -45,6 +48,8 @@ process_hydrology<-function(
     snap_distance=NULL,
     break_on_noSnap=T,
     site_id_col=NULL,
+    pwise_dist=F,
+    pwise_all_links=F,
     return_products=F,
     temp_dir=NULL,
     compress=F,
@@ -62,6 +67,7 @@ process_hydrology<-function(
   if (!is.numeric(burn_depth)) stop("'burn_depth' must be an numeric value")
   burn_depth<-as.integer(burn_depth)
 
+  if (!is.logical(pwise_dist)) stop("'pwise_dist' must be logical")
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(compress)) stop("'compress' must be logical")
   if (!is.logical(break_on_noSnap)) stop("'break_on_noSnap' must be logical")
@@ -118,6 +124,8 @@ process_hydrology<-function(
     return_products=return_products,
     temp_dir=temp_dir,
     calc_catch=calc_catch,
+    pwise_dist=pwise_dist,
+    pwise_all_links=pwise_all_links,
     verbose=verbose
   )
 

@@ -174,20 +174,38 @@ fasttrib_points<-function(
   # db_fp<-file.path(temp_dir,"flowpaths_out.db")
   db_fp<-input$db_loc
 
-  us_fp_fun<-function(link_id,db_fp=db_fp){
-    con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-    out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
-      group_by(source_id) %>%
+  us_fp_fun<-function(link_id_in,db_fp=db_fp){
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+    out<-tbl(con,"us_flowpaths") %>%
+      filter(pour_point_id %in% link_id_in) %>%
+      rename(link_id=origin_link_id) %>%
+      collect() %>%
+      group_by(pour_point_id) %>%
       nest() %>%
       ungroup()
 
     out2<-out$data
-    names(out2)<-out$source_id
+    names(out2)<-out$pour_point_id
 
-    out2<-out2[link_id]
+    out2<-out2[link_id_in]
 
     DBI::dbDisconnect(con)
     return(out2)
+
+
+    # con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+    # out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
+    #   group_by(source_id) %>%
+    #   nest() %>%
+    #   ungroup()
+    #
+    # out2<-out$data
+    # names(out2)<-out$source_id
+    #
+    # out2<-out2[link_id]
+    #
+    # DBI::dbDisconnect(con)
+    # return(out2)
   }
 
   # browser()

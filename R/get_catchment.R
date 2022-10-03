@@ -3,6 +3,7 @@
 #'
 #' @param input output of `process_hydrology()` or one containing `generate_subbasins()` and `trace_flowpaths()`
 #' @param site_id_col \code{NULL} or character. If Character, must match `site_id_col` from `insert_points()`
+#' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
 #' @param target_points character. Unique site identifier(s) from `site_id_col`, or `link_id` values corresponding to specific reaches.
 #'
 #' @return polygon of upstream catchments at `target_points`
@@ -12,12 +13,17 @@
 get_catchment<-function(
     input,
     site_id_col=NULL,
-    target_points
+    target_points,
+    temp_dir=NULL
 ) {
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
 
-  tdir<-tempfile()
+  if (is.null(temp_dir)) temp_dir<-tempfile()
+  if (!dir.exists(temp_dir)) dir.create(temp_dir)
+  temp_dir<-normalizePath(temp_dir)
+
+  tdir<-file.path(temp_dir,basename(tempfile()))
   dir.create(tdir)
 
   options(dplyr.summarise.inform = FALSE,future.rng.onMisuse="ignore")
@@ -77,7 +83,7 @@ get_catchment<-function(
     return(out2)
   }
 
-
+#browser()
   with_progress(enable=T,{
     p <- progressor(steps = nrow(sites))
 
@@ -88,10 +94,17 @@ get_catchment<-function(
         subb %>%
           filter(link_id %in% x$link_id)
       })) %>%
-      mutate(geometry=future_map(subb,function(x) {
+      mutate(geometry=future_map(subb,function(x) {#
+        #browser()
         out<-select(x,geometry) %>%
-          st_union()
+          st_union() #%>%
+          # st_as_sf() %>%
+          # rename(geometry=x) %>%
+          # mutate(link_id=y) %>%
+          # select(link_id,geometry)
         p()
+
+        #out<-write_sf(out,file.path(tdir,paste0(y,"_Catchment_poly.shp")))
         return(out)
       })) %>%
       unnest(geometry) %>%
@@ -100,6 +113,10 @@ get_catchment<-function(
   })
 
   suppressWarnings(unlink(tdir,force = T,recursive = T))
+
+  # out<-list.files(tdir,"_Catchment_poly.shp",full.names=T) %>%
+  #   future_map(read_sf) %>%
+  #   bind_rows()
 
   return(out)
 

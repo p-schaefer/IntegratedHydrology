@@ -29,7 +29,7 @@ knitr::opts_chunk$set(
 ## 1 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '100%', fig.align = 'center'}
-knitr::include_graphics("man/figures/README-unnamed-chunk-21-1.png")
+knitr::include_graphics("man/figures/README-unnamed-chunk-22-1.png")
 ```
 
 Aquatic environmental scientists are often interested in relating landscape features to observed responses (e.g., fish size, water temperature, invertebrate community composition, etc.) in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.
@@ -370,6 +370,7 @@ hydro_out<-trace_flowpaths(
   input=hydro_out,
   return_products=T,
   calc_catch="all",
+  pwise_dist=T,
   temp_dir=NULL,
   verbose=F
 )
@@ -392,7 +393,7 @@ DBI::dbDisconnect(con)
 
 head(hydro_out$us_flowpaths)
 
-head(hydro_out$ds_flowpaths)
+head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
 
 us_790<-hydro_out$us_flowpaths %>%
   filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
@@ -454,25 +455,69 @@ Below we calculate pairwise distances between sampled areas. We take these dista
 
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
-con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
-DBI::dbListTables(con)
+# If pairwise distances were not requested with trace_flowpaths(), they can be added 
+# at any point after using generate_pdist()
 
-hydro_out$pwise_dist<-bind_rows(collect(tbl(con,"fcon_pwise_dist")),
-                                collect(tbl(con,"funcon_pwise_dist"))
+hydro_out<-generate_pdist(
+  input=hydro_out,
+  pwise_all_links=T # This will calculate pairwise distances between all stream links
+  #                 #  which can be very slow for dense stream networks
 )
 
-DBI::dbDisconnect(con)
-
-hydro_out$pwise_dist
-
 # New data available in `pairwise_dist`
-# pairwise_dist # -> table of downstream path lengths between each pair of link_ids,
+# pairwise_dist # -> tables of downstream path lengths between each pair of link_ids,
 #                   #    with flow-connected in-stream distances (directed_path_length),
 #                   #    flow-unconnected in-stream distances (undirected_path_length),
 #                   #    and proportions of shared catchments (prop_shared_catchment)
 #                   #    and log-transformed catchment proportions (prop_shared_logcatchment)
 
-#hydro_out$pwise_dist
+
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
+DBI::dbListTables(con)
+
+# funcon_pwise_dist is only available if pwise_all_links==T
+
+hydro_out$pwise_dist<-bind_rows(collect(tbl(con,"fcon_pwise_dist")) %>% mutate(dist_type="Flow Connected"),
+                                collect(tbl(con,"funcon_pwise_dist")) %>% mutate(dist_type="Flow Unconnected")
+)
+
+DBI::dbDisconnect(con)
+
+head(hydro_out$pwise_dist)
+
+p1<-hydro_out$stream_lines %>% 
+  mutate(link_id=as.character(link_id)) %>% 
+  left_join(hydro_out$pwise_dist %>%
+              filter(dist_type=="Flow Connected") %>% 
+              filter(origin=="1048") %>% 
+              mutate(directed_path_length=log(directed_path_length)),
+            by=c("link_id"="destination")) %>% 
+  tm_shape() +
+  tm_lines(col="directed_path_length",alpha =1,legend.show=T,lwd =2,palette = "viridis",style="cont")+
+  tm_shape(hydro_out$links %>% filter(link_id=="1048"))+
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(main.title = "Flow connected path log-length from 1048",legend.outside = TRUE)
+
+p2<-hydro_out$stream_lines %>% 
+  mutate(link_id=as.character(link_id)) %>% 
+  left_join(hydro_out$pwise_dist %>% 
+              filter(origin=="1048") %>%
+              filter(dist_type=="Flow Unconnected") %>% 
+              mutate(undirected_path_length=log(undirected_path_length)),  
+            by=c("link_id"="destination")) %>% 
+  tm_shape() +
+  tm_lines(col="undirected_path_length",alpha =1,legend.show=T,lwd =2,palette = "viridis",style="cont")+
+  tm_shape(hydro_out$links %>% filter(link_id=="1048"))+
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(main.title = "Flow Unconnected path log-length from 1048",legend.outside = TRUE)
+
+
+# Verify upstream and downstream distances make sense
+tmap_arrange(p1,p2,ncol=1)
+
+```
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 # Examine relationships among sampled sites. 
 
@@ -488,7 +533,7 @@ dmat<-hydro_out$pwise_dist %>%
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
   distinct() %>% 
@@ -507,7 +552,7 @@ dmat2<-hydro_out$pwise_dist %>%
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-directed_path_length,-undirected_path_length,-prop_shared_catchment) %>%
+  select(-directed_path_length,-undirected_path_length,-prop_shared_catchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(prop_shared_logcatchment=ifelse(prop_shared_logcatchment==1 | is.na(prop_shared_logcatchment),
                                          1,prop_shared_logcatchment)) %>% 
@@ -579,31 +624,32 @@ dmat<-hydro_out$pwise_dist %>%
   left_join(response_table %>% rename(destination_value=value),by=c("destination"="link_id")) %>% 
   mutate(value_diff=sqrt((origin_value-destination_value)^2)) %>%  # Calculate the squared difference
   filter(origin!=destination) %>% 
-  mutate(undirected_path_length=case_when(
-    is.na(directed_path_length) ~ undirected_path_length,
-    directed_path_length==0 ~ undirected_path_length,
-    T ~ NA_real_
-  )) %>% 
-  pivot_longer(c(directed_path_length,undirected_path_length),
+  select(-dist_type,-site_id.x,-site_id.y,-origin_value,-destination_value) %>% 
+  pivot_longer(c(directed_path_length,undirected_path_length,prop_shared_catchment,prop_shared_logcatchment),
                names_to ="dist_type",
                values_to ="dist") %>% 
   filter(!is.na(dist)) %>% 
   mutate(`Distance Type`=case_when(
     dist_type=="directed_path_length" ~ "Flow Connected",
     dist_type=="undirected_path_length" ~ "Flow Unconnected",
-  ))
+    dist_type=="prop_shared_catchment" ~ "Shared Catchment",
+    dist_type=="prop_shared_logcatchment" ~ "Shared log-Catchment",
+  )) %>% 
+  distinct()
 
 dmat
 
 require(ggplot2)
-ggplot(dmat,aes(x=dist,y=value_diff,col=`Distance Type`))+
-  geom_hex()+
+ggplot(dmat %>% filter(dist_type %in% c("directed_path_length","undirected_path_length")),
+       aes(x=dist,y=value_diff,col=`Distance Type`))+
+  geom_hex(bins=50)+
   geom_smooth(method="gam",se=F)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
   xlab("Pairwise Distance (m)")+
-  scale_x_log10(labels=scales::comma)
+  scale_x_log10(labels=scales::comma)+
+  facet_wrap(~`Distance Type`)
 
 ```
 
@@ -612,17 +658,17 @@ Finally, we'll do a similar comparison but using percent of shared catchments. H
 ```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 ggplot(dmat %>%
-         filter(prop_shared_catchment>0) %>% 
-         select(origin,destination,prop_shared_catchment,value_diff) %>%
-         distinct(),
-       aes(x=prop_shared_catchment,y=value_diff))+
+         filter(dist_type %in% c("prop_shared_catchment","prop_shared_logcatchment")) %>% 
+         filter(dist>0),
+       aes(x=dist,y=value_diff,colour=`Distance Type`))+
   geom_hex()+
   geom_smooth(method="gam",se=F)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
   xlab("Percent of shared catchments (Flow Connected only)")+
-  scale_x_continuous(labels=scales::percent)
+  scale_x_continuous(labels=scales::percent)+
+  facet_wrap(~`Distance Type`,scales ="free_x")
 
 ```
 
