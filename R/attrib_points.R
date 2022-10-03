@@ -561,7 +561,10 @@ attrib_points<-function(
     select(any_of(site_id_col),any_of("distance_weights"),any_of("weighted_attr"),everything(),-attrib) %>%
     mutate(across(c(everything(),-any_of(site_id_col),-any_of("distance_weights"),-any_of("weighted_attr")),as.numeric)) %>%
     mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .))) %>%
-    dplyr::distinct()
+    group_by(!!sym(site_id_col)) %>%
+    summarise(across(everything(),head,1)) %>%
+    ungroup()
+    #dplyr::distinct()
 
 
   zip_loc<-input$outfile

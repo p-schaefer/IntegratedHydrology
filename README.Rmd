@@ -858,15 +858,20 @@ pmap(
          fasttrib_points_time_small,
          attrib_points_time_big,
          fasttrib_points_time_big),
-    list(final_attributes_sub_slow %>% select(-distance_weights,-weighted_attr),
-         final_attributes_sub,
-         final_attributes_slow %>% select(-distance_weights,-weighted_attr),
-         final_attributes)),
+    list(final_attributes_sub_slow %>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes_sub%>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes_slow %>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes%>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
+    )),
   function(.z,.x,.y) paste0(.z," took ",
                             round(.x[[3]]/60,2),
                             " min to calculate for ",
                             nrow(.y)," reaches with ",
-                            ncol(.y)-1,
+                            ncol(.y),
                             " attributes using ", nbrOfWorkers(),
                             " cores.")
 )
@@ -1111,7 +1116,7 @@ set.seed(1234)
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
                           grid=50  # Choose 50 hyper-parameter configurations
-                          ) 
+               ) 
 )
 
 stopCluster(cl)

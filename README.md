@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-02 16:32:00
-#> 2           dem_d8.tif  454212 2022-10-02 16:32:00
-#> 3     dem_accum_d8.tif  904212 2022-10-02 16:32:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-02 16:32:00
-#> 5   dem_streams_d8.tif  904212 2022-10-02 16:32:00
+#> 1        dem_final.tif 1804210 2022-10-02 19:13:00
+#> 2           dem_d8.tif  454212 2022-10-02 19:13:00
+#> 3     dem_accum_d8.tif  904212 2022-10-02 19:13:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-02 19:13:00
+#> 5   dem_streams_d8.tif  904212 2022-10-02 19:13:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpasWeVh\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\Rtmp888sia\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -840,34 +840,34 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-02 16:35:00
-#> 2            dem_d8.tif  454212 2022-10-02 16:35:00
-#> 3      dem_accum_d8.tif  904212 2022-10-02 16:35:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-02 16:35:00
-#> 5    dem_streams_d8.tif  904212 2022-10-02 16:35:00
-#> 6       site_id_col.csv      22 2022-10-02 16:35:00
-#> 7      stream_links.csv   35955 2022-10-02 16:35:00
-#> 8      stream_links.dbf    5716 2022-10-02 16:35:00
-#> 9      stream_links.prj     503 2022-10-02 16:35:00
-#> 10     stream_links.shp    6428 2022-10-02 16:35:00
-#> 11     stream_links.shx    1908 2022-10-02 16:35:00
-#> 12     stream_lines.dbf    5691 2022-10-02 16:35:00
-#> 13     stream_lines.prj     503 2022-10-02 16:35:00
-#> 14     stream_lines.shp   70924 2022-10-02 16:35:00
-#> 15     stream_lines.shx    1900 2022-10-02 16:35:00
-#> 16    stream_points.csv  797174 2022-10-02 16:35:00
-#> 17    stream_points.dbf  145016 2022-10-02 16:35:00
-#> 18    stream_points.prj     503 2022-10-02 16:35:00
-#> 19    stream_points.shp  162444 2022-10-02 16:35:00
-#> 20    stream_points.shx   46484 2022-10-02 16:35:00
-#> 21   Subbasins_poly.dbf    7782 2022-10-02 16:35:00
-#> 22   Subbasins_poly.prj     503 2022-10-02 16:35:00
-#> 23   Subbasins_poly.shp  380032 2022-10-02 16:35:00
-#> 24   Subbasins_poly.shx    1908 2022-10-02 16:35:00
-#> 25   Catchment_poly.dbf   18372 2022-10-02 16:35:00
-#> 26   Catchment_poly.prj     503 2022-10-02 16:35:00
-#> 27   Catchment_poly.shp  997812 2022-10-02 16:35:00
-#> 28   Catchment_poly.shx    1908 2022-10-02 16:35:00
+#> 1         dem_final.tif 1804210 2022-10-02 19:16:00
+#> 2            dem_d8.tif  454212 2022-10-02 19:16:00
+#> 3      dem_accum_d8.tif  904212 2022-10-02 19:16:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-02 19:16:00
+#> 5    dem_streams_d8.tif  904212 2022-10-02 19:16:00
+#> 6       site_id_col.csv      22 2022-10-02 19:16:00
+#> 7      stream_links.csv   35955 2022-10-02 19:16:00
+#> 8      stream_links.dbf    5716 2022-10-02 19:16:00
+#> 9      stream_links.prj     503 2022-10-02 19:16:00
+#> 10     stream_links.shp    6428 2022-10-02 19:16:00
+#> 11     stream_links.shx    1908 2022-10-02 19:16:00
+#> 12     stream_lines.dbf    5691 2022-10-02 19:16:00
+#> 13     stream_lines.prj     503 2022-10-02 19:16:00
+#> 14     stream_lines.shp   70924 2022-10-02 19:16:00
+#> 15     stream_lines.shx    1900 2022-10-02 19:16:00
+#> 16    stream_points.csv  797174 2022-10-02 19:16:00
+#> 17    stream_points.dbf  145016 2022-10-02 19:16:00
+#> 18    stream_points.prj     503 2022-10-02 19:16:00
+#> 19    stream_points.shp  162444 2022-10-02 19:16:00
+#> 20    stream_points.shx   46484 2022-10-02 19:16:00
+#> 21   Subbasins_poly.dbf    7782 2022-10-02 19:16:00
+#> 22   Subbasins_poly.prj     503 2022-10-02 19:16:00
+#> 23   Subbasins_poly.shp  380032 2022-10-02 19:16:00
+#> 24   Subbasins_poly.shx    1908 2022-10-02 19:16:00
+#> 25   Catchment_poly.dbf   18372 2022-10-02 19:16:00
+#> 26   Catchment_poly.prj     503 2022-10-02 19:16:00
+#> 27   Catchment_poly.shp  997812 2022-10-02 19:16:00
+#> 28   Catchment_poly.shx    1908 2022-10-02 19:16:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1111,29 +1111,34 @@ pmap(
          fasttrib_points_time_small,
          attrib_points_time_big,
          fasttrib_points_time_big),
-    list(final_attributes_sub_slow %>% select(-distance_weights,-weighted_attr),
-         final_attributes_sub,
-         final_attributes_slow %>% select(-distance_weights,-weighted_attr),
-         final_attributes)),
+    list(final_attributes_sub_slow %>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes_sub%>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes_slow %>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+         final_attributes%>%
+           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
+    )),
   function(.z,.x,.y) paste0(.z," took ",
                             round(.x[[3]]/60,2),
                             " min to calculate for ",
                             nrow(.y)," reaches with ",
-                            ncol(.y)-1,
+                            ncol(.y),
                             " attributes using ", nbrOfWorkers(),
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 3.08 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 2.76 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 3.06 min to calculate for 3 reaches with 93 attributes using 8 cores."
+#> [1] "fasttrib_points() took 2.84 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 20.19 min to calculate for 255 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 18.51 min to calculate for 45 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 4.67 min to calculate for 45 reaches with 93 attributes using 8 cores."
+#> [1] "fasttrib_points() took 4.3 min to calculate for 45 reaches with 92 attributes using 8 cores."
 
 
 
@@ -1223,7 +1228,7 @@ paste0(round(full_time[[3]]/60,2),
        ncol(final_attributes_all)-1,
        " attributes using ", nbrOfWorkers(),
        " cores.")
-#> [1] "21.47 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "19.57 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
 
 # Plot some attributes along their respective stream lines for visualization:
 targ_param<-c("slope_lumped_mean","slope_iFLS_mean","slope_HAiFLO_mean",
@@ -1483,7 +1488,7 @@ set.seed(1234)
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
                           grid=50  # Choose 50 hyper-parameter configurations
-                          ) 
+               ) 
 )
 
 stopCluster(cl)
