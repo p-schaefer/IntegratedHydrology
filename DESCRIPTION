@@ -26,6 +26,7 @@ Imports:
     data.table,
     DBI,
     dbplyr,
+    exactextractr,
     nngeo,
     parallel,
     units,
