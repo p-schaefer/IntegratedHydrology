@@ -271,7 +271,7 @@ fasttrib_points<-function(
     if (verbose) print("Calculating Lumped Attributes")
 
     lumped_numeric<-map(loi_numeric_stats,function(x){
-      out<-extract(loi_rasts$num_rast,all_catch,fun=x,na.rm=T,method="simple",touches=F,ID=F)
+      out<-terra::extract(loi_rasts$num_rast,all_catch,fun=x,na.rm=T,method="simple",touches=F,ID=F)
       names(out)<-paste0(names(out),"_lumped_",x)
       mutate(out,link_id=all_catch$link_id)
     })
@@ -417,15 +417,21 @@ fasttrib_points<-function(
 
   #browser()
 
-  if (length(target_O_sub)<n_cores |
-      length(hw_streams_lo)<n_cores){
-
-    # Come up with some heiristics to split data up if extra cores are available
-    #spt1<-which.max(sapply(target_O_sub,nrow))
-
-  }
-
+  # if (n_cores==1|
+  #     length(target_O_sub)<n_cores |
+  #     length(hw_streams_lo)<n_cores){
+  #
+  #   #spt1<-which.max(sapply(target_O_sub,nrow))
+  #
+  # }
+  #
   max_ittr<-length(target_O_sub)+length(hw_streams_lo)
+
+  if (n_cores==1) {
+    splt<-length(hw_streams_lo)
+  } else {
+    splt<-n_cores
+  }
 
   #browser()
 
@@ -436,20 +442,20 @@ fasttrib_points<-function(
     loi_dw_out<-future_pmap(
       .options = furrr_options(globals = FALSE),
       list(
-        target_O_subs=suppressWarnings(split(target_O_sub,1:n_cores)),
-        all_catch=rep(list(all_catch),n_cores),
-        hw=suppressWarnings(rev(split(hw_streams_lo,1:n_cores))),
-        a_subb=rep(list(all_subb),n_cores),
-        us_flowpaths=rep(list(us_flowpaths_out),n_cores),
-        loi_rasts_exists=rep(list(loi_rasts_exists),n_cores),
-        loi_cols_sub=rep(list(loi_cols),n_cores),
-        weighting_scheme_o=rep(list(weighting_scheme_o),n_cores),
-        loi_numeric_stats=rep(list(loi_numeric_stats),n_cores),
-        approx_distwtdsd=rep(list(approx_distwtdsd),n_cores),
-        inv_function=rep(list(inv_function),n_cores),
-        temp_dir=rep(list(temp_dir),n_cores),
-        zip_loc=rep(list(zip_loc),n_cores),
-        p=rep(list(p),n_cores)
+        target_O_subs=suppressWarnings(split(target_O_sub,1:splt)),
+        all_catch=rep(list(all_catch),splt),
+        hw=suppressWarnings(rev(split(unlist(hw_streams_lo),1:splt))),
+        a_subb=rep(list(all_subb),splt),
+        us_flowpaths=rep(list(us_flowpaths_out),splt),
+        loi_rasts_exists=rep(list(loi_rasts_exists),splt),
+        loi_cols_sub=rep(list(loi_cols),splt),
+        weighting_scheme_o=rep(list(weighting_scheme_o),splt),
+        loi_numeric_stats=rep(list(loi_numeric_stats),splt),
+        approx_distwtdsd=rep(list(approx_distwtdsd),splt),
+        inv_function=rep(list(inv_function),splt),
+        temp_dir=rep(list(temp_dir),splt),
+        zip_loc=rep(list(zip_loc),splt),
+        p=rep(list(p),splt)
       ),
       carrier::crate(function(target_O_subs,
                               all_catch,
@@ -559,7 +565,7 @@ fasttrib_points<-function(
 
             } else {
               # this is the correct way, but slower
-              browser()
+              #browser()
               t0<-terra::extract(hw2,
                                  a_subb,
                                  fun=NULL ,
@@ -570,19 +576,55 @@ fasttrib_points<-function(
                                  fun=NULL,
                                  method="simple",touches=F,ID=T,cells=T)
 
-              t2<-terra::extract(terra::subset(loi_dist,loi_rasts_nms$num_rast)*hw2,
-                                 a_subb,
-                                 fun=NULL ,
-                                 method="simple",touches=F,ID=T,cells=T)
+              # t2<-terra::extract(terra::subset(loi_dist,loi_rasts_nms$num_rast)*hw2,
+              #                    a_subb,
+              #                    fun=NULL ,
+              #                    method="simple",touches=F,ID=T,cells=T)
 
-              t3<-(t0[[names(hw2)]]*(t1-t2)^2)
+              t2<-t0 %>%
+                dplyr::left_join(t1,by=c("ID","cell")) %>%
+                dplyr::group_by(ID) %>%
+                dplyr::mutate(dplyr::across(tidyselect::any_of(loi_rasts_nms$num_rast), ~sum(.x,na.rm=T),.names = "sum_{.col}")) %>%
+                dplyr::mutate(dplyr::across(tidyselect::any_of(names(hw2)), ~sum(.x,na.rm=T),.names = "dw_tbl")) %>%
+                dplyr::mutate(dplyr::across(tidyselect::any_of(paste0("sum_",loi_rasts_nms$num_rast)), ~.x/dw_tbl,.names = "mean_{.col}")) %>%
+                dplyr::ungroup()
+
+              t3<-purrr:::map_dfc(loi_rasts_nms$num_rast,function(x){
+                t2[,names(dw)]*((t2[,x]-t2[,paste0("mean_sum_",x)])^2)
+              })
+              colnames(t3)<-loi_rasts_nms$num_rast
               t3$ID<-t2$ID
+
+              # t2<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
+              #                    all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
+              #                    fun=NULL ,
+              #                    method="simple",touches=F,ID=T,cells=T)
+              #
+              # t2<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
+              #                    all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
+              #                    fun=NULL ,
+              #                    method="simple",touches=F,ID=T,cells=T) %>%
+              #   dplyr::group_by(ID) %>%
+              #   dplyr::mutate(dplyr::across(tidyselect::any_of(loi_rasts_nms$num_rast),mean)) %>%
+              #   dplyr::ungroup()
+
+              # t3<-(t0[[names(dw)]]*(t1-t2)^2)
+              # t3$ID<-t2$ID
               term1<-t3 %>%
                 dplyr::group_by(ID) %>%
                 dplyr::summarise(dplyr::across(tidyselect::everything(),sum,na.rm=T)) %>%
                 dplyr::ungroup() %>%
                 dplyr::select(-tidyselect::any_of("ID"),-tidyselect::any_of("cell"))%>%
                 dplyr::mutate(link_id=a_subb$link_id)
+
+              # t3<-(t0[[names(hw2)]]*(t1-t2)^2)
+              # t3$ID<-t2$ID
+              # term1<-t3 %>%
+              #   dplyr::group_by(ID) %>%
+              #   dplyr::summarise(dplyr::across(tidyselect::everything(),sum,na.rm=T)) %>%
+              #   dplyr::ungroup() %>%
+              #   dplyr::select(-tidyselect::any_of("ID"),-tidyselect::any_of("cell"))%>%
+              #   dplyr::mutate(link_id=a_subb$link_id)
 
               term1<-sumfun(term1,us_flowpaths)
 
@@ -655,8 +697,9 @@ fasttrib_points<-function(
             }
 
             if (length(loi_rasts_nms$num_rast)>0 & any(c("sd") %in% loi_numeric_stats)){
+              #browser()
               o_dwSD<-purrr::map(hw,function(dw){
-
+                #browser()
                 distwtd_sum<-terra::extract(dw,
                                             all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
                                             fun="sum",na.rm=T,method="simple",touches=F,ID=F)
@@ -686,13 +729,35 @@ fasttrib_points<-function(
                                      fun=NULL ,
                                      method="simple",touches=F,ID=T,cells=T)
 
-                  t2<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
-                                     all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
-                                     fun=NULL ,
-                                     method="simple",touches=F,ID=T,cells=T)
+                  t2<-t0 %>%
+                    dplyr::left_join(t1,by=c("ID","cell")) %>%
+                    dplyr::group_by(ID) %>%
+                    dplyr::mutate(dplyr::across(tidyselect::any_of(loi_rasts_nms$num_rast), ~sum(.x,na.rm=T),.names = "sum_{.col}")) %>%
+                    dplyr::mutate(dplyr::across(tidyselect::any_of(names(dw)), ~sum(.x,na.rm=T),.names = "dw_tbl")) %>%
+                    dplyr::mutate(dplyr::across(tidyselect::any_of(paste0("sum_",loi_rasts_nms$num_rast)), ~.x/dw_tbl,.names = "mean_{.col}")) %>%
+                    dplyr::ungroup()
 
-                  t3<-(t0[[names(dw)]]*(t1-t2)^2)
+                  t3<-purrr:::map_dfc(loi_rasts_nms$num_rast,function(x){
+                    t2[,names(dw)]*((t2[,x]-t2[,paste0("mean_sum_",x)])^2)
+                  })
+                  colnames(t3)<-loi_rasts_nms$num_rast
                   t3$ID<-t2$ID
+
+                  # t2<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
+                  #                    all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
+                  #                    fun=NULL ,
+                  #                    method="simple",touches=F,ID=T,cells=T)
+                  #
+                  # t2<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
+                  #                    all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
+                  #                    fun=NULL ,
+                  #                    method="simple",touches=F,ID=T,cells=T) %>%
+                  #   dplyr::group_by(ID) %>%
+                  #   dplyr::mutate(dplyr::across(tidyselect::any_of(loi_rasts_nms$num_rast),mean)) %>%
+                  #   dplyr::ungroup()
+
+                  # t3<-(t0[[names(dw)]]*(t1-t2)^2)
+                  # t3$ID<-t2$ID
                   term1<-t3 %>%
                     dplyr::group_by(ID) %>%
                     dplyr::summarise(dplyr::across(tidyselect::everything(),sum,na.rm=T)) %>%
