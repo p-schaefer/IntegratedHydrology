@@ -45,6 +45,10 @@ prep_weights<-function(
   match.arg(weighting_scheme,several.ok = T)
 
   zip_loc<-input$outfile
+
+  out_zip_loc<-zip_loc
+  out_zip_loc<-file.path(gsub(basename(out_zip_loc),"",out_zip_loc),paste0(gsub(".zip","_DW.zip",basename(out_zip_loc))))
+
   db_loc<-input$db_loc
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
@@ -209,12 +213,10 @@ prep_weights<-function(
     return(file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif")))
   })
 
-  ut<-future::future({
-    zip(zip_loc,
-        unlist(rout),
-        flags = '-r9Xjq'
-    )
-  })
+  zip(out_zip_loc,
+      unlist(rout),
+      flags = '-r9Xjq'
+  )
 
   # Calculate weighted O-target distances -------------------------------------
 
@@ -271,7 +273,7 @@ prep_weights<-function(
 
   write_sf(bind_rows(target_O_sub),file.path(temp_dir_sub,"unnest_group_target_O.shp"))
 
-  zip(zip_loc,
+  zip(out_zip_loc,
       file.path(temp_dir_sub,"unnest_group_target_O.shp"),
       flags = '-r9Xjq'
   )
@@ -301,16 +303,38 @@ prep_weights<-function(
         return(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",names(z),".tif")))
       })
 
-      zip(zip_loc,
+      zip(out_zip_loc,
           unlist(rout),
           flags = '-r9Xjq'
       )
+      return(NULL)
     })
 
   })
 
   tt<-file.remove(list.files(temp_dir_sub,full.names = T))
 
+  input$dw_dir<-out_zip_loc
+
   return(input)
 
+}
+
+
+#' Clear Distance Weighted rasters out of output zip file.
+#'
+#' @param input output from `prep_weights()` or `fasttrib_points()`
+#'
+#' @return input
+#' @export
+#'
+
+clear_weights<-function(
+    input
+){
+
+  file.remove(input$dw_dir)
+  input<-input[!grepl("dw_dir",names(input))]
+
+  return(input)
 }
