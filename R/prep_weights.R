@@ -274,7 +274,7 @@ prep_weights<-function(
   write_sf(bind_rows(target_O_sub),file.path(temp_dir_sub,"unnest_group_target_O.shp"))
 
   zip(out_zip_loc,
-      file.path(temp_dir_sub,"unnest_group_target_O.shp"),
+      list.files(temp_dir_sub,"unnest_group_target_O",full.names = T),
       flags = '-r9Xjq'
   )
 
