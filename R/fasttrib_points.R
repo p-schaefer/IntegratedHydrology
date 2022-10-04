@@ -18,6 +18,26 @@
 #' @export
 #'
 
+
+# t1<-final_attributes_slow %>%
+#   arrange(site_id) %>%
+#   select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")) %>%
+#   dplyr::rename_with(~gsub("distwtd_","",.x))
+# t2<-final_attributes%>%
+#   arrange(as.numeric(site_id)) %>%
+#   select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
+#
+# t1<-t1[,colnames(t2)]
+#
+# (t1)[,grepl("slope",colnames(t2))]
+# (t2)[,grepl("slope",colnames(t2))]
+#
+# all_equal(
+#   t1
+#   ,
+#   t2
+# )
+
 fasttrib_points<-function(
     input,
     loi_file=NULL,
@@ -590,7 +610,7 @@ fasttrib_points<-function(
                 dplyr::ungroup()
 
               t3<-purrr:::map_dfc(loi_rasts_nms$num_rast,function(x){
-                t2[,names(dw)]*((t2[,x]-t2[,paste0("mean_sum_",x)])^2)
+                t2[,names(hw2)]*((t2[,x]-t2[,paste0("mean_sum_",x)])^2)
               })
               colnames(t3)<-loi_rasts_nms$num_rast
               t3$ID<-t2$ID
