@@ -27,7 +27,7 @@ fasttrib_points<-function(
     target_o_type=c("point","segment_point","segment_whole"),
     weighting_scheme =  c("lumped", "iEucS", "iFLS", "HAiFLS","iEucO","iFLO",  "HAiFLO"),
     loi_numeric_stats = c("mean", "sd", "median", "min", "max", "sum"),
-    approx_distwtdsd=T,
+    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -48,7 +48,7 @@ fasttrib_points<-function(
   weighting_scheme_s<-weighting_scheme[grepl("FLS|iEucS",weighting_scheme)]
   weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS|iEucS",weighting_scheme)]
   lumped_scheme<-"lumped" %in% weighting_scheme
-  if (length(weighting_scheme_o)>0) warning("Calculation for iEucO,iFLO, and HAiFLO are slow")
+  if (length(weighting_scheme_o)>0) warning("Calculation for iEucO, iFLO, and HAiFLO are slow")
 
   if (is.null(target_o_type)) target_o_type<-"point"
   if (length(target_o_type)>1) target_o_type<-target_o_type[[1]]
@@ -136,7 +136,7 @@ fasttrib_points<-function(
   if (target_o_type=="segment_whole") {
     target_IDs<-target_IDs %>%
       select(link_id) %>%
-      mutate(link_id=floor(link_id))
+      mutate(link_id=as.character(floor(as.numeric(link_id))))
   }
 
   target_IDs<-distinct(target_IDs)
@@ -167,7 +167,7 @@ fasttrib_points<-function(
   loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
   loi_rasts_names$cat_rast<-map(loi_rasts_names$cat_rast,~NULL)
 
-  target_crs<-crs(vect(all_subb))
+  target_crs<-crs(vect(all_subb[1,]))
 
   # Get Upstream flowpaths --------------------------------------------------
 
@@ -223,7 +223,7 @@ fasttrib_points<-function(
     } else {
       target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
         select(link_id) %>%
-        mutate(link_id=floor(link_id)) %>%
+        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
         group_by(link_id) %>%
         summarize(geometry=st_union(geometry)) %>%
         ungroup()
@@ -271,36 +271,22 @@ fasttrib_points<-function(
     if (verbose) print("Calculating Lumped Attributes")
 
     lumped_numeric<-map(loi_numeric_stats,function(x){
-      out<-extract(loi_rasts$num_rast,all_subb,fun=x,na.rm=T,method="simple",touches=F,ID=F)
+      out<-extract(loi_rasts$num_rast,all_catch,fun=x,na.rm=T,method="simple",touches=F,ID=F)
       names(out)<-paste0(names(out),"_lumped_",x)
-      out<-mutate(out,link_id=all_subb$link_id)
-
-      out %>%
-        as_tibble() %>%
-        left_join(us_flowpaths_out %>%
-                    transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
-                    unnest(us_flowpaths) %>%
-                    mutate(link_id=as.numeric(link_id)),
-                  by="link_id"
-                  ) %>%
-        group_by(link_id_upper) %>%
-        summarize(
-          across(contains("_lumped_"),custfun,x)
-        ) %>%
-        rename(link_id=link_id_upper)
+      mutate(out,link_id=all_catch$link_id)
     })
 
-    lumped_cat_part1<-extract(loi_rasts$cat_rast,all_subb,
-                        fun=function(x,na.rm=T) sum(x,na.rm=na.rm),
-                        na.rm=T,method="simple",touches=F,ID=F) %>%
-      mutate(link_id=all_subb$link_id) %>%
-      as_tibble() %>%
-      left_join(us_flowpaths_out %>%
-                  transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
-                  unnest(us_flowpaths) %>%
-                  mutate(link_id=as.numeric(link_id)),
-                by="link_id"
-      ) %>%
+    lumped_cat_part1<-left_join(us_flowpaths_out %>%
+                                  transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
+                                  unnest(us_flowpaths) %>%
+                                  mutate(link_id=as.numeric(link_id)),
+                                terra::extract(loi_rasts$cat_rast,all_subb,
+                                               fun=function(x,na.rm=T) sum(x,na.rm=na.rm),
+                                               na.rm=T,method="simple",touches=F,ID=F) %>%
+                                  mutate(link_id=all_subb$link_id) %>%
+                                  as_tibble(),
+                                by="link_id"
+    ) %>%
       group_by(link_id_upper) %>%
       summarize(
         across(c(everything(),-contains("link_id")),sum)
@@ -308,9 +294,9 @@ fasttrib_points<-function(
       rename(link_id=link_id_upper)
 
 
-    lumped_cat_part2<-extract(loi_rasts$cat_rast[[1]],all_subb,
-                              fun=function(x,na.rm=T) length(x),
-                              na.rm=T,method="simple",touches=F,ID=F) %>%
+    lumped_cat_part2<-terra::extract(loi_rasts$cat_rast[[1]],all_subb,
+                                     fun=function(x,na.rm=T) length(x),
+                                     na.rm=T,method="simple",touches=F,ID=F) %>%
       mutate(link_id=all_subb$link_id)%>%
       as_tibble() %>%
       left_join(us_flowpaths_out %>%
@@ -326,7 +312,8 @@ fasttrib_points<-function(
       setNames(c("link_id","cell_sum"))
 
     lumped_cat<-lumped_cat_part1 %>%
-      mutate(across(c(everything(),-contains("link_id")),~./lumped_cat_part2$cell_sum))
+      mutate(across(c(everything(),-contains("link_id")),~./lumped_cat_part2$cell_sum)) %>%
+      dplyr::rename_with(.cols =c(everything(),-contains("link_id")),~paste0(.x,"_lumped_prop"))
 
 
   } else {
@@ -355,7 +342,7 @@ fasttrib_points<-function(
   # unzip(hw_streams,
   #       exdir = temp_dir)
 
-  # dw_s_sum<-extract(rast(hw_streams),all_catch,fun="sum",na.rm=T,method="simple",touches=F,ID=F) %>%
+  # dw_s_sum<-terra::extract(rast(hw_streams),all_catch,fun="sum",na.rm=T,method="simple",touches=F,ID=F) %>%
   #   mutate(link_id=all_catch$link_id)
 
   hw_streams_lo<-map(hw_streams_nm,function(x){
@@ -447,7 +434,7 @@ fasttrib_points<-function(
 
     #loi_dw_out<-pmap(
     loi_dw_out<-future_pmap(
-    .options = furrr_options(globals = FALSE),
+      .options = furrr_options(globals = FALSE),
       list(
         target_O_subs=suppressWarnings(split(target_O_sub,1:n_cores)),
         all_catch=rep(list(all_catch),n_cores),
@@ -501,10 +488,10 @@ fasttrib_points<-function(
         if (length(hw)>0 & any(c("mean","sd") %in% loi_numeric_stats)) {
           sumfun<-function(x,us_flowpaths=us_flowpaths){
             out<-purrr::map_dfr(us_flowpaths$us_flowpaths,
-                           ~x[x$link_id %in% .$link_id,] %>%
-                             dplyr::select(-tidyselect::any_of("link_id")) %>%
-                             dplyr::summarise(dplyr::across(tidyselect::everything(),sum))
-                           ,.id = "link_id")
+                                ~x[x$link_id %in% .$link_id,] %>%
+                                  dplyr::select(-tidyselect::any_of("link_id")) %>%
+                                  dplyr::summarise(dplyr::across(tidyselect::everything(),sum))
+                                ,.id = "link_id")
 
             out<-out[match(us_flowpaths$link_id, out$link_id,nomatch = 0),]
             out<-dplyr::select(out,-link_id)
@@ -572,6 +559,7 @@ fasttrib_points<-function(
 
             } else {
               # this is the correct way, but slower
+              browser()
               t0<-terra::extract(hw2,
                                  a_subb,
                                  fun=NULL ,
