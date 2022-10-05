@@ -204,7 +204,7 @@ prep_weights<-function(
                                        flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
                                        weighting_scheme = weighting_scheme_s,
                                        inv_function = inv_function,
-                                       clean_tempfiles=T,
+                                       clean_tempfiles=F,
                                        return_products = T,
                                        wrap_return_products=F,
                                        save_output=F)
@@ -297,7 +297,7 @@ prep_weights<-function(
                                      flow_accum = flow_accum,
                                      weighting_scheme = weighting_scheme_o,
                                      inv_function = inv_function,
-                                     clean_tempfiles=T,
+                                     clean_tempfiles=F,
                                      return_products = T,
                                      wrap_return_products=F,
                                      save_output=F)
