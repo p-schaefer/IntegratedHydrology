@@ -18,7 +18,7 @@ attrib_points(
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
-  catch_buffer = 0.001,
+  catch_buffer = 0,
   return_products = F,
   remove_region = NULL,
   temp_dir = NULL,

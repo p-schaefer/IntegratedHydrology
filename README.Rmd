@@ -849,7 +849,6 @@ fasttrib_points_time_small<-system.time(
     link_id=NULL,
     weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd",  "min", "max"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -898,7 +897,6 @@ fasttrib_points_time_big<-system.time(
     link_id=NULL,
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd",  "min", "max"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -935,6 +933,7 @@ pmap(
 
 
 
+
 final_attributes
 
 ```
@@ -947,6 +946,27 @@ In order to make predictions across the landscape, we will need to calculate our
 
 ```{r error=FALSE, fig.height=12, fig.width=6, message=FALSE, warning=FALSE}
 
+# This function is optional. It will save the hydroweight rasters in the output zip file.
+# These can be large and take up a lot of room, so consider whether they are needed before storing.
+# Having the raster available does increase the computation time of fasttrib_points().
+
+dw_time<-system.time(
+  hydro_out<-prep_weights(
+    input=hydro_out,
+    sample_points=NULL,
+    link_id=NULL,
+    target_o_type=c("segment_whole"),
+    weighting_scheme =  c( "iFLS", "HAiFLS","iFLO",  "HAiFLO"),
+    inv_function = function(x) {
+      (x * 0.001 + 1)^-1
+    },
+    temp_dir=NULL,
+    verbose=F
+  )
+)
+
+
+
 full_time<-system.time(
   final_attributes_all<-fasttrib_points(
     input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
@@ -957,10 +977,12 @@ full_time<-system.time(
     out_filename="all_points_wgtattr.csv",
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd", "max","min"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
+    store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
+    #           # This adds to the size of the zip file, and increases the computation time.
+    use_exising_hw=F, #This will attempt to use existing hydroweights when available
     temp_dir=NULL,
     verbose=F
   )
@@ -974,6 +996,13 @@ paste0(round(full_time[[3]]/60,2),
        ncol(final_attributes_all)-1,
        " attributes using ", nbrOfWorkers(),
        " cores.")
+
+paste0(round(dw_time[[3]]/60,2),
+       " min to calculate distance weights for ",
+       nrow(final_attributes_all)," reaches using ",
+       nbrOfWorkers(),
+       " cores.")
+
 
 # Plot some attributes along their respective stream lines for visualization:
 targ_param<-c("slope_lumped_mean","slope_iFLS_mean","slope_HAiFLO_mean",
@@ -1035,7 +1064,7 @@ response_table<-file.path(save_dir, "sites.shp") %>%
   mutate(link_id=as.character(link_id)) %>% 
   filter(!is.na(link_id))
 
-response_table
+head(response_table)
 
 # Columns for spatial cross-validation
 # Here we will use a matrix of directed path lengths to perform the
@@ -1043,7 +1072,7 @@ response_table
 clust_data<-hydro_out$pwise_dist %>% 
   filter(origin %in% response_table$link_id) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
   distinct() %>% 
@@ -1056,7 +1085,7 @@ clust_data<-hydro_out$pwise_dist %>%
   as_tibble() %>% 
   rename_with(.cols=c(everything(),-link_id),.fn=~paste0("CLUST_",.))
 
-clust_data
+head(clust_data)
 
 # Combine the data into a single dataset.
 comb_data<-response_table %>% 
@@ -1079,7 +1108,7 @@ comb_data<-response_table %>%
   filter(!is.na(link_id)) %>% 
   mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
 
-comb_data
+head(comb_data)
 
 ```
 
@@ -1199,7 +1228,7 @@ best_tunes<-map(final_out,select_by_pct_loss,1,metric = "rmse")
 best_tunes
 
 # Final ranger results
-final_model<-finalize_workflow(wf,best_tunes$spatial) %>% 
+final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
   fit(comb_data) %>% 
   extract_fit_engine()
 
@@ -1299,6 +1328,29 @@ tm_shape(Streams) +
           border.alpha=1,
           border.lwd=1)+
   tm_layout(legend.outside = TRUE)
+
+```
+
+We can also summarize the percent of stream lengths that fall within predicted value classes:
+
+```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
+
+Streams %>% 
+  mutate(strm_len=as.numeric(st_length(geometry))) %>% 
+  as_tibble() %>% 
+  mutate(`Prediction Groups` = cut(Predicted, 
+                                   breaks = c(0,2,4,6,8,10), 
+                                   include.lowest=TRUE)
+  ) %>% 
+  mutate(total_strm_len=sum(strm_len)) %>% 
+  group_by(`Prediction Groups`) %>% 
+  summarize(`% of Total Stream Length`=sum(strm_len)/total_strm_len*100) %>% 
+  distinct() %>% 
+  ggplot(aes(x="",y=`% of Total Stream Length`,fill=`Prediction Groups`))+
+  geom_bar(width = 1, stat = "identity")+
+  coord_polar("y", start=0) +
+  scale_fill_viridis_d()+
+  theme_bw()
 
 ```
 

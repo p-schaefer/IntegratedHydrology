@@ -59,7 +59,7 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 
 ## 1 Introduction
 
-<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" style="display: block; margin: auto;" />
+<img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" style="display: block; margin: auto;" />
 
 Aquatic environmental scientists are often interested in relating
 landscape features to observed responses (e.g., fish size, water
@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-02 19:13:00
-#> 2           dem_d8.tif  454212 2022-10-02 19:13:00
-#> 3     dem_accum_d8.tif  904212 2022-10-02 19:13:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-02 19:13:00
-#> 5   dem_streams_d8.tif  904212 2022-10-02 19:13:00
+#> 1        dem_final.tif 1804210 2022-10-05 09:28:00
+#> 2           dem_d8.tif  454212 2022-10-05 09:28:00
+#> 3     dem_accum_d8.tif  904212 2022-10-05 09:28:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-05 09:28:00
+#> 5   dem_streams_d8.tif  904212 2022-10-05 09:28:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\Rtmp888sia\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpgbJ9XD\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -420,6 +420,8 @@ hydro_out<-generate_vectors(
 # sample points in an upstream direction). 
 
 # New layers added by `generate_vectors()`
+# hydro_out$db_loc       # -> sqlite database file path containing tables:
+#                        #    "stream_links", "stream_points"
 # hydro_out$subbasins # -> polygon subbasins attributed with `link_id` and reach
 #                     #    contributing area (in m^2)
 # hydro_out$stream_lines # -> line vectors attributed with `link_id`, `trib_id`, upstream
@@ -475,38 +477,65 @@ in lookups.
 hydro_out<-trace_flowpaths(
   input=hydro_out,
   return_products=T,
+  calc_catch="all",
+  pwise_dist=T,
   temp_dir=NULL,
   verbose=F
 )
 
 # New layers added by `trace_flowpaths()`
-# hydro_out$db_loc       # -> sqlite database file path containing tables:
-#                        #    "us_flowpaths", "ds_flowpaths", and "pairwise_dist"
-# hydro_out$catchments   # -> Catchment polygons of each link_id
+# hydro_out$db_loc       # -> sqlite database file path with added tables:
+#                        #    "us_flowpaths", "ds_flowpaths", "fcon_pwise_dist",
+#                        #    and "funcon_pwise_dist"
+#                        #    
+# hydro_out$catchments   # -> Catchment polygons by link_id
 
 
 con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
 DBI::dbListTables(con)
-#> [1] "ds_flowpaths"  "pairwise_dist" "us_flowpaths"
+#> [1] "ds_flowpaths"    "fcon_pwise_dist" "sqlite_stat1"    "sqlite_stat4"   
+#> [5] "stream_links"    "stream_points"   "us_flowpaths"
 
 hydro_out$us_flowpaths <-collect(tbl(con,"us_flowpaths"))
 hydro_out$ds_flowpaths <-collect(tbl(con,"ds_flowpaths"))
 
 DBI::dbDisconnect(con)
 
+head(hydro_out$us_flowpaths)
+#> # A tibble: 6 × 2
+#>   pour_point_id origin_link_id
+#>   <chr>         <chr>         
+#> 1 1             1             
+#> 2 10            10            
+#> 3 100           100           
+#> 4 1000          1000          
+#> 5 1000          1005          
+#> 6 1000          1006
+
+head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
+#> # A tibble: 6 × 2
+#>   destination_link_id origin_link_id
+#>   <chr>               <chr>         
+#> 1 1                   1             
+#> 2 10                  10            
+#> 3 100                 100           
+#> 4 1000                130           
+#> 5 1000                1112          
+#> 6 1000                1118.1
+
 us_790<-hydro_out$us_flowpaths %>%
-  filter(source_id == "790") # get all upstream link_ids from link_id 790
+  filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
 ds_145.1<-hydro_out$ds_flowpaths %>%
-  filter(origin_id == "145.1") # get all downstream link_ids from 
+  filter(origin_link_id == "145.1") # get all downstream link_ids from 
 #                              # link_id 145.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id 
+  filter(link_id %in% us_790$origin_link_id | 
+           link_id %in% ds_145.1$destination_link_id  
   )
 sub_out<-hydro_out$subbasins %>% 
-  filter(link_id %in% us_790$link_id | 
-           link_id %in% ds_145.1$link_id
+  filter(link_id %in% us_790$origin_link_id | 
+           link_id %in% ds_145.1$destination_link_id 
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -562,39 +591,84 @@ relationships among sites.
 
 ``` r
 
-con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
-DBI::dbListTables(con)
-#> [1] "ds_flowpaths"  "pairwise_dist" "us_flowpaths"
+# If pairwise distances were not requested with trace_flowpaths(), they can be added 
+# at any point after using generate_pdist()
 
-hydro_out$pwise_dist<-collect(tbl(con,"pairwise_dist"))
-
-DBI::dbDisconnect(con)
-
-hydro_out$pwise_dist
-#> # A tibble: 541,206 × 6
-#>    origin destination directed_path_length prop_shared_catchment prop_…¹ undir…²
-#>    <chr>  <chr>                      <dbl>                 <dbl>   <dbl>   <dbl>
-#>  1 1      1                          132.                1         1       132. 
-#>  2 10     10                          42.4               1         1        42.4
-#>  3 10     1217                       192.                0.00615   0.692   192. 
-#>  4 100    100                        627.                1         1       627. 
-#>  5 100    1141                       862.                0.0287    0.782   862. 
-#>  6 100    1135                      1122.                0.0253    0.776  1122. 
-#>  7 100    1145                      1581.                0.0136    0.748  1581. 
-#>  8 100    1193                      1841.                0.0124    0.744  1841. 
-#>  9 100    1152                      1883.                0.0122    0.743  1883. 
-#> 10 100    1210                      2233.                0.0107    0.738  2233. 
-#> # … with 541,196 more rows, and abbreviated variable names
-#> #   ¹​prop_shared_logcatchment, ²​undirected_path_length
+hydro_out<-generate_pdist(
+  input=hydro_out,
+  pwise_all_links=T # This will calculate pairwise distances between all stream links
+  #                 #  which can be very slow for dense stream networks
+)
 
 # New data available in `pairwise_dist`
-# pairwise_dist # -> table of downstream path lengths between each pair of link_ids,
+# pairwise_dist # -> tables of downstream path lengths between each pair of link_ids,
 #                   #    with flow-connected in-stream distances (directed_path_length),
 #                   #    flow-unconnected in-stream distances (undirected_path_length),
 #                   #    and proportions of shared catchments (prop_shared_catchment)
 #                   #    and log-transformed catchment proportions (prop_shared_logcatchment)
 
-#hydro_out$pwise_dist
+
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
+DBI::dbListTables(con)
+#> [1] "ds_flowpaths"      "fcon_pwise_dist"   "funcon_pwise_dist"
+#> [4] "sqlite_stat1"      "sqlite_stat4"      "stream_links"     
+#> [7] "stream_points"     "us_flowpaths"
+
+# funcon_pwise_dist is only available if pwise_all_links==T
+
+hydro_out$pwise_dist<-bind_rows(collect(tbl(con,"fcon_pwise_dist")) %>% mutate(dist_type="Flow Connected"),
+                                collect(tbl(con,"funcon_pwise_dist")) %>% mutate(dist_type="Flow Unconnected")
+)
+
+DBI::dbDisconnect(con)
+
+head(hydro_out$pwise_dist)
+#> # A tibble: 6 × 7
+#>   origin destination directed_path_length prop_shared_…¹ prop_…² undir…³ dist_…⁴
+#>   <chr>  <chr>                      <dbl>          <dbl>   <dbl>   <dbl> <chr>  
+#> 1 1      1                          132.          1        1       132.  Flow C…
+#> 2 10     10                          42.4         1        1        42.4 Flow C…
+#> 3 10     1217                       192.          0.0289   0.763   192.  Flow C…
+#> 4 100    100                        627.          1        1       627.  Flow C…
+#> 5 100    1141                       862.          0.111    0.853   862.  Flow C…
+#> 6 100    1135                      1122.          0.0997   0.847  1122.  Flow C…
+#> # … with abbreviated variable names ¹​prop_shared_catchment,
+#> #   ²​prop_shared_logcatchment, ³​undirected_path_length, ⁴​dist_type
+
+p1<-hydro_out$stream_lines %>% 
+  mutate(link_id=as.character(link_id)) %>% 
+  left_join(hydro_out$pwise_dist %>%
+              filter(dist_type=="Flow Connected") %>% 
+              filter(origin=="1048") %>% 
+              mutate(directed_path_length=log(directed_path_length)),
+            by=c("link_id"="destination")) %>% 
+  tm_shape() +
+  tm_lines(col="directed_path_length",alpha =1,legend.show=T,lwd =2,palette = "viridis",style="cont")+
+  tm_shape(hydro_out$links %>% filter(link_id=="1048"))+
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(main.title = "Flow connected path log-length from 1048",legend.outside = TRUE)
+
+p2<-hydro_out$stream_lines %>% 
+  mutate(link_id=as.character(link_id)) %>% 
+  left_join(hydro_out$pwise_dist %>% 
+              filter(origin=="1048") %>%
+              filter(dist_type=="Flow Unconnected") %>% 
+              mutate(undirected_path_length=log(undirected_path_length)),  
+            by=c("link_id"="destination")) %>% 
+  tm_shape() +
+  tm_lines(col="undirected_path_length",alpha =1,legend.show=T,lwd =2,palette = "viridis",style="cont")+
+  tm_shape(hydro_out$links %>% filter(link_id=="1048"))+
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
+  tm_layout(main.title = "Flow Unconnected path log-length from 1048",legend.outside = TRUE)
+
+
+# Verify upstream and downstream distances make sense
+tmap_arrange(p1,p2,ncol=1)
+```
+
+<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+
+``` r
 
 # Examine relationships among sampled sites. 
 
@@ -610,7 +684,7 @@ dmat<-hydro_out$pwise_dist %>%
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
   distinct() %>% 
@@ -643,7 +717,7 @@ dmat2<-hydro_out$pwise_dist %>%
            destination %in% sel_link_id$link_id
   ) %>% 
   filter(origin!=destination) %>% 
-  select(-directed_path_length,-undirected_path_length,-prop_shared_catchment) %>%
+  select(-directed_path_length,-undirected_path_length,-prop_shared_catchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(prop_shared_logcatchment=ifelse(prop_shared_logcatchment==1 | is.na(prop_shared_logcatchment),
                                          1,prop_shared_logcatchment)) %>% 
@@ -655,12 +729,12 @@ dmat2<-hydro_out$pwise_dist %>%
 
 head(dmat2)
 #>           1055.1    1040.1    1003.1    1017.1 1076.1 973.1 1058.1 1079.1
-#> 1003.1 0.9532776 0.0000000 0.0000000 0.0000000      0     0      0      0
-#> 1017.1 0.9266871 0.9860508 0.9721062 0.0000000      0     0      0      0
-#> 1026.1 0.7821849 0.8322917 0.8205216 0.8440658      0     0      0      0
-#> 103.1  0.6264628 0.6665940 0.6571672 0.0000000      0     0      0      0
-#> 1037.1 0.6478149 0.0000000 0.0000000 0.0000000      0     0      0      0
-#> 1038.1 0.7239796 0.0000000 0.7594636 0.0000000      0     0      0      0
+#> 1003.1 0.9645166 0.0000000 0.0000000 0.0000000      0     0      0      0
+#> 1017.1 0.9410148 0.9872409 0.9756336 0.0000000      0     0      0      0
+#> 1026.1 0.8303788 0.8711700 0.8609274 0.8824291      0     0      0      0
+#> 103.1  0.7294505 0.7652837 0.7562861 0.0000000      0     0      0      0
+#> 1037.1 0.7373725 0.0000000 0.0000000 0.0000000      0     0      0      0
+#> 1038.1 0.7852767 0.0000000 0.8141661 0.0000000      0     0      0      0
 #>        1042.1 1091.1 1098.1 1026.1 929.1 774.1 714.1 785.1 871.1 909.1 855.1
 #> 1003.1      0      0      0      0     0     0     0     0     0     0     0
 #> 1017.1      0      0      0      0     0     0     0     0     0     0     0
@@ -677,7 +751,7 @@ head(dmat2)
   heatmap()
 ```
 
-<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
 
 Using these relationships, we can perform a clustering analysis to
 identify groups of sites with potentially high spatial autocorrelation.
@@ -707,7 +781,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
   tm_layout(legend.outside = TRUE)
 ```
 
-<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
 Finally, we’ll examine relationships among our response variable in
 terms of in-stream distances, contrasting flow connected sites vs, flow
@@ -738,51 +812,49 @@ dmat<-hydro_out$pwise_dist %>%
   left_join(response_table %>% rename(destination_value=value),by=c("destination"="link_id")) %>% 
   mutate(value_diff=sqrt((origin_value-destination_value)^2)) %>%  # Calculate the squared difference
   filter(origin!=destination) %>% 
-  mutate(undirected_path_length=case_when(
-    is.na(directed_path_length) ~ undirected_path_length,
-    directed_path_length==0 ~ undirected_path_length,
-    T ~ NA_real_
-  )) %>% 
-  pivot_longer(c(directed_path_length,undirected_path_length),
+  select(-dist_type,-site_id.x,-site_id.y,-origin_value,-destination_value) %>% 
+  pivot_longer(c(directed_path_length,undirected_path_length,prop_shared_catchment,prop_shared_logcatchment),
                names_to ="dist_type",
                values_to ="dist") %>% 
   filter(!is.na(dist)) %>% 
   mutate(`Distance Type`=case_when(
     dist_type=="directed_path_length" ~ "Flow Connected",
     dist_type=="undirected_path_length" ~ "Flow Unconnected",
-  ))
+    dist_type=="prop_shared_catchment" ~ "Shared Catchment",
+    dist_type=="prop_shared_logcatchment" ~ "Shared log-Catchment",
+  )) %>% 
+  distinct()
 
 dmat
-#> # A tibble: 5,596 × 12
-#>    origin destination prop_sha…¹ prop_…² site_…³ origi…⁴ site_…⁵ desti…⁶ value…⁷
-#>    <chr>  <chr>            <dbl>   <dbl> <chr>     <dbl> <chr>     <dbl>   <dbl>
-#>  1 1003.1 1055.1         0.376     0.953 20            6 25           10       4
-#>  2 1017.1 1040.1         0.760     0.986 17            5 18            6       1
-#>  3 1017.1 1003.1         0.573     0.972 17            5 20            6       1
-#>  4 1017.1 1055.1         0.215     0.927 17            5 25           10       5
-#>  5 1026.1 1017.1         0.0485    0.844 37            3 17            5       2
-#>  6 1026.1 1040.1         0.0368    0.832 37            3 18            6       3
-#>  7 1026.1 1003.1         0.0278    0.821 37            3 20            6       3
-#>  8 1026.1 1055.1         0.0104    0.782 37            3 25           10       7
-#>  9 103.1  1040.1         0.00141   0.667 62            8 18            6       2
-#> 10 103.1  1003.1         0.00106   0.657 62            8 20            6       2
-#> # … with 5,586 more rows, 3 more variables: dist_type <chr>, dist <dbl>,
-#> #   `Distance Type` <chr>, and abbreviated variable names
-#> #   ¹​prop_shared_catchment, ²​prop_shared_logcatchment, ³​site_id.x,
-#> #   ⁴​origin_value, ⁵​site_id.y, ⁶​destination_value, ⁷​value_diff
+#> # A tibble: 21,380 × 6
+#>    origin destination value_diff dist_type                    dist Distance Ty…¹
+#>    <chr>  <chr>            <dbl> <chr>                       <dbl> <chr>        
+#>  1 1003.1 1055.1               4 directed_path_length     7844.    Flow Connect…
+#>  2 1003.1 1055.1               4 undirected_path_length   7844.    Flow Unconne…
+#>  3 1003.1 1055.1               4 prop_shared_catchment       0.528 Shared Catch…
+#>  4 1003.1 1055.1               4 prop_shared_logcatchment    0.965 Shared log-C…
+#>  5 1017.1 1040.1               1 directed_path_length     1797.    Flow Connect…
+#>  6 1017.1 1040.1               1 undirected_path_length   1797.    Flow Unconne…
+#>  7 1017.1 1040.1               1 prop_shared_catchment       0.804 Shared Catch…
+#>  8 1017.1 1040.1               1 prop_shared_logcatchment    0.987 Shared log-C…
+#>  9 1017.1 1003.1               1 directed_path_length     4357.    Flow Connect…
+#> 10 1017.1 1003.1               1 undirected_path_length   4357.    Flow Unconne…
+#> # … with 21,370 more rows, and abbreviated variable name ¹​`Distance Type`
 
 require(ggplot2)
-ggplot(dmat,aes(x=dist,y=value_diff,col=`Distance Type`))+
-  geom_hex()+
+ggplot(dmat %>% filter(dist_type %in% c("directed_path_length","undirected_path_length")),
+       aes(x=dist,y=value_diff,col=`Distance Type`))+
+  geom_hex(bins=50)+
   geom_smooth(method="gam",se=F)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
   xlab("Pairwise Distance (m)")+
-  scale_x_log10(labels=scales::comma)
+  scale_x_log10(labels=scales::comma)+
+  facet_wrap(~`Distance Type`)
 ```
 
-<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
 Finally, we’ll do a similar comparison but using percent of shared
 catchments. Here we expect pairwise differences to decrease as the
@@ -791,20 +863,20 @@ percent of shared catchments increases.
 ``` r
 
 ggplot(dmat %>%
-         filter(prop_shared_catchment>0) %>% 
-         select(origin,destination,prop_shared_catchment,value_diff) %>%
-         distinct(),
-       aes(x=prop_shared_catchment,y=value_diff))+
+         filter(dist_type %in% c("prop_shared_catchment","prop_shared_logcatchment")) %>% 
+         filter(dist>0),
+       aes(x=dist,y=value_diff,colour=`Distance Type`))+
   geom_hex()+
   geom_smooth(method="gam",se=F)+
   theme_bw()+
   theme(legend.position = "bottom")+
   ylab("Pairwise Value Difference")+
   xlab("Percent of shared catchments (Flow Connected only)")+
-  scale_x_continuous(labels=scales::percent)
+  scale_x_continuous(labels=scales::percent)+
+  facet_wrap(~`Distance Type`,scales ="free_x")
 ```
 
-<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
@@ -840,34 +912,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-02 19:16:00
-#> 2            dem_d8.tif  454212 2022-10-02 19:16:00
-#> 3      dem_accum_d8.tif  904212 2022-10-02 19:16:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-02 19:16:00
-#> 5    dem_streams_d8.tif  904212 2022-10-02 19:16:00
-#> 6       site_id_col.csv      22 2022-10-02 19:16:00
-#> 7      stream_links.csv   35955 2022-10-02 19:16:00
-#> 8      stream_links.dbf    5716 2022-10-02 19:16:00
-#> 9      stream_links.prj     503 2022-10-02 19:16:00
-#> 10     stream_links.shp    6428 2022-10-02 19:16:00
-#> 11     stream_links.shx    1908 2022-10-02 19:16:00
-#> 12     stream_lines.dbf    5691 2022-10-02 19:16:00
-#> 13     stream_lines.prj     503 2022-10-02 19:16:00
-#> 14     stream_lines.shp   70924 2022-10-02 19:16:00
-#> 15     stream_lines.shx    1900 2022-10-02 19:16:00
-#> 16    stream_points.csv  797174 2022-10-02 19:16:00
-#> 17    stream_points.dbf  145016 2022-10-02 19:16:00
-#> 18    stream_points.prj     503 2022-10-02 19:16:00
-#> 19    stream_points.shp  162444 2022-10-02 19:16:00
-#> 20    stream_points.shx   46484 2022-10-02 19:16:00
-#> 21   Subbasins_poly.dbf    7782 2022-10-02 19:16:00
-#> 22   Subbasins_poly.prj     503 2022-10-02 19:16:00
-#> 23   Subbasins_poly.shp  380032 2022-10-02 19:16:00
-#> 24   Subbasins_poly.shx    1908 2022-10-02 19:16:00
-#> 25   Catchment_poly.dbf   18372 2022-10-02 19:16:00
-#> 26   Catchment_poly.prj     503 2022-10-02 19:16:00
-#> 27   Catchment_poly.shp  997812 2022-10-02 19:16:00
-#> 28   Catchment_poly.shx    1908 2022-10-02 19:16:00
+#> 1         dem_final.tif 1804210 2022-10-05 09:33:00
+#> 2            dem_d8.tif  454212 2022-10-05 09:33:00
+#> 3      dem_accum_d8.tif  904212 2022-10-05 09:33:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-05 09:33:00
+#> 5    dem_streams_d8.tif  904212 2022-10-05 09:33:00
+#> 6       site_id_col.csv      22 2022-10-05 09:33:00
+#> 7      stream_links.dbf   18372 2022-10-05 09:33:00
+#> 8      stream_links.prj     503 2022-10-05 09:33:00
+#> 9      stream_links.shp    6428 2022-10-05 09:33:00
+#> 10     stream_links.shx    1908 2022-10-05 09:33:00
+#> 11     stream_lines.dbf    5691 2022-10-05 09:33:00
+#> 12     stream_lines.prj     503 2022-10-05 09:33:00
+#> 13     stream_lines.shp   70924 2022-10-05 09:33:00
+#> 14     stream_lines.shx    1900 2022-10-05 09:33:00
+#> 15    stream_points.dbf  145016 2022-10-05 09:33:00
+#> 16    stream_points.prj     503 2022-10-05 09:33:00
+#> 17    stream_points.shp  162444 2022-10-05 09:33:00
+#> 18    stream_points.shx   46484 2022-10-05 09:33:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-05 09:33:00
+#> 20   Subbasins_poly.prj     503 2022-10-05 09:33:00
+#> 21   Subbasins_poly.shp  380032 2022-10-05 09:33:00
+#> 22   Subbasins_poly.shx    1908 2022-10-05 09:33:00
+#> 23   Catchment_poly.dbf   18372 2022-10-05 09:33:00
+#> 24   Catchment_poly.prj     503 2022-10-05 09:33:00
+#> 25   Catchment_poly.shp  997812 2022-10-05 09:33:00
+#> 26   Catchment_poly.shx    1908 2022-10-05 09:33:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -877,7 +947,7 @@ tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.sh
   tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
 ```
 
-<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
@@ -994,9 +1064,9 @@ final_attributes_sub_slow %>%
 #> # A tibble: 3 × 13
 #>   site_id slope_lumped…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷ slope…⁸
 #>     <dbl>          <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1       1           2.98   1.48    0.203   10.2     3.02   1.50     2.40   1.54 
+#> 1       1           2.99   1.46    0.203   10.2     3.02   1.49     2.40   1.54 
 #> 2      25           3.48  NA      NA       NA       3.36  NA        1.50  NA    
-#> 3      80           2.30   0.917   0.400    5.58    2.40   0.971    1.84   0.828
+#> 3      80           2.23   0.837   0.400    4.34    2.28   0.881    1.77   0.714
 #> # … with 4 more variables: slope_iFLS_distwtd_mean <dbl>,
 #> #   slope_iFLS_distwtd_sd <dbl>, slope_HAiFLS_distwtd_mean <dbl>,
 #> #   slope_HAiFLS_distwtd_sd <dbl>, and abbreviated variable names
@@ -1030,7 +1100,7 @@ plot(
 )
 ```
 
-<img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-19-1.png" width="100%" />
 
 The `fasttrib_points()` function is a bit less flexible in its inputs,
 but is considerably faster for larger data sets, more loi, and more
@@ -1048,7 +1118,6 @@ fasttrib_points_time_small<-system.time(
     link_id=NULL,
     weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd",  "min", "max"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -1094,7 +1163,6 @@ fasttrib_points_time_big<-system.time(
     link_id=NULL,
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd",  "min", "max"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -1129,33 +1197,34 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 2.76 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.44 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 2.84 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 1.1 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 18.51 min to calculate for 45 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 1.32 min to calculate for 45 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 4.3 min to calculate for 45 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 1.49 min to calculate for 45 reaches with 92 attributes using 8 cores."
+
 
 
 
 final_attributes
 #> # A tibble: 45 × 94
 #>    link_id site_id slope_lumpe…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷
-#>    <chr>     <int>         <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1124.1       41          2.43    1.57 0.00253   11.4    0.675       0 1.30e-1
-#>  2 1118.1        1          3.04    1.46 0.203     10.2    0.304       0 9.23e-4
-#>  3 103.1        62          3.13    1.81 0.0667     8.27   0.715       0 1.35e-1
-#>  4 145.1        26          2.82    1.37 0.152      7.64   0.439       0 0      
-#>  5 1091.1        4          3.38    1.75 0.146     12.3    0.184       0 5.26e-2
-#>  6 1058.1        7          2.75    1.75 0.0323     9.97   0.504       0 6.47e-2
-#>  7 1053.1        5          2.52    1.59 0.0323     7.90   0.587       0 8.05e-2
-#>  8 1079.1        8          3.23    1.90 0.0323    12.3    0.275       0 5.28e-2
-#>  9 1085.1       66          3.97    2.04 0.110     10.7    0.675       0 5.63e-2
-#> 10 1098.1       28          3.33    1.80 0.152     10.8    0.468       0 2.15e-2
+#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 1124.1  41               2.43    1.57 0.00253   11.4    0.675       0 1.29e-1
+#>  2 1118.1  1                3.05    1.46 0.203     10.2    0.302       0 9.19e-4
+#>  3 103.1   62               3.13    1.81 0.0667     8.27   0.715       0 1.35e-1
+#>  4 145.1   26               2.82    1.37 0.152      7.64   0.439       0 0      
+#>  5 1091.1  4                3.38    1.75 0.146     12.3    0.183       0 5.24e-2
+#>  6 1058.1  7                2.75    1.75 0.0323     9.97   0.504       0 6.46e-2
+#>  7 1053.1  5                2.52    1.59 0.0323     7.90   0.587       0 8.05e-2
+#>  8 1079.1  8                3.23    1.90 0.0323    12.3    0.274       0 5.27e-2
+#>  9 1085.1  66               3.97    2.04 0.110     10.7    0.675       0 5.62e-2
+#> 10 1098.1  28               3.33    1.80 0.152     10.8    0.468       0 2.14e-2
 #> # … with 35 more rows, 85 more variables: LC_4_lumped_prop <dbl>,
 #> #   LC_5_lumped_prop <dbl>, LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
 #> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
@@ -1181,6 +1250,27 @@ across the length of the whole reach.
 
 ``` r
 
+# This function is optional. It will save the hydroweight rasters in the output zip file.
+# These can be large and take up a lot of room, so consider whether they are needed before storing.
+# Having the raster available does increase the computation time of fasttrib_points().
+
+dw_time<-system.time(
+  hydro_out<-prep_weights(
+    input=hydro_out,
+    sample_points=NULL,
+    link_id=NULL,
+    target_o_type=c("segment_whole"),
+    weighting_scheme =  c( "iFLS", "HAiFLS","iFLO",  "HAiFLO"),
+    inv_function = function(x) {
+      (x * 0.001 + 1)^-1
+    },
+    temp_dir=NULL,
+    verbose=F
+  )
+)
+
+
+
 full_time<-system.time(
   final_attributes_all<-fasttrib_points(
     input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
@@ -1191,10 +1281,12 @@ full_time<-system.time(
     out_filename="all_points_wgtattr.csv",
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
     loi_numeric_stats = c("mean", "sd", "max","min"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
+    store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
+    #           # This adds to the size of the zip file, and increases the computation time.
+    use_exising_hw=F, #This will attempt to use existing hydroweights when available
     temp_dir=NULL,
     verbose=F
   )
@@ -1228,7 +1320,15 @@ paste0(round(full_time[[3]]/60,2),
        ncol(final_attributes_all)-1,
        " attributes using ", nbrOfWorkers(),
        " cores.")
-#> [1] "19.57 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "6.46 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
+
+paste0(round(dw_time[[3]]/60,2),
+       " min to calculate distance weights for ",
+       nrow(final_attributes_all)," reaches using ",
+       nbrOfWorkers(),
+       " cores.")
+#> [1] "2.76 min to calculate distance weights for 1206 reaches using 8 cores."
+
 
 # Plot some attributes along their respective stream lines for visualization:
 targ_param<-c("slope_lumped_mean","slope_iFLS_mean","slope_HAiFLO_mean",
@@ -1262,7 +1362,7 @@ pout<-map2(targ_param,targ_param_nm,function(x,y) tm_shape(attr_lines) +
 tmap_arrange(pout,ncol=3)
 ```
 
-<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
@@ -1293,21 +1393,16 @@ response_table<-file.path(save_dir, "sites.shp") %>%
   mutate(link_id=as.character(link_id)) %>% 
   filter(!is.na(link_id))
 
-response_table
-#> # A tibble: 45 × 3
-#>    site_id value link_id
-#>    <chr>   <dbl> <chr>  
-#>  1 1           1 1118.1 
-#>  2 4           1 1091.1 
-#>  3 5           1 1053.1 
-#>  4 7           1 1058.1 
-#>  5 8           1 1079.1 
-#>  6 11          2 1042.1 
-#>  7 12          3 1076.1 
-#>  8 15          4 973.1  
-#>  9 17          5 1017.1 
-#> 10 18          6 1040.1 
-#> # … with 35 more rows
+head(response_table)
+#> # A tibble: 6 × 3
+#>   site_id value link_id
+#>   <chr>   <dbl> <chr>  
+#> 1 1           1 1118.1 
+#> 2 4           1 1091.1 
+#> 3 5           1 1053.1 
+#> 4 7           1 1058.1 
+#> 5 8           1 1079.1 
+#> 6 11          2 1042.1
 
 # Columns for spatial cross-validation
 # Here we will use a matrix of directed path lengths to perform the
@@ -1315,7 +1410,7 @@ response_table
 clust_data<-hydro_out$pwise_dist %>% 
   filter(origin %in% response_table$link_id) %>% 
   filter(origin!=destination) %>% 
-  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment) %>%
+  select(-prop_shared_catchment,-undirected_path_length,-prop_shared_logcatchment,-dist_type) %>%
   rename(link_id=origin) %>%
   mutate(directed_path_length=ifelse(directed_path_length==1 | is.na(directed_path_length),0,directed_path_length)) %>% 
   distinct() %>% 
@@ -1328,27 +1423,23 @@ clust_data<-hydro_out$pwise_dist %>%
   as_tibble() %>% 
   rename_with(.cols=c(everything(),-link_id),.fn=~paste0("CLUST_",.))
 
-clust_data
-#> # A tibble: 45 × 198
-#>    link_id CLUST_1003 CLUST_1020 CLUST…¹ CLUST…² CLUST…³ CLUST…⁴ CLUST…⁵ CLUST…⁶
-#>    <chr>        <dbl>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1003.1        5.75       6.45    7.19    7.22    7.39    7.58    7.79    7.81
-#>  2 1017.1        8.42       8.48    8.62    8.62    8.67    8.72    8.80    8.80
-#>  3 1026.1        8.78       8.83    8.92    8.93    8.96    9.00    9.06    9.06
-#>  4 103.1         9.01       9.05    9.13    9.13    9.16    9.20    9.24    9.25
-#>  5 1037.1        0          0       0       0       0       0       0       0   
-#>  6 1038.1        8.16       8.24    8.41    8.42    8.47    8.54    8.63    8.64
-#>  7 1040.1        8.08       8.17    8.35    8.36    8.42    8.49    8.58    8.59
-#>  8 1042.1        9.38       9.41    9.46    9.47    9.48    9.51    9.54    9.55
-#>  9 1053.1        9.71       9.73    9.77    9.77    9.79    9.81    9.83    9.83
-#> 10 1055.1        0          0       0       0       0       0       0       0   
-#> # … with 35 more rows, 189 more variables: CLUST_970 <dbl>, CLUST_950 <dbl>,
-#> #   CLUST_976 <dbl>, CLUST_1150 <dbl>, CLUST_953 <dbl>, CLUST_977 <dbl>,
-#> #   CLUST_994 <dbl>, CLUST_968 <dbl>, CLUST_981 <dbl>, CLUST_920 <dbl>,
-#> #   CLUST_1067 <dbl>, CLUST_960 <dbl>, CLUST_969 <dbl>, CLUST_990 <dbl>,
-#> #   CLUST_1055.1 <dbl>, CLUST_1055 <dbl>, CLUST_1088 <dbl>, CLUST_980 <dbl>,
-#> #   CLUST_1017 <dbl>, CLUST_1130 <dbl>, CLUST_1040.1 <dbl>, CLUST_1040 <dbl>,
-#> #   CLUST_992 <dbl>, CLUST_1084 <dbl>, CLUST_1016 <dbl>, CLUST_971 <dbl>, …
+head(clust_data)
+#> # A tibble: 6 × 198
+#>   link_id CLUST_1003 CLUST_1020 CLUST_…¹ CLUST…² CLUST…³ CLUST…⁴ CLUST…⁵ CLUST…⁶
+#>   <chr>        <dbl>      <dbl>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1003.1        5.75       6.45     7.19    7.22    7.39    7.58    7.79    7.81
+#> 2 1017.1        8.42       8.48     8.62    8.62    8.67    8.72    8.80    8.80
+#> 3 1026.1        8.78       8.83     8.92    8.93    8.96    9.00    9.06    9.06
+#> 4 103.1         9.01       9.05     9.13    9.13    9.16    9.20    9.24    9.25
+#> 5 1037.1        0          0        0       0       0       0       0       0   
+#> 6 1038.1        8.16       8.24     8.41    8.42    8.47    8.54    8.63    8.64
+#> # … with 189 more variables: CLUST_970 <dbl>, CLUST_950 <dbl>, CLUST_976 <dbl>,
+#> #   CLUST_1150 <dbl>, CLUST_953 <dbl>, CLUST_977 <dbl>, CLUST_994 <dbl>,
+#> #   CLUST_968 <dbl>, CLUST_981 <dbl>, CLUST_920 <dbl>, CLUST_1067 <dbl>,
+#> #   CLUST_960 <dbl>, CLUST_969 <dbl>, CLUST_990 <dbl>, CLUST_1055.1 <dbl>,
+#> #   CLUST_1055 <dbl>, CLUST_1088 <dbl>, CLUST_980 <dbl>, CLUST_1017 <dbl>,
+#> #   CLUST_1130 <dbl>, CLUST_1040.1 <dbl>, CLUST_1040 <dbl>, CLUST_992 <dbl>,
+#> #   CLUST_1084 <dbl>, CLUST_1016 <dbl>, CLUST_971 <dbl>, CLUST_1039 <dbl>, …
 
 # Combine the data into a single dataset.
 comb_data<-response_table %>% 
@@ -1371,22 +1462,18 @@ comb_data<-response_table %>%
   filter(!is.na(link_id)) %>% 
   mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
 
-comb_data
-#> # A tibble: 45 × 337
-#>    site_id value link_id slope…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷
-#>    <chr>   <dbl> <chr>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1           1 1118.1     3.04    1.46 0.203     10.2    0.304       0 9.23e-4
-#>  2 4           1 1091.1     3.38    1.75 0.146     12.3    0.184       0 5.26e-2
-#>  3 5           1 1053.1     2.52    1.59 0.0323     7.90   0.587       0 8.05e-2
-#>  4 7           1 1058.1     2.75    1.75 0.0323     9.97   0.504       0 6.47e-2
-#>  5 8           1 1079.1     3.23    1.90 0.0323    12.3    0.275       0 5.28e-2
-#>  6 11          2 1042.1     3.42    2.22 0.0323    22.8    0.261       0 4.82e-2
-#>  7 12          3 1076.1     3.35    2.16 0.0323    22.8    0.372       0 4.22e-2
-#>  8 15          4 973.1      3.66    2.43 0.00216   22.8    0.315       0 4.33e-2
-#>  9 17          5 1017.1     3.75    2.40 0.00216   22.8    0.326       0 4.45e-2
-#> 10 18          6 1040.1     3.78    2.37 0.00216   22.8    0.386       0 4.51e-2
-#> # … with 35 more rows, 327 more variables: LC_4_lumped_prop <dbl>,
-#> #   LC_5_lumped_prop <dbl>, LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
+head(comb_data)
+#> # A tibble: 6 × 337
+#>   site_id value link_id slope_…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷
+#>   <chr>   <dbl> <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1           1 1118.1      3.05    1.46  0.203    10.2    0.302       0 9.19e-4
+#> 2 4           1 1091.1      3.38    1.75  0.146    12.3    0.183       0 5.24e-2
+#> 3 5           1 1053.1      2.52    1.59  0.0323    7.90   0.587       0 8.05e-2
+#> 4 7           1 1058.1      2.75    1.75  0.0323    9.97   0.504       0 6.46e-2
+#> 5 8           1 1079.1      3.23    1.90  0.0323   12.3    0.274       0 5.27e-2
+#> 6 11          2 1042.1      3.42    2.22  0.0323   22.8    0.261       0 4.82e-2
+#> # … with 327 more variables: LC_4_lumped_prop <dbl>, LC_5_lumped_prop <dbl>,
+#> #   LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
 #> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZfg_lumped_prop <dbl>, GEO_NAME_CZg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZig_lumped_prop <dbl>, GEO_NAME_CZlg_lumped_prop <dbl>,
@@ -1461,7 +1548,7 @@ standard_cv<-map2(cv_strats$standard$splits,1:length(cv_strats$standard$splits),
 tmap_arrange(c(spatial_cv,standard_cv),ncol=5)
 ```
 
-<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-24-1.png" width="100%" />
 
 We see the spatial-cross validation hold-out sites cluster nicely
 together, whereas the standard cross-validation are randomly distributed
@@ -1502,16 +1589,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard           54    54    10 rmse    standa…  2.94     4  0.161  Prepro…
-#>  2 standard            2   827    18 rmse    standa…  2.97     5  0.0928 Prepro…
-#>  3 standard            8  1720     3 rmse    standa…  2.98     5  0.161  Prepro…
-#>  4 standard           11  1992    28 rmse    standa…  2.99     5  0.0979 Prepro…
-#>  5 standard            5   981    30 rmse    standa…  2.99     5  0.0840 Prepro…
-#>  6 spatial            90  1051    40 rmse    standa…  2.96     5  0.350  Prepro…
-#>  7 spatial           114  1284    36 rmse    standa…  2.96     5  0.335  Prepro…
-#>  8 spatial            35  1627    38 rmse    standa…  2.97     5  0.339  Prepro…
-#>  9 spatial            10   651    30 rmse    standa…  2.97     5  0.282  Prepro…
-#> 10 spatial            44  1941    39 rmse    standa…  2.98     5  0.340  Prepro…
+#>  1 standard            5   981    30 rmse    standa…  2.98     5  0.0870 Prepro…
+#>  2 standard            8  1720     3 rmse    standa…  2.99     5  0.166  Prepro…
+#>  3 standard           11  1992    28 rmse    standa…  2.99     5  0.102  Prepro…
+#>  4 standard            2   827    18 rmse    standa…  2.99     5  0.0810 Prepro…
+#>  5 standard           24  1271    30 rmse    standa…  2.99     5  0.0950 Prepro…
+#>  6 spatial            90  1051    40 rmse    standa…  2.96     5  0.349  Prepro…
+#>  7 spatial           114  1284    36 rmse    standa…  2.96     5  0.336  Prepro…
+#>  8 spatial            35  1627    38 rmse    standa…  2.97     5  0.338  Prepro…
+#>  9 spatial           105   589    37 rmse    standa…  2.97     5  0.338  Prepro…
+#> 10 spatial            44  1941    39 rmse    standa…  2.97     5  0.338  Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1533,16 +1620,16 @@ best_tunes
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    12  1571    34 rmse    standard    3.00     5  0.0856 Preproce…  2.94  1.98
+#> 1    31  1850    22 rmse    standard    3.02     5   0.144 Preproce…  2.98  1.23
 #> 
 #> $spatial
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1   126   685    26 rmse    standard    3.01     5   0.249 Preproce…  2.96  1.75
+#> 1    83   735    34 rmse    standard    3.01     5   0.284 Preproce…  2.96  1.82
 
 # Final ranger results
-final_model<-finalize_workflow(wf,best_tunes$spatial) %>% 
+final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
   fit(comb_data) %>% 
   extract_fit_engine()
 
@@ -1561,7 +1648,7 @@ tibble(
   theme_bw()
 ```
 
-<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
 Finally, we will use the model to predict across the whole landscape.
 First we’ll assemble a table to predict from:
@@ -1633,13 +1720,13 @@ prediction_tbl
 #> # A tibble: 1,206 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
-#>  1 7           1     3     6           5         3
+#>  1 7           1     2     4           3         2
 #>  2 5           1     3     6           5         3
-#>  3 1209        1     2     4           3         2
-#>  4 1217        1     2     4           3         2
+#>  3 1209        1     1     3           2         1
+#>  4 1217        1     1     3           2         1
 #>  5 1215        1     3     6           5         3
-#>  6 1           3     4     8           5         4
-#>  7 1206        1     3     6           5         3
+#>  6 1           3     5     8           5         5
+#>  7 1206        2     3     6           4         3
 #>  8 3           3     7     8           5         7
 #>  9 1207        3     4     8           5         4
 #> 10 33          1     3     6           5         3
@@ -1685,7 +1772,32 @@ tm_shape(Streams) +
   tm_layout(legend.outside = TRUE)
 ```
 
-<img src="man/figures/README-unnamed-chunk-27-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
+
+We can also summarize the percent of stream lengths that fall within
+predicted value classes:
+
+``` r
+
+Streams %>% 
+  mutate(strm_len=as.numeric(st_length(geometry))) %>% 
+  as_tibble() %>% 
+  mutate(`Prediction Groups` = cut(Predicted, 
+                                   breaks = c(0,2,4,6,8,10), 
+                                   include.lowest=TRUE)
+  ) %>% 
+  mutate(total_strm_len=sum(strm_len)) %>% 
+  group_by(`Prediction Groups`) %>% 
+  summarize(`% of Total Stream Length`=sum(strm_len)/total_strm_len*100) %>% 
+  distinct() %>% 
+  ggplot(aes(x="",y=`% of Total Stream Length`,fill=`Prediction Groups`))+
+  geom_bar(width = 1, stat = "identity")+
+  coord_polar("y", start=0) +
+  scale_fill_viridis_d()+
+  theme_bw()
+```
+
+<img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
 
 ## 8 Future Plans
 

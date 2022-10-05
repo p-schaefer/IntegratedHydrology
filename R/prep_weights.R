@@ -27,7 +27,7 @@ prep_weights<-function(
     verbose=F
 ){
 
-  n_cores<-nbrOfWorkers()-1
+  n_cores<-nbrOfWorkers()
   if (is.infinite(n_cores)) n_cores<-availableCores(logical = F)
   if (n_cores==0) n_cores<-1
 
@@ -48,6 +48,7 @@ prep_weights<-function(
 
   out_zip_loc<-zip_loc
   out_zip_loc<-file.path(gsub(basename(out_zip_loc),"",out_zip_loc),paste0(gsub(".zip","_DW.zip",basename(out_zip_loc))))
+  if (file.exists(out_zip_loc)) file.remove(out_zip_loc)
 
   db_loc<-input$db_loc
 
@@ -209,8 +210,9 @@ prep_weights<-function(
                                        save_output=F)
 
   rout<-map(hw_streams,function(x) {
-    ot<-writeRaster(x,file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif")),overwrite=T)
-    return(file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif")))
+    fn<-file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif"))
+    ot<-writeRaster(x,fn,overwrite=T)
+    return(fn)
   })
 
   zip(out_zip_loc,
@@ -230,6 +232,8 @@ prep_weights<-function(
            overwrite=T)
 
   # Use unnest basins to find catchments that don't overlap
+  # Use asynchronous evaluation (if parallel backend registered)
+  # to clear up rasters as they are made
   future_unnest<-future::future({
     wbt_unnest_basins(
       wd=temp_dir_sub,
@@ -320,21 +324,3 @@ prep_weights<-function(
 
 }
 
-
-#' Clear Distance Weighted rasters out of output zip file.
-#'
-#' @param input output from `prep_weights()` or `fasttrib_points()`
-#'
-#' @return input
-#' @export
-#'
-
-clear_weights<-function(
-    input
-){
-
-  file.remove(input$dw_dir)
-  input<-input[!grepl("dw_dir",names(input))]
-
-  return(input)
-}
