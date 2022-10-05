@@ -204,10 +204,10 @@ prep_weights<-function(
                                        flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
                                        weighting_scheme = weighting_scheme_s,
                                        inv_function = inv_function,
-                                       clean_tempfiles=F,
+                                       clean_tempfiles=T,
                                        return_products = T,
                                        wrap_return_products=F,
-                                       save_output=F)
+                                       save_output=T)
 
   rout<-map(hw_streams,function(x) {
     fn<-file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif"))
@@ -219,6 +219,9 @@ prep_weights<-function(
       unlist(rout),
       flags = '-r9Xjq'
   )
+
+  t1<-try(file.remove(unlist(rout)),silent=T)
+  t1<-try(file.remove(file.path(temp_dir_sub,paste0("All_inv_distances.zip"))),silent=T)
 
   # Calculate weighted O-target distances -------------------------------------
 
@@ -297,10 +300,10 @@ prep_weights<-function(
                                      flow_accum = flow_accum,
                                      weighting_scheme = weighting_scheme_o,
                                      inv_function = inv_function,
-                                     clean_tempfiles=F,
+                                     clean_tempfiles=T,
                                      return_products = T,
                                      wrap_return_products=F,
-                                     save_output=F)
+                                     save_output=T)
 
       rout<-map(hw_o,function(z) {
         ot<-writeRaster(z,file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",names(z),".tif")))
@@ -311,6 +314,10 @@ prep_weights<-function(
           unlist(rout),
           flags = '-r9Xjq'
       )
+
+      t1<-try(file.remove(unlist(rout)),silent=T)
+      t1<-try(file.remove(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_inv_distances.zip"))),silent=T)
+
       return(NULL)
     })
 
