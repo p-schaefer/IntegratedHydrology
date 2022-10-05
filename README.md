@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-05 09:28:00
-#> 2           dem_d8.tif  454212 2022-10-05 09:28:00
-#> 3     dem_accum_d8.tif  904212 2022-10-05 09:28:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-05 09:28:00
-#> 5   dem_streams_d8.tif  904212 2022-10-05 09:28:00
+#> 1        dem_final.tif 1804210 2022-10-05 10:06:00
+#> 2           dem_d8.tif  454212 2022-10-05 10:06:00
+#> 3     dem_accum_d8.tif  904212 2022-10-05 10:06:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-05 10:06:00
+#> 5   dem_streams_d8.tif  904212 2022-10-05 10:06:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpgbJ9XD\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpCCyBR7\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -912,32 +912,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-05 09:33:00
-#> 2            dem_d8.tif  454212 2022-10-05 09:33:00
-#> 3      dem_accum_d8.tif  904212 2022-10-05 09:33:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-05 09:33:00
-#> 5    dem_streams_d8.tif  904212 2022-10-05 09:33:00
-#> 6       site_id_col.csv      22 2022-10-05 09:33:00
-#> 7      stream_links.dbf   18372 2022-10-05 09:33:00
-#> 8      stream_links.prj     503 2022-10-05 09:33:00
-#> 9      stream_links.shp    6428 2022-10-05 09:33:00
-#> 10     stream_links.shx    1908 2022-10-05 09:33:00
-#> 11     stream_lines.dbf    5691 2022-10-05 09:33:00
-#> 12     stream_lines.prj     503 2022-10-05 09:33:00
-#> 13     stream_lines.shp   70924 2022-10-05 09:33:00
-#> 14     stream_lines.shx    1900 2022-10-05 09:33:00
-#> 15    stream_points.dbf  145016 2022-10-05 09:33:00
-#> 16    stream_points.prj     503 2022-10-05 09:33:00
-#> 17    stream_points.shp  162444 2022-10-05 09:33:00
-#> 18    stream_points.shx   46484 2022-10-05 09:33:00
-#> 19   Subbasins_poly.dbf    7782 2022-10-05 09:33:00
-#> 20   Subbasins_poly.prj     503 2022-10-05 09:33:00
-#> 21   Subbasins_poly.shp  380032 2022-10-05 09:33:00
-#> 22   Subbasins_poly.shx    1908 2022-10-05 09:33:00
-#> 23   Catchment_poly.dbf   18372 2022-10-05 09:33:00
-#> 24   Catchment_poly.prj     503 2022-10-05 09:33:00
-#> 25   Catchment_poly.shp  997812 2022-10-05 09:33:00
-#> 26   Catchment_poly.shx    1908 2022-10-05 09:33:00
+#> 1         dem_final.tif 1804210 2022-10-05 10:11:00
+#> 2            dem_d8.tif  454212 2022-10-05 10:11:00
+#> 3      dem_accum_d8.tif  904212 2022-10-05 10:11:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-05 10:11:00
+#> 5    dem_streams_d8.tif  904212 2022-10-05 10:11:00
+#> 6       site_id_col.csv      22 2022-10-05 10:11:00
+#> 7      stream_links.dbf   18372 2022-10-05 10:11:00
+#> 8      stream_links.prj     503 2022-10-05 10:11:00
+#> 9      stream_links.shp    6428 2022-10-05 10:11:00
+#> 10     stream_links.shx    1908 2022-10-05 10:11:00
+#> 11     stream_lines.dbf    5691 2022-10-05 10:11:00
+#> 12     stream_lines.prj     503 2022-10-05 10:11:00
+#> 13     stream_lines.shp   70924 2022-10-05 10:11:00
+#> 14     stream_lines.shx    1900 2022-10-05 10:11:00
+#> 15    stream_points.dbf  145016 2022-10-05 10:11:00
+#> 16    stream_points.prj     503 2022-10-05 10:11:00
+#> 17    stream_points.shp  162444 2022-10-05 10:11:00
+#> 18    stream_points.shx   46484 2022-10-05 10:11:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-05 10:11:00
+#> 20   Subbasins_poly.prj     503 2022-10-05 10:11:00
+#> 21   Subbasins_poly.shp  380032 2022-10-05 10:11:00
+#> 22   Subbasins_poly.shx    1908 2022-10-05 10:11:00
+#> 23   Catchment_poly.dbf   18372 2022-10-05 10:11:00
+#> 24   Catchment_poly.prj     503 2022-10-05 10:11:00
+#> 25   Catchment_poly.shp  997812 2022-10-05 10:11:00
+#> 26   Catchment_poly.shx    1908 2022-10-05 10:11:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1197,16 +1197,16 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.44 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.43 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 1.1 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 1.18 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 1.32 min to calculate for 45 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 1.26 min to calculate for 45 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 1.49 min to calculate for 45 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 1.37 min to calculate for 45 reaches with 92 attributes using 8 cores."
 
 
 
@@ -1320,14 +1320,14 @@ paste0(round(full_time[[3]]/60,2),
        ncol(final_attributes_all)-1,
        " attributes using ", nbrOfWorkers(),
        " cores.")
-#> [1] "6.46 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "5.89 min to calculate attributes for 1206 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "2.76 min to calculate distance weights for 1206 reaches using 8 cores."
+#> [1] "2.6 min to calculate distance weights for 1206 reaches using 8 cores."
 
 
 # Plot some attributes along their respective stream lines for visualization:
