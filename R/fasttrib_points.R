@@ -8,8 +8,9 @@
 #' @param target_o_type character. One of: c("point","segment_point","segment_whole"). Target for iEucO" "iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.
 #' @param weighting_scheme character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")
 #' @param loi_numeric_stats character. One or more of c("mean", "sd", "median", "min", "max", "sum"). Only distance-weighted versions of mean and SD are returned for all weighting schemes except lumped.
-#' @param approx_distwtdsd coarsly approximates weighted
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
+#' @param use_exising_hw logical. Should the function look for existing hydroweight layers in the zip file?
+#' @param store_hw logical. Should hydroweight layer be stored and added to the zip file?
 #' @param out_filename Output file name.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical.
@@ -47,15 +48,36 @@ fasttrib_points<-function(
     target_o_type=c("point","segment_point","segment_whole"),
     weighting_scheme =  c("lumped", "iEucS", "iFLS", "HAiFLS","iEucO","iFLO",  "HAiFLO"),
     loi_numeric_stats = c("mean", "sd", "median", "min", "max", "sum"),
-    approx_distwtdsd=F,
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
+    use_exising_hw=F,
+    store_hw=F,
     out_filename=NULL,
     # return_products=F, # This is not possible using this faster method
     temp_dir=NULL,
     verbose=F
 ){
+  if (!is.logical(use_exising_hw)) stop("'use_exising_hw' must be logical")
+  if (!is.logical(store_hw)) stop("'store_hw' must be logical")
+
+  if (use_exising_hw & is.null(input$dw_dir)) stop("If 'use_exising_hw'=TRUE, input$dw_dir ust not be NULL. Has prep_weights() been run?")
+
+  if (store_hw){
+    use_exising_hw<-T
+
+    input<-prep_weights(
+      input=input,
+      sample_points=sample_points,
+      link_id=link_id,
+      target_o_type=target_o_type,
+      weighting_scheme =  weighting_scheme[!grepl("lumped",weighting_scheme)],
+      inv_function = inv_function,
+      temp_dir=temp_dir,
+      verbose=verbose
+    )
+  }
+
 
   n_cores<-nbrOfWorkers()-1
   if (is.infinite(n_cores)) n_cores<-availableCores(logical = F)
@@ -83,7 +105,9 @@ fasttrib_points<-function(
   loi_numeric_stats<-setNames(loi_numeric_stats,loi_numeric_stats)
 
   zip_loc<-input$outfile
+  dw_dir<-input$dw_dir
   db_loc<-input$db_loc
+
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
 
@@ -101,6 +125,12 @@ fasttrib_points<-function(
 
   fl<-unzip(list=T,zip_loc)
   fl_loi<-unzip(list=T,loi_loc)
+
+  if (!is.null(dw_dir)){
+    fl_dw<-unzip(list=T,dw_dir)
+  } else {
+    fl_dw<-NULL
+  }
 
   if (verbose) print("Reading in data")
 
@@ -211,21 +241,6 @@ fasttrib_points<-function(
 
     DBI::dbDisconnect(con)
     return(out2)
-
-
-    # con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    # out<-DBI::dbGetQuery(con, paste0("SELECT * FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
-    #   group_by(source_id) %>%
-    #   nest() %>%
-    #   ungroup()
-    #
-    # out2<-out$data
-    # names(out2)<-out$source_id
-    #
-    # out2<-out2[link_id]
-    #
-    # DBI::dbDisconnect(con)
-    # return(out2)
   }
 
   # browser()
@@ -272,29 +287,79 @@ fasttrib_points<-function(
   all_subb<-all_subb %>%
     filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
 
+
+  # Calculate weighted distances -------------------------------------
+  if (!use_exising_hw){
+    if (verbose) print("Generating Stream Targeted Weights")
+    hw_streams<-hydroweight::hydroweight(hydroweight_dir=temp_dir,
+                                         target_O = target_O,
+                                         target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
+                                         target_uid = 'ALL',
+                                         OS_combine = FALSE,
+                                         dem=file.path("/vsizip",zip_loc,"dem_final.tif"),
+                                         flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
+                                         weighting_scheme = weighting_scheme_s,
+                                         inv_function = inv_function,
+                                         clean_tempfiles=T,
+                                         return_products = F,
+                                         wrap_return_products=F,
+                                         save_output=T)
+
+    hw_streams_nm<-unzip(list=T,hw_streams)$Name
+
+    hw_streams_lo<-map(hw_streams_nm,function(x){
+      file.path("/vsizip",hw_streams,x)
+    })
+  } else {
+    #browser()
+    trg_fl<-paste0("All_S_",weighting_scheme_s,"_inv_distances.tif")
+    if (all(sapply(trg_fl,function(x) any(grepl(x,fl_dw$Name))))) {
+      hw_streams_lo<-map(trg_fl,~file.path("/vsizip",dw_dir,.))
+    } else {
+      stop(paste0("Not all 'weighting_scheme' found in zip file"))
+    }
+  }
+
+
+
   # Calculate Lumped Stats --------------------------------------------------
+  custfun <- function(x, type) {
+    #browser()
+    sapply(type,function(type) switch(type,
+                                      mean = mean(x,na.rm=T),
+                                      median = median(x,na.rm=T),
+                                      sd = sd(x,na.rm=T),
+                                      stdev = sd(x,na.rm=T),
+                                      min = min(x,na.rm=T),
+                                      max = max(x,na.rm=T),
+                                      sum = sum(x,na.rm=T)
+    )
+    )
+  }
 
   if (lumped_scheme){
-    #browser()
-
-    custfun <- function(x, type) {
-      switch(type,
-             mean = mean(x,na.rm=T),
-             median = median(x,na.rm=T),
-             sd = mean(x,na.rm=T),
-             min = min(x,na.rm=T),
-             max = max(x,na.rm=T),
-             sum = sum(x,na.rm=T)
-      )
-    }
-
     if (verbose) print("Calculating Lumped Attributes")
 
-    lumped_numeric<-map(loi_numeric_stats,function(x){
-      out<-terra::extract(loi_rasts$num_rast,all_catch,fun=x,na.rm=T,method="simple",touches=F,ID=F)
-      names(out)<-paste0(names(out),"_lumped_",x)
-      mutate(out,link_id=all_catch$link_id)
-    })
+    lumped_out<-terra::extract(loi_rasts$num_rast,all_subb,fun=NULL,method="simple",touches=F,ID=T)
+
+    lumped_numeric<-left_join(us_flowpaths_out %>%
+                                transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
+                                unnest(us_flowpaths) %>%
+                                mutate(link_id=as.numeric(link_id)),
+                              lumped_out %>%
+                                mutate(link_id=all_subb$link_id[lumped_out$ID]) %>%
+                                as_tibble(),
+                              by="link_id"
+    ) %>%
+      group_by(link_id_upper) %>%
+      summarize(
+        across(c(any_of(names(loi_rasts_names$num_rast)),-contains("link_id")),~list(custfun(type=loi_numeric_stats,x=.x)))
+      ) %>%
+      mutate(
+        across(any_of(names(loi_rasts_names$num_rast)),~map_dfr(.,~.))
+      ) %>%
+      unnest(cols=c(everything(),-link_id_upper),names_sep="_lumped_") %>%
+      rename(link_id=link_id_upper)
 
     lumped_cat_part1<-left_join(us_flowpaths_out %>%
                                   transmute(link_id_upper=as.numeric(link_id),us_flowpaths=us_flowpaths) %>%
@@ -335,6 +400,28 @@ fasttrib_points<-function(
       mutate(across(c(everything(),-contains("link_id")),~./lumped_cat_part2$cell_sum)) %>%
       dplyr::rename_with(.cols =c(everything(),-contains("link_id")),~paste0(.x,"_lumped_prop"))
 
+    # lumped_numeric<-exactextractr::exact_extract(
+    #   loi_rasts$num_rast,all_catch,loi_numeric_stats,
+    #   colname_fun=function(extra="lumped",values,weights,fun_name,fun_value,nvalues,nweights){
+    #     paste0(values,"_",extra,"_",fun_name)
+    #   },
+    #   force_df=T,
+    #   progress=F
+    # ) %>%
+    #   mutate(link_id=all_catch$link_id) %>%
+    #   select(link_id, everything())
+    #
+    # lumped_cat<-exactextractr::exact_extract(
+    #   loi_rasts$cat_rast,all_catch,
+    #   fun=function(values, coverage_fractions, weights, ...) sapply(values,sum,na.rm=T)/sapply(values,length),
+    #   force_df=T,
+    #   progress=F
+    # ) %>%
+    #   t() %>%
+    #   as_tibble() %>%
+    #   rename_with(~paste0(.x,"_lumped_prop")) %>%
+    #   mutate(link_id=all_catch$link_id) %>%
+    #   select(link_id, everything())
 
   } else {
     lumped_numeric<-NULL
@@ -342,91 +429,86 @@ fasttrib_points<-function(
   }
 
 
-  # Calculate weighted distances -------------------------------------
-  if (verbose) print("Generating Stream Targeted Weights")
-  hw_streams<-hydroweight::hydroweight(hydroweight_dir=temp_dir,
-                                       target_O = target_O,
-                                       target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
-                                       target_uid = 'ALL',
-                                       OS_combine = FALSE,
-                                       dem=file.path("/vsizip",zip_loc,"dem_final.tif"),
-                                       flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
-                                       weighting_scheme = weighting_scheme_s,
-                                       inv_function = inv_function,
-                                       clean_tempfiles=T,
-                                       return_products = F,
-                                       wrap_return_products=F,
-                                       save_output=T)
 
-  hw_streams_nm<-unzip(list=T,hw_streams)$Name
-  # unzip(hw_streams,
-  #       exdir = temp_dir)
-
-  # dw_s_sum<-terra::extract(rast(hw_streams),all_catch,fun="sum",na.rm=T,method="simple",touches=F,ID=F) %>%
-  #   mutate(link_id=all_catch$link_id)
-
-  hw_streams_lo<-map(hw_streams_nm,function(x){
-    file.path("/vsizip",hw_streams,x)
-    #writeRaster(x,filename = file.path(temp_dir,paste0(names(x),".tif")),overwrite=T)
-    #return(file.path(temp_dir,paste0(names(x),".tif")))
-  })
 
   # Separate target_o into non-overlapping groups ---------------------------
   if (length(weighting_scheme_o)>0){
-    if (verbose) print("Generating Site Targeted Weights")
-    if (verbose) print("Unnesting Basins")
+    if (!use_exising_hw){
 
-    temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
-    dir.create(temp_dir_sub)
+      if (verbose) print("Generating Site Targeted Weights")
+      if (verbose) print("Unnesting Basins")
 
-    unzip(zip_loc,
-          c("dem_d8.tif"),
-          exdir=temp_dir_sub,
-          overwrite=T,
-          junkpaths=T)
-    write_sf(all_points %>% select(link_id),
-             file.path(temp_dir_sub,"pour_points.shp"),
-             overwrite=T)
+      temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
+      dir.create(temp_dir_sub)
 
-    #browser()
+      unzip(zip_loc,
+            c("dem_d8.tif"),
+            exdir=temp_dir_sub,
+            overwrite=T,
+            junkpaths=T)
+      write_sf(all_points %>% select(link_id),
+               file.path(temp_dir_sub,"pour_points.shp"),
+               overwrite=T)
 
-    future_unnest<-future::future({
-      wbt_unnest_basins(
-        wd=temp_dir_sub,
-        d8_pntr="dem_d8.tif",
-        pour_pts="pour_points.shp",
-        output="unnest.tif"
-      )
-    })
+      #browser()
 
-    future_unnest_status <- future::futureOf(future_unnest)
+      future_unnest<-future::future({
+        wbt_unnest_basins(
+          wd=temp_dir_sub,
+          d8_pntr="dem_d8.tif",
+          pour_pts="pour_points.shp",
+          output="unnest.tif"
+        )
+      })
 
-    rast_out<-list()
-    while(!future::resolved(future_unnest_status)){
-      Sys.sleep(0.2)
+      future_unnest_status <- future::futureOf(future_unnest)
+
+      rast_out<-list()
+      while(!future::resolved(future_unnest_status)){
+        Sys.sleep(0.2)
+        fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
+
+        if (length(fl_un)==0) next
+
+        rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
+        rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
+
+        if (length(rast_all)>0){
+          rast_out<-c(rast_out,map(rast_all,terra::unique))
+          suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
+        }
+      }
+
       fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-
-      if (length(fl_un)==0) next
-
       rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
       rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
-
       if (length(rast_all)>0){
         rast_out<-c(rast_out,map(rast_all,terra::unique))
         suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
       }
-    }
 
-    fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-    rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
-    rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
-    if (length(rast_all)>0){
-      rast_out<-c(rast_out,map(rast_all,terra::unique))
-      suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
-    }
+      #browser()
+      target_O_sub<-map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% select(link_id) %>% mutate(unn_group=.y))
+    } else {
 
-    #browser()
-    target_O_sub<-map(rast_out,~target_O[unlist(.x),] %>% select(link_id))
+      #browser()
+      target_O_sub<-read_sf(file.path("/vsizip",dw_dir,"unnest_group_target_O.shp")) %>%
+        split(.,paste0("unnest_group_",.$unn_group))
+
+      # trg_fl<-paste0("All_S_",weighting_scheme_s,"_inv_distances.tif")
+      # if (all(sapply(trg_fl,function(x) any(grepl(x,fl_dw$Name))))) {
+      #   hw_streams_lo<-map(trg_fl,~file.path("/vsizip",dw_dir,.))
+      # } else {
+      #   stop(paste0("Not all 'weighting_scheme' found in zip file"))
+      # }
+
+
+      trg_fls<-sapply(weighting_scheme_o,function(x) paste0(names(target_O_sub),"_",x,".tif"))
+      if (any(!trg_fls %in% fl_dw$Name)){
+        stop("Some unnested target_O groups are missing hydroweights")
+      }
+
+    }
 
   } else {
     target_O_sub<-NULL
@@ -471,10 +553,11 @@ fasttrib_points<-function(
         loi_cols_sub=rep(list(loi_cols),splt),
         weighting_scheme_o=rep(list(weighting_scheme_o),splt),
         loi_numeric_stats=rep(list(loi_numeric_stats),splt),
-        approx_distwtdsd=rep(list(approx_distwtdsd),splt),
         inv_function=rep(list(inv_function),splt),
+        use_exising_hw=rep(list(use_exising_hw),splt),
         temp_dir=rep(list(temp_dir),splt),
         zip_loc=rep(list(zip_loc),splt),
+        dw_dir=rep(list(dw_dir),splt),
         p=rep(list(p),splt)
       ),
       carrier::crate(function(target_O_subs,
@@ -486,10 +569,11 @@ fasttrib_points<-function(
                               loi_cols_sub,
                               weighting_scheme_o,
                               loi_numeric_stats,
-                              approx_distwtdsd,
                               inv_function,
+                              use_exising_hw,
                               temp_dir,
                               zip_loc,
+                              dw_dir,
                               p
       ) {
         if (is.null(hw) & is.null(target_O_subs)) return(NULL)
@@ -573,17 +657,6 @@ fasttrib_points<-function(
 
             term2<-((distwtd_M - 1) / distwtd_M) * distwtd_sum
 
-            if (approx_distwtdsd) {
-              # this is an incorrect approximation, but is much faster
-              term1<-terra::extract(terra::subset(loi_dist,loi_rasts_nms$num_rast),
-                                    a_subb ,
-                                    fun=function(x) sum((x-mean(x,na.rm=T))^2,na.rm=T) ,
-                                    method="simple",touches=F,ID=F)%>%
-                dplyr::mutate(link_id=a_subb$link_id)
-
-              term1<-sumfun(term1,us_flowpaths)
-
-            } else {
               # this is the correct way, but slower
               #browser()
               t0<-terra::extract(hw2,
@@ -648,7 +721,6 @@ fasttrib_points<-function(
 
               term1<-sumfun(term1,us_flowpaths)
 
-            }
 
             s_dwSD <- suppressMessages(purrr::map_dfc(colnames(term1), ~tibble::tibble(a=sqrt(term1[[.]] / unlist(term2)))))
             colnames(s_dwSD)<-paste0(colnames(term1),"_",names(hw2),"_sd")
@@ -670,20 +742,30 @@ fasttrib_points<-function(
         # Perform Target Weighting ------------------------------------------------
 
         if (length(target_O_subs)>0){
+          target_S <- file.path("/vsizip",zip_loc,"dem_streams_d8.tif")
+          dem <- file.path("/vsizip",zip_loc,"dem_final.tif")
+          flow_accum <- file.path("/vsizip",zip_loc,"dem_accum_d8.tif")
+
           o_out<-purrr::map(target_O_subs,function(x){
-            hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
-                                         target_O = x,
-                                         target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
-                                         target_uid = basename(tempfile()),
-                                         OS_combine = FALSE,
-                                         dem=file.path("/vsizip",zip_loc,"dem_final.tif"),
-                                         flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
-                                         weighting_scheme = weighting_scheme_o,
-                                         inv_function = inv_function,
-                                         clean_tempfiles=T,
-                                         return_products = T,
-                                         wrap_return_products=F,
-                                         save_output=F)
+            if (!use_exising_hw){
+              hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
+                                           target_O = x,
+                                           target_S = target_S,
+                                           target_uid = basename(tempfile()),
+                                           OS_combine = FALSE,
+                                           dem=dem,
+                                           flow_accum = flow_accum,
+                                           weighting_scheme = weighting_scheme_o,
+                                           inv_function = inv_function,
+                                           clean_tempfiles=T,
+                                           return_products = T,
+                                           wrap_return_products=F,
+                                           save_output=F)
+            } else {
+              trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,".tif")
+              hw<-purrr::map(trg_fl,~terra::rast(file.path("/vsizip",dw_dir,.)))
+              names(hw)<-sapply(hw,names)
+            }
 
             if (any(c("mean") %in% loi_numeric_stats) | length(loi_rasts_nms$cat_rast)>0){
               # distance_weighted mean
@@ -730,14 +812,6 @@ fasttrib_points<-function(
 
                 term2<-((distwtd_M - 1) / distwtd_M) * distwtd_sum
 
-                if (approx_distwtdsd){
-
-                  # this is an incorrect approximation, but is much faster
-                  term1<-terra::extract(terra::subset(loi_rasts_comb,loi_rasts_nms$num_rast)*dw,
-                                        all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
-                                        fun=function(x) sum((x-mean(x,na.rm=T))^2,na.rm=T) ,
-                                        method="simple",touches=F,ID=F)
-                } else {
                   # this is the correct way, but slower
                   t0<-terra::extract(dw,
                                      all_catch %>% dplyr::filter(link_id %in% x[["link_id"]]),
@@ -783,7 +857,6 @@ fasttrib_points<-function(
                     dplyr::summarise(dplyr::across(tidyselect::everything(),sum,na.rm=T)) %>%
                     dplyr::ungroup() %>%
                     dplyr::select(-tidyselect::any_of("ID"),-tidyselect::any_of("cell"))
-                }
 
                 loi_distwtd_sd <- suppressMessages(purrr::map_dfc(colnames(term1), ~tibble::tibble(a=sqrt(term1[[.]] / unlist(term2)))))
                 colnames(loi_distwtd_sd)<-paste0(colnames(term1),"_",names(dw),"_sd")
@@ -811,7 +884,6 @@ fasttrib_points<-function(
         } else {
           o_out<-NULL
         }
-
 
         return(
           list(

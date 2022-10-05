@@ -195,7 +195,7 @@ prep_weights<-function(
 
   if (verbose) print("Generating Stream Targeted Weights")
   hw_streams<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
-                                       target_O = target_O,
+                                       target_O = NULL,
                                        target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
                                        target_uid = 'ALL',
                                        OS_combine = FALSE,
