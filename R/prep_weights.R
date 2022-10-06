@@ -210,9 +210,15 @@ prep_weights<-function(
                                        save_output=T)
 
   uz_fls<-unzip(list=T,hw_streams)$Name
-  unzip(hw_streams)
+  unzip(hw_streams,exdir =temp_dir_sub)
 
-  rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
+  rout<-sapply(uz_fls,function(x) {
+    file.rename(
+      file.path(temp_dir_sub,x),
+      file.path(temp_dir_sub,paste0("ALL_",gsub(".tif","",x),"_inv_distances.tif"))
+    )
+    return(file.path(temp_dir_sub,paste0("ALL_",gsub(".tif","",x),"_inv_distances.tif")))
+  })
 
   zip(out_zip_loc,
       unlist(rout),
@@ -220,7 +226,7 @@ prep_weights<-function(
   )
 
   t1<-try(file.remove(unlist(rout)),silent=T)
-  #t1<-try(file.remove(file.path(temp_dir_sub,paste0("All_inv_distances.zip"))),silent=T)
+  t1<-try(file.remove(hw_streams),silent=T)
 
   # Calculate weighted O-target distances -------------------------------------
 
@@ -264,6 +270,7 @@ prep_weights<-function(
   }
 
   fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
+  fl_un<-fl_un[grepl(".tif",fl_un)]
   rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
   rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
   if (length(rast_all)>0){
@@ -290,7 +297,9 @@ prep_weights<-function(
     flow_accum <- terra::rast(file.path("/vsizip",zip_loc,"dem_accum_d8.tif"))
 
     o_out<-purrr::map(x,function(y){
-      hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
+      temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
+      dir.create(temp_dir_sub_sub)
+      hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
                                      target_O = y,
                                      target_S = target_S,
                                      target_uid = paste0("unnest_group_",y$unn_group[[1]]),
@@ -304,10 +313,18 @@ prep_weights<-function(
                                      wrap_return_products=F,
                                      save_output=T)
 
-      uz_fls<-unzip(list=T,hw_o)$Name
-      unzip(hw_o)
 
-      rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
+
+      uz_fls<-unzip(list=T,hw_o)$Name
+      unzip(hw_o,exdir =temp_dir_sub_sub)
+
+      rout<-sapply(uz_fls,function(x) {
+        file.copy(
+          file.path(temp_dir_sub_sub,x),
+          file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",gsub(".tif","",x),"_inv_distances.tif"))
+        )
+        return(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",gsub(".tif","",x),"_inv_distances.tif")))
+      })
 
       zip(out_zip_loc,
           unlist(rout),
@@ -315,7 +332,8 @@ prep_weights<-function(
       )
 
       t1<-try(file.remove(unlist(rout)),silent=T)
-      #t1<-try(file.remove(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_inv_distances.zip"))),silent=T)
+      t1<-try(file.remove(hw_o),silent=T)
+      t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
 
       return(NULL)
     })
