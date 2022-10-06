@@ -948,7 +948,7 @@ attrib_points_time_big<-system.time(
     input=hydro_out,
     loi_file=output_filename_loi, #output file path from process_loi()
     spec=specification_table<-tibble(
-      link_id=hydro_out$stream_links$link_id,
+      link_id=hydro_out$links$link_id,
       loi=list(loi_names)
     ),
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
