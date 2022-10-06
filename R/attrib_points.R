@@ -143,7 +143,7 @@ attrib_points<-function(
 
     if (all_reaches){
       spec<-spec %>%
-        mutate(link_id=floor(link_id)) %>%
+        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
         distinct()
     }
 
@@ -187,7 +187,7 @@ attrib_points<-function(
 
     if (all_reaches){
       target_O<-target_O %>%
-        mutate(link_id=floor(link_id)) %>%
+        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
         select(link_id) %>%
         group_by(link_id) %>%
         mutate(geometry=st_union(geometry)) %>%
@@ -236,6 +236,11 @@ attrib_points<-function(
                 setNames(c("UID","geometry")) %>%
                 rename(target_O=geometry),
               by="UID")
+
+  if (target_streamseg){
+    out<-out%>%
+      filter(as.numeric(st_length(target_O))>0)
+  }
 
 
   if (verbose) print("Generating Stream Level Attributes")

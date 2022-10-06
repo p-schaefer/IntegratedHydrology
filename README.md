@@ -189,7 +189,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession)
+plan(multisession(workers = future::availableCores(logical = F)))
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-05 22:02:00
-#> 2           dem_d8.tif  454212 2022-10-05 22:02:00
-#> 3     dem_accum_d8.tif  904212 2022-10-05 22:02:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-05 22:02:00
-#> 5   dem_streams_d8.tif  904212 2022-10-05 22:02:00
+#> 1        dem_final.tif 1804210 2022-10-06 12:08:00
+#> 2           dem_d8.tif  454212 2022-10-06 12:08:00
+#> 3     dem_accum_d8.tif  904212 2022-10-06 12:08:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-06 12:08:00
+#> 5   dem_streams_d8.tif  904212 2022-10-06 12:08:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpgLUAxu\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpA1AEgM\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -912,32 +912,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-05 22:04:00
-#> 2            dem_d8.tif  454212 2022-10-05 22:04:00
-#> 3      dem_accum_d8.tif  904212 2022-10-05 22:04:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-05 22:04:00
-#> 5    dem_streams_d8.tif  904212 2022-10-05 22:04:00
-#> 6       site_id_col.csv      22 2022-10-05 22:04:00
-#> 7      stream_links.dbf   18372 2022-10-05 22:04:00
-#> 8      stream_links.prj     503 2022-10-05 22:04:00
-#> 9      stream_links.shp    6428 2022-10-05 22:04:00
-#> 10     stream_links.shx    1908 2022-10-05 22:04:00
-#> 11     stream_lines.dbf    5691 2022-10-05 22:04:00
-#> 12     stream_lines.prj     503 2022-10-05 22:04:00
-#> 13     stream_lines.shp   70924 2022-10-05 22:04:00
-#> 14     stream_lines.shx    1900 2022-10-05 22:04:00
-#> 15    stream_points.dbf  145016 2022-10-05 22:04:00
-#> 16    stream_points.prj     503 2022-10-05 22:04:00
-#> 17    stream_points.shp  162444 2022-10-05 22:04:00
-#> 18    stream_points.shx   46484 2022-10-05 22:04:00
-#> 19   Subbasins_poly.dbf    7782 2022-10-05 22:04:00
-#> 20   Subbasins_poly.prj     503 2022-10-05 22:04:00
-#> 21   Subbasins_poly.shp  380032 2022-10-05 22:04:00
-#> 22   Subbasins_poly.shx    1908 2022-10-05 22:04:00
-#> 23   Catchment_poly.dbf   18372 2022-10-05 22:04:00
-#> 24   Catchment_poly.prj     503 2022-10-05 22:04:00
-#> 25   Catchment_poly.shp  997812 2022-10-05 22:04:00
-#> 26   Catchment_poly.shx    1908 2022-10-05 22:04:00
+#> 1         dem_final.tif 1804210 2022-10-06 12:10:00
+#> 2            dem_d8.tif  454212 2022-10-06 12:10:00
+#> 3      dem_accum_d8.tif  904212 2022-10-06 12:10:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-06 12:10:00
+#> 5    dem_streams_d8.tif  904212 2022-10-06 12:10:00
+#> 6       site_id_col.csv      22 2022-10-06 12:10:00
+#> 7      stream_links.dbf   18372 2022-10-06 12:10:00
+#> 8      stream_links.prj     503 2022-10-06 12:10:00
+#> 9      stream_links.shp    6428 2022-10-06 12:10:00
+#> 10     stream_links.shx    1908 2022-10-06 12:10:00
+#> 11     stream_lines.dbf    5691 2022-10-06 12:10:00
+#> 12     stream_lines.prj     503 2022-10-06 12:10:00
+#> 13     stream_lines.shp   70924 2022-10-06 12:10:00
+#> 14     stream_lines.shx    1900 2022-10-06 12:10:00
+#> 15    stream_points.dbf  145016 2022-10-06 12:10:00
+#> 16    stream_points.prj     503 2022-10-06 12:10:00
+#> 17    stream_points.shp  162444 2022-10-06 12:10:00
+#> 18    stream_points.shx   46484 2022-10-06 12:10:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-06 12:10:00
+#> 20   Subbasins_poly.prj     503 2022-10-06 12:10:00
+#> 21   Subbasins_poly.shp  380032 2022-10-06 12:10:00
+#> 22   Subbasins_poly.shx    1908 2022-10-06 12:10:00
+#> 23   Catchment_poly.dbf   18372 2022-10-06 12:10:00
+#> 24   Catchment_poly.prj     503 2022-10-06 12:10:00
+#> 25   Catchment_poly.shp  997812 2022-10-06 12:10:00
+#> 26   Catchment_poly.shx    1908 2022-10-06 12:10:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1214,7 +1214,6 @@ dw_time<-system.time(
 
 
 fasttrib_points_time_big<-system.time(
-  full_time<-system.time(
     final_attributes_all<-fasttrib_points(
       input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
       loi_file=output_filename_loi,
@@ -1233,20 +1232,18 @@ fasttrib_points_time_big<-system.time(
       temp_dir=NULL,
       verbose=F
     )
-  )
 )
 
 attrib_points_time_big<-system.time(
   final_attributes_slow<-attrib_points(
     input=hydro_out,
     loi_file=output_filename_loi, #output file path from process_loi()
-    spec=specification_table<-tibble(
-      link_id=hydro_out$links$link_id,
-      loi=list(loi_names)
-    ),
+    spec=NULL, # attrib_points() can be run without a spec table to calculate attributes across all reaches
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "min", "max"),
     OS_combine=F,
-    target_streamseg=F,
+    all_reaches=T,
+    target_streamseg=T,
     inv_function = function(x) { 
       (x * 0.001 + 1)^-1
     },
@@ -1293,7 +1290,7 @@ pmap(
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
          final_attributes_slow %>%
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
-         final_attributes%>%
+         final_attributes_all%>%
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
     )),
   function(.z,.x,.y) paste0(.z," took ",
@@ -1305,23 +1302,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.21 min to calculate for 3 reaches with 92 attributes using 16 cores."
+#> [1] "attrib_points() took 0.18 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 0.98 min to calculate for 3 reaches with 92 attributes using 16 cores."
+#> [1] "fasttrib_points() took 0.53 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 18.66 min to calculate for 1254 reaches with 92 attributes using 16 cores."
+#> [1] "attrib_points() took 34.65 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 2.21 min to calculate for 45 reaches with 92 attributes using 16 cores."
+#> [1] "fasttrib_points() took 2.09 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "1.74 min to calculate distance weights for 1206 reaches using 16 cores."
+#> [1] "1.07 min to calculate distance weights for 1206 reaches using 8 cores."
 
 
 # Plot some attributes along their respective stream lines for visualization:

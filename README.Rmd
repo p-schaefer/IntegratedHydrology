@@ -109,7 +109,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession)
+plan(multisession(workers = future::availableCores(logical = F)))
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -921,7 +921,6 @@ dw_time<-system.time(
 
 
 fasttrib_points_time_big<-system.time(
-  full_time<-system.time(
     final_attributes_all<-fasttrib_points(
       input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
       loi_file=output_filename_loi,
@@ -940,20 +939,18 @@ fasttrib_points_time_big<-system.time(
       temp_dir=NULL,
       verbose=F
     )
-  )
 )
 
 attrib_points_time_big<-system.time(
   final_attributes_slow<-attrib_points(
     input=hydro_out,
     loi_file=output_filename_loi, #output file path from process_loi()
-    spec=specification_table<-tibble(
-      link_id=hydro_out$links$link_id,
-      loi=list(loi_names)
-    ),
+    spec=NULL, # attrib_points() can be run without a spec table to calculate attributes across all reaches
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "min", "max"),
     OS_combine=F,
-    target_streamseg=F,
+    all_reaches=T,
+    target_streamseg=T,
     inv_function = function(x) { 
       (x * 0.001 + 1)^-1
     },
@@ -980,7 +977,7 @@ pmap(
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
          final_attributes_slow %>%
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
-         final_attributes%>%
+         final_attributes_all%>%
            select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
     )),
   function(.z,.x,.y) paste0(.z," took ",
