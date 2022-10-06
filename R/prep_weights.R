@@ -220,7 +220,7 @@ prep_weights<-function(
   )
 
   t1<-try(file.remove(unlist(rout)),silent=T)
-  t1<-try(file.remove(file.path(temp_dir_sub,paste0("All_inv_distances.zip"))),silent=T)
+  #t1<-try(file.remove(file.path(temp_dir_sub,paste0("All_inv_distances.zip"))),silent=T)
 
   # Calculate weighted O-target distances -------------------------------------
 
@@ -304,8 +304,8 @@ prep_weights<-function(
                                      wrap_return_products=F,
                                      save_output=T)
 
-      uz_fls<-unzip(list=T,hw_streams)$Name
-      unzip(hw_streams)
+      uz_fls<-unzip(list=T,o_out)$Name
+      unzip(o_out)
 
       rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
 
@@ -315,7 +315,7 @@ prep_weights<-function(
       )
 
       t1<-try(file.remove(unlist(rout)),silent=T)
-      t1<-try(file.remove(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_inv_distances.zip"))),silent=T)
+      #t1<-try(file.remove(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_inv_distances.zip"))),silent=T)
 
       return(NULL)
     })
