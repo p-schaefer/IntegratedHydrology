@@ -205,15 +205,14 @@ prep_weights<-function(
                                        weighting_scheme = weighting_scheme_s,
                                        inv_function = inv_function,
                                        clean_tempfiles=T,
-                                       return_products = T,
+                                       return_products = F,
                                        wrap_return_products=F,
                                        save_output=T)
 
-  rout<-map(hw_streams,function(x) {
-    fn<-file.path(temp_dir_sub,paste0("All_S_",names(x),"_inv_distances.tif"))
-    ot<-writeRaster(x,fn,overwrite=T)
-    return(fn)
-  })
+  uz_fls<-unzip(list=T,hw_streams)$Name
+  unzip(hw_streams)
+
+  rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
 
   zip(out_zip_loc,
       unlist(rout),
@@ -301,14 +300,14 @@ prep_weights<-function(
                                      weighting_scheme = weighting_scheme_o,
                                      inv_function = inv_function,
                                      clean_tempfiles=T,
-                                     return_products = T,
+                                     return_products = F,
                                      wrap_return_products=F,
                                      save_output=T)
 
-      rout<-map(hw_o,function(z) {
-        ot<-writeRaster(z,file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",names(z),".tif")))
-        return(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",names(z),".tif")))
-      })
+      uz_fls<-unzip(list=T,hw_streams)$Name
+      unzip(hw_streams)
+
+      rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
 
       zip(out_zip_loc,
           unlist(rout),
