@@ -304,8 +304,8 @@ prep_weights<-function(
                                      wrap_return_products=F,
                                      save_output=T)
 
-      uz_fls<-unzip(list=T,o_out)$Name
-      unzip(o_out)
+      uz_fls<-unzip(list=T,hw_o)$Name
+      unzip(hw_o)
 
       rout<-sapply(uz_fls,function(x) file.path(temp_dir_sub,x))
 
