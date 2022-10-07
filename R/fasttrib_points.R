@@ -312,7 +312,7 @@ fasttrib_points<-function(
     })
   } else {
     #browser()
-    trg_fl<-paste0("All_S_",weighting_scheme_s,"_inv_distances.tif")
+    trg_fl<-paste0("ALL_",weighting_scheme_s,"_inv_distances.tif")
     if (all(sapply(trg_fl,function(x) any(grepl(x,fl_dw$Name))))) {
       hw_streams_lo<-map(trg_fl,~file.path("/vsizip",dw_dir,.))
     } else {
@@ -503,7 +503,7 @@ fasttrib_points<-function(
       # }
 
 
-      trg_fls<-sapply(weighting_scheme_o,function(x) paste0(names(target_O_sub),"_",x,".tif"))
+      trg_fls<-sapply(weighting_scheme_o,function(x) paste0(names(target_O_sub),"_",x,"_inv_distances.tif"))
       if (any(!trg_fls %in% fl_dw$Name)){
         stop("Some unnested target_O groups are missing hydroweights")
       }
@@ -762,7 +762,7 @@ fasttrib_points<-function(
                                            wrap_return_products=F,
                                            save_output=F)
             } else {
-              trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,".tif")
+              trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,"_inv_distances.tif")
               hw<-purrr::map(trg_fl,~terra::rast(file.path("/vsizip",dw_dir,.)))
               names(hw)<-sapply(hw,names)
             }
