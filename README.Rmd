@@ -109,7 +109,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession(workers = future::availableCores(logical = F)))
+plan(multisession)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -929,7 +929,7 @@ fasttrib_points_time_big<-system.time(
       target_o_type="segment_whole",
       out_filename="all_points_wgtattr.csv",
       weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-      loi_numeric_stats = c("mean", "stdev", "max","min"),
+      loi_numeric_stats = c("mean", "sd", "max","min"),
       inv_function = function(x) {
         (x * 0.001 + 1)^-1
       },
@@ -937,7 +937,7 @@ fasttrib_points_time_big<-system.time(
       #           # This adds to the size of the zip file, and increases the computation time.
       use_exising_hw=F, #This will attempt to use existing hydroweights when available
       temp_dir=NULL,
-      verbose=F
+      verbose=T
     )
 )
 

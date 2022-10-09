@@ -189,7 +189,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession(workers = future::availableCores(logical = F)))
+plan(multisession)
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-06 12:08:00
-#> 2           dem_d8.tif  454212 2022-10-06 12:08:00
-#> 3     dem_accum_d8.tif  904212 2022-10-06 12:08:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-06 12:08:00
-#> 5   dem_streams_d8.tif  904212 2022-10-06 12:08:00
+#> 1        dem_final.tif 1804210 2022-10-09 09:28:00
+#> 2           dem_d8.tif  454212 2022-10-09 09:28:00
+#> 3     dem_accum_d8.tif  904212 2022-10-09 09:28:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-09 09:28:00
+#> 5   dem_streams_d8.tif  904212 2022-10-09 09:28:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpA1AEgM\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpwZJNZp\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -912,32 +912,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-06 12:10:00
-#> 2            dem_d8.tif  454212 2022-10-06 12:10:00
-#> 3      dem_accum_d8.tif  904212 2022-10-06 12:10:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-06 12:10:00
-#> 5    dem_streams_d8.tif  904212 2022-10-06 12:10:00
-#> 6       site_id_col.csv      22 2022-10-06 12:10:00
-#> 7      stream_links.dbf   18372 2022-10-06 12:10:00
-#> 8      stream_links.prj     503 2022-10-06 12:10:00
-#> 9      stream_links.shp    6428 2022-10-06 12:10:00
-#> 10     stream_links.shx    1908 2022-10-06 12:10:00
-#> 11     stream_lines.dbf    5691 2022-10-06 12:10:00
-#> 12     stream_lines.prj     503 2022-10-06 12:10:00
-#> 13     stream_lines.shp   70924 2022-10-06 12:10:00
-#> 14     stream_lines.shx    1900 2022-10-06 12:10:00
-#> 15    stream_points.dbf  145016 2022-10-06 12:10:00
-#> 16    stream_points.prj     503 2022-10-06 12:10:00
-#> 17    stream_points.shp  162444 2022-10-06 12:10:00
-#> 18    stream_points.shx   46484 2022-10-06 12:10:00
-#> 19   Subbasins_poly.dbf    7782 2022-10-06 12:10:00
-#> 20   Subbasins_poly.prj     503 2022-10-06 12:10:00
-#> 21   Subbasins_poly.shp  380032 2022-10-06 12:10:00
-#> 22   Subbasins_poly.shx    1908 2022-10-06 12:10:00
-#> 23   Catchment_poly.dbf   18372 2022-10-06 12:10:00
-#> 24   Catchment_poly.prj     503 2022-10-06 12:10:00
-#> 25   Catchment_poly.shp  997812 2022-10-06 12:10:00
-#> 26   Catchment_poly.shx    1908 2022-10-06 12:10:00
+#> 1         dem_final.tif 1804210 2022-10-09 09:33:00
+#> 2            dem_d8.tif  454212 2022-10-09 09:33:00
+#> 3      dem_accum_d8.tif  904212 2022-10-09 09:33:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-09 09:33:00
+#> 5    dem_streams_d8.tif  904212 2022-10-09 09:33:00
+#> 6       site_id_col.csv      22 2022-10-09 09:33:00
+#> 7      stream_links.dbf   18372 2022-10-09 09:33:00
+#> 8      stream_links.prj     503 2022-10-09 09:33:00
+#> 9      stream_links.shp    6428 2022-10-09 09:33:00
+#> 10     stream_links.shx    1908 2022-10-09 09:33:00
+#> 11     stream_lines.dbf    5691 2022-10-09 09:33:00
+#> 12     stream_lines.prj     503 2022-10-09 09:33:00
+#> 13     stream_lines.shp   70924 2022-10-09 09:33:00
+#> 14     stream_lines.shx    1900 2022-10-09 09:33:00
+#> 15    stream_points.dbf  145016 2022-10-09 09:33:00
+#> 16    stream_points.prj     503 2022-10-09 09:33:00
+#> 17    stream_points.shp  162444 2022-10-09 09:33:00
+#> 18    stream_points.shx   46484 2022-10-09 09:33:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-09 09:33:00
+#> 20   Subbasins_poly.prj     503 2022-10-09 09:33:00
+#> 21   Subbasins_poly.shp  380032 2022-10-09 09:33:00
+#> 22   Subbasins_poly.shx    1908 2022-10-09 09:33:00
+#> 23   Catchment_poly.dbf   18372 2022-10-09 09:33:00
+#> 24   Catchment_poly.prj     503 2022-10-09 09:33:00
+#> 25   Catchment_poly.shp  997812 2022-10-09 09:33:00
+#> 26   Catchment_poly.shx    1908 2022-10-09 09:33:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1156,25 +1156,25 @@ final_attributes<-fasttrib_points(
 
 final_attributes
 #> # A tibble: 45 × 94
-#>    link_id site_id slope_lumpe…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷
+#>    link_id site_id slope_lumpe…¹ LC_1_…² LC_2_…³ LC_3_…⁴ LC_4_…⁵ LC_5_…⁶ LC_6_…⁷
 #>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1124.1  41               2.43    1.57 0.00253   11.4    0.675       0 1.29e-1
-#>  2 1118.1  1                3.05    1.46 0.203     10.2    0.302       0 9.19e-4
-#>  3 103.1   62               3.13    1.81 0.0667     8.27   0.715       0 1.35e-1
-#>  4 145.1   26               2.82    1.37 0.152      7.64   0.439       0 0      
-#>  5 1091.1  4                3.38    1.75 0.146     12.3    0.183       0 5.24e-2
-#>  6 1058.1  7                2.75    1.75 0.0323     9.97   0.504       0 6.46e-2
-#>  7 1053.1  5                2.52    1.59 0.0323     7.90   0.587       0 8.05e-2
-#>  8 1079.1  8                3.23    1.90 0.0323    12.3    0.274       0 5.27e-2
-#>  9 1085.1  66               3.97    2.04 0.110     10.7    0.675       0 5.62e-2
-#> 10 1098.1  28               3.33    1.80 0.152     10.8    0.468       0 2.14e-2
-#> # … with 35 more rows, 85 more variables: LC_4_lumped_prop <dbl>,
-#> #   LC_5_lumped_prop <dbl>, LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
+#>  1 1124.1  41               2.43   0.675       0 1.29e-1  0.106   0.0892       0
+#>  2 1118.1  1                2.94   0.302       0 9.19e-4  0.0634  0.633        0
+#>  3 103.1   62               3.13   0.715       0 1.35e-1  0       0.150        0
+#>  4 145.1   26               2.82   0.439       0 0        0.125   0.436        0
+#>  5 1091.1  4                3.34   0.183       0 5.24e-2  0.0441  0.720        0
+#>  6 1058.1  7                2.75   0.504       0 6.46e-2  0.0253  0.406        0
+#>  7 1053.1  5                2.52   0.587       0 8.05e-2  0.0134  0.319        0
+#>  8 1079.1  8                3.21   0.274       0 5.27e-2  0.0394  0.633        0
+#>  9 1085.1  66               3.97   0.675       0 5.62e-2  0       0.269        0
+#> 10 1098.1  28               3.33   0.468       0 2.14e-2  0.0953  0.415        0
+#> # … with 35 more rows, 85 more variables: LC_7_lumped_prop <dbl>,
 #> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZfg_lumped_prop <dbl>, GEO_NAME_CZg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZig_lumped_prop <dbl>, GEO_NAME_CZlg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZve_lumped_prop <dbl>, GEO_NAME_Km_lumped_prop <dbl>,
-#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_HAiFLS_mean <dbl>, …
+#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_lumped_sd <dbl>,
+#> #   slope_lumped_min <dbl>, slope_lumped_max <dbl>, slope_iFLS_mean <dbl>, …
 ```
 
 [Back to top](#1-introduction)
@@ -1230,9 +1230,20 @@ fasttrib_points_time_big<-system.time(
       #           # This adds to the size of the zip file, and increases the computation time.
       use_exising_hw=F, #This will attempt to use existing hydroweights when available
       temp_dir=NULL,
-      verbose=F
+      verbose=T
     )
 )
+#> [1] "Reading in data"
+#> [1] "Reading in LOI"
+#> [1] "Writing LOI to attributes database"
+#> [1] "Generating Stream Targeted Weights"
+#> [1] "Writing S-targeted weights to attributes database"
+#> [1] "Generating Site Targeted Weights"
+#> [1] "Unnesting Basins"
+#> [1] "Writing O-targeted weights to attributes database"
+#> [1] "Calculating Lumped Attributes"
+#> [1] "Calculating s-targeted Attributes"
+#> [1] "Calculating o-targeted Attributes"
 
 attrib_points_time_big<-system.time(
   final_attributes_slow<-attrib_points(
@@ -1256,25 +1267,25 @@ attrib_points_time_big<-system.time(
 
 final_attributes_all
 #> # A tibble: 1,206 × 93
-#>    link_id slope_lumpe…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷ LC_4_…⁸
+#>    link_id slope_lumpe…¹ LC_1_…² LC_2_…³ LC_3_…⁴ LC_4_…⁵ LC_5_…⁶ LC_6_…⁷ LC_7_…⁸
 #>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 7                3.95    1.92    8.26  0.178   0            0  0       0.442 
-#>  2 5                4.70    2.44   10.4   0.385   0            0  0       0.0955
-#>  3 1209             3.99    1.91   12.7   0.0656  0.0622       0  0.0916  0.0811
-#>  4 1217             4.08    2.34   15.9   0.119   0.178        0  0.0585  0.0943
-#>  5 1215             3.58    2.22   14.5   0.0485  0.101        0  0.294   0.0738
-#>  6 1                4.65    2.19    9.09  1.11    0.0863       0  0.612   0.137 
-#>  7 1206             3.66    2.17   12.9   0.117   0.267        0  0.313   0.0678
-#>  8 3                3.45    1.78    8.18  0.296   0.769        0  0.0410  0     
-#>  9 1207             4.33    2.60   17.8   0.162   0.302        0  0.423   0.0995
-#> 10 33               4.55    2.77   15.0   0.204   0.329        0  0.0416  0.138 
-#> # … with 1,196 more rows, 84 more variables: LC_5_lumped_prop <dbl>,
-#> #   LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
-#> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZfg_lumped_prop <dbl>, GEO_NAME_CZg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZig_lumped_prop <dbl>, GEO_NAME_CZlg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZve_lumped_prop <dbl>, GEO_NAME_Km_lumped_prop <dbl>,
-#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_HAiFLS_mean <dbl>, …
+#>  1 7                3.32  0            0  0       0.442    0.558 0        0     
+#>  2 5                4.16  0            0  0       0.0955   0.904 0        0     
+#>  3 1209             3.90  0.0622       0  0.0916  0.0811   0.765 0        0     
+#>  4 1217             4.05  0.178        0  0.0585  0.0943   0.669 0        0     
+#>  5 1215             3.57  0.101        0  0.294   0.0738   0.511 0.00667  0.0142
+#>  6 1                3.84  0.0863       0  0.612   0.137    0.165 0        0     
+#>  7 1206             3.54  0.267        0  0.313   0.0678   0.352 0        0     
+#>  8 3                2.65  0.769        0  0.0410  0        0.190 0        0     
+#>  9 1207             4.26  0.302        0  0.423   0.0995   0.162 0.0141   0     
+#> 10 33               4.38  0.329        0  0.0416  0.138    0.491 0        0     
+#> # … with 1,196 more rows, 84 more variables: GEO_NAME_CZam_lumped_prop <dbl>,
+#> #   GEO_NAME_CZbg_lumped_prop <dbl>, GEO_NAME_CZfg_lumped_prop <dbl>,
+#> #   GEO_NAME_CZg_lumped_prop <dbl>, GEO_NAME_CZig_lumped_prop <dbl>,
+#> #   GEO_NAME_CZlg_lumped_prop <dbl>, GEO_NAME_CZve_lumped_prop <dbl>,
+#> #   GEO_NAME_Km_lumped_prop <dbl>, pontsrc_pontsrc_lumped_prop <dbl>,
+#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
+#> #   slope_iFLS_mean <dbl>, LC_1_iFLS_prop <dbl>, LC_2_iFLS_prop <dbl>, …
 
 pmap(
   list(
@@ -1302,23 +1313,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.18 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.38 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 0.53 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 0.87 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 34.65 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 57 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 2.09 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 50.95 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "1.07 min to calculate distance weights for 1206 reaches using 8 cores."
+#> [1] "2.78 min to calculate distance weights for 1206 reaches using 8 cores."
 
 
 # Plot some attributes along their respective stream lines for visualization:
@@ -1455,21 +1466,21 @@ comb_data<-response_table %>%
 
 head(comb_data)
 #> # A tibble: 6 × 337
-#>   site_id value link_id slope_…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷
+#>   site_id value link_id slope_…¹ LC_1_…² LC_2_…³ LC_3_…⁴ LC_4_…⁵ LC_5_…⁶ LC_6_…⁷
 #>   <chr>   <dbl> <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1           1 1118.1      3.05    1.46  0.203    10.2    0.302       0 9.19e-4
-#> 2 4           1 1091.1      3.38    1.75  0.146    12.3    0.183       0 5.24e-2
-#> 3 5           1 1053.1      2.52    1.59  0.0323    7.90   0.587       0 8.05e-2
-#> 4 7           1 1058.1      2.75    1.75  0.0323    9.97   0.504       0 6.46e-2
-#> 5 8           1 1079.1      3.23    1.90  0.0323   12.3    0.274       0 5.27e-2
-#> 6 11          2 1042.1      3.42    2.22  0.0323   22.8    0.261       0 4.82e-2
-#> # … with 327 more variables: LC_4_lumped_prop <dbl>, LC_5_lumped_prop <dbl>,
-#> #   LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
+#> 1 1           1 1118.1      2.94   0.302       0 9.19e-4  0.0634   0.633       0
+#> 2 4           1 1091.1      3.34   0.183       0 5.24e-2  0.0441   0.720       0
+#> 3 5           1 1053.1      2.52   0.587       0 8.05e-2  0.0134   0.319       0
+#> 4 7           1 1058.1      2.75   0.504       0 6.46e-2  0.0253   0.406       0
+#> 5 8           1 1079.1      3.21   0.274       0 5.27e-2  0.0394   0.633       0
+#> 6 11          2 1042.1      3.41   0.261       0 4.82e-2  0.0664   0.625       0
+#> # … with 327 more variables: LC_7_lumped_prop <dbl>,
 #> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZfg_lumped_prop <dbl>, GEO_NAME_CZg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZig_lumped_prop <dbl>, GEO_NAME_CZlg_lumped_prop <dbl>,
 #> #   GEO_NAME_CZve_lumped_prop <dbl>, GEO_NAME_Km_lumped_prop <dbl>,
-#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_HAiFLS_mean <dbl>, …
+#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_lumped_sd <dbl>,
+#> #   slope_lumped_min <dbl>, slope_lumped_max <dbl>, slope_iFLS_mean <dbl>, …
 ```
 
 Then, we’ll follow the tidymodels workflow from here:
@@ -1580,16 +1591,16 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            5   981    30 rmse    standa…  2.98     5  0.0870 Prepro…
-#>  2 standard            8  1720     3 rmse    standa…  2.99     5  0.166  Prepro…
-#>  3 standard           11  1992    28 rmse    standa…  2.99     5  0.102  Prepro…
-#>  4 standard            2   827    18 rmse    standa…  2.99     5  0.0810 Prepro…
-#>  5 standard           24  1271    30 rmse    standa…  2.99     5  0.0950 Prepro…
-#>  6 spatial            90  1051    40 rmse    standa…  2.96     5  0.349  Prepro…
-#>  7 spatial           114  1284    36 rmse    standa…  2.96     5  0.336  Prepro…
-#>  8 spatial            35  1627    38 rmse    standa…  2.97     5  0.338  Prepro…
-#>  9 spatial           105   589    37 rmse    standa…  2.97     5  0.338  Prepro…
-#> 10 spatial            44  1941    39 rmse    standa…  2.97     5  0.338  Prepro…
+#>  1 standard           11  1992    28 rmse    standa…  2.99     5  0.103  Prepro…
+#>  2 standard            5   981    30 rmse    standa…  3.00     5  0.0913 Prepro…
+#>  3 standard           79   145    20 rmse    standa…  3.00     5  0.185  Prepro…
+#>  4 standard            2   827    18 rmse    standa…  3.00     5  0.0929 Prepro…
+#>  5 standard           16   636     9 rmse    standa…  3.00     5  0.167  Prepro…
+#>  6 spatial            90  1051    40 rmse    standa…  2.95     5  0.347  Prepro…
+#>  7 spatial           114  1284    36 rmse    standa…  2.95     5  0.343  Prepro…
+#>  8 spatial            10   651    30 rmse    standa…  2.96     5  0.283  Prepro…
+#>  9 spatial            35  1627    38 rmse    standa…  2.96     5  0.344  Prepro…
+#> 10 spatial            44  1941    39 rmse    standa…  2.96     5  0.345  Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1611,13 +1622,13 @@ best_tunes
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    31  1850    22 rmse    standard    3.02     5   0.144 Preproce…  2.98  1.23
+#> 1   134  1481    12 rmse    standard    3.05     5   0.240 Preproce…  2.99  1.99
 #> 
 #> $spatial
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    83   735    34 rmse    standard    3.01     5   0.284 Preproce…  2.96  1.82
+#> 1   126   685    26 rmse    standard    3.00     5   0.256 Preproce…  2.95  1.63
 
 # Final ranger results
 final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
@@ -1665,25 +1676,25 @@ prediction_data<-final_attributes_all %>%
 
 prediction_data
 #> # A tibble: 1,206 × 138
-#>    link_id slope_lumpe…¹ slope…² slope…³ slope…⁴ LC_1_…⁵ LC_2_…⁶ LC_3_…⁷ LC_4_…⁸
+#>    link_id slope_lumpe…¹ LC_1_…² LC_2_…³ LC_3_…⁴ LC_4_…⁵ LC_5_…⁶ LC_6_…⁷ LC_7_…⁸
 #>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 7                3.95    1.92    8.26  0.178   0            0  0       0.442 
-#>  2 5                4.70    2.44   10.4   0.385   0            0  0       0.0955
-#>  3 1209             3.99    1.91   12.7   0.0656  0.0622       0  0.0916  0.0811
-#>  4 1217             4.08    2.34   15.9   0.119   0.178        0  0.0585  0.0943
-#>  5 1215             3.58    2.22   14.5   0.0485  0.101        0  0.294   0.0738
-#>  6 1                4.65    2.19    9.09  1.11    0.0863       0  0.612   0.137 
-#>  7 1206             3.66    2.17   12.9   0.117   0.267        0  0.313   0.0678
-#>  8 3                3.45    1.78    8.18  0.296   0.769        0  0.0410  0     
-#>  9 1207             4.33    2.60   17.8   0.162   0.302        0  0.423   0.0995
-#> 10 33               4.55    2.77   15.0   0.204   0.329        0  0.0416  0.138 
-#> # … with 1,196 more rows, 129 more variables: LC_5_lumped_prop <dbl>,
-#> #   LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
-#> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZfg_lumped_prop <dbl>, GEO_NAME_CZg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZig_lumped_prop <dbl>, GEO_NAME_CZlg_lumped_prop <dbl>,
-#> #   GEO_NAME_CZve_lumped_prop <dbl>, GEO_NAME_Km_lumped_prop <dbl>,
-#> #   pontsrc_pontsrc_lumped_prop <dbl>, slope_HAiFLS_mean <dbl>, …
+#>  1 7                3.32  0            0  0       0.442    0.558 0        0     
+#>  2 5                4.16  0            0  0       0.0955   0.904 0        0     
+#>  3 1209             3.90  0.0622       0  0.0916  0.0811   0.765 0        0     
+#>  4 1217             4.05  0.178        0  0.0585  0.0943   0.669 0        0     
+#>  5 1215             3.57  0.101        0  0.294   0.0738   0.511 0.00667  0.0142
+#>  6 1                3.84  0.0863       0  0.612   0.137    0.165 0        0     
+#>  7 1206             3.54  0.267        0  0.313   0.0678   0.352 0        0     
+#>  8 3                2.65  0.769        0  0.0410  0        0.190 0        0     
+#>  9 1207             4.26  0.302        0  0.423   0.0995   0.162 0.0141   0     
+#> 10 33               4.38  0.329        0  0.0416  0.138    0.491 0        0     
+#> # … with 1,196 more rows, 129 more variables: GEO_NAME_CZam_lumped_prop <dbl>,
+#> #   GEO_NAME_CZbg_lumped_prop <dbl>, GEO_NAME_CZfg_lumped_prop <dbl>,
+#> #   GEO_NAME_CZg_lumped_prop <dbl>, GEO_NAME_CZig_lumped_prop <dbl>,
+#> #   GEO_NAME_CZlg_lumped_prop <dbl>, GEO_NAME_CZve_lumped_prop <dbl>,
+#> #   GEO_NAME_Km_lumped_prop <dbl>, pontsrc_pontsrc_lumped_prop <dbl>,
+#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
+#> #   slope_iFLS_mean <dbl>, LC_1_iFLS_prop <dbl>, LC_2_iFLS_prop <dbl>, …
 ```
 
 And finally, we can predict across the landscape. We’ll use the range of
@@ -1711,16 +1722,16 @@ prediction_tbl
 #> # A tibble: 1,206 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
-#>  1 7           1     2     4           3         2
-#>  2 5           1     3     6           5         3
-#>  3 1209        1     1     3           2         1
+#>  1 7           1     2     6           5         2
+#>  2 5           1     3     4           3         3
+#>  3 1209        1     1     4           3         1
 #>  4 1217        1     1     3           2         1
-#>  5 1215        1     3     6           5         3
-#>  6 1           3     5     8           5         5
-#>  7 1206        2     3     6           4         3
-#>  8 3           3     7     8           5         7
+#>  5 1215        2     3     5           3         3
+#>  6 1           3     4     8           5         4
+#>  7 1206        1     3     6           5         3
+#>  8 3           3     8     8           5         8
 #>  9 1207        3     4     8           5         4
-#> 10 33          1     3     6           5         3
+#> 10 33          2     3     5           3         3
 #> # … with 1,196 more rows
 
 # Since we only have predictions for entire stream segments
