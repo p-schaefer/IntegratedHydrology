@@ -128,6 +128,7 @@ fasttrib_points<-function(
 
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+  DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
   DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
   DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
@@ -177,6 +178,9 @@ fasttrib_points<-function(
 
   all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
+
+  all_subb_v<-terra::vect(all_subb %>% select(link_id))
+  all_catch_v<-terra::vect(all_catch %>% select(link_id))
 
   # Get target link_id ------------------------------------------------------
   sample_points<-as.character(sample_points)
@@ -262,11 +266,13 @@ fasttrib_points<-function(
                         analyze=T,
                         in_transaction=T)
 
+    #browser()
+
     with_progress(enable=T,{
 
       p <- progressor(steps = nrow(all_subb))
 
-      attrib_tbl<-pmap(list(x=split(all_subb,all_subb$link_id),
+      attrib_tbl<-pmap(list(x=terra::split(all_subb_v,"link_id"),
                             con_attr_l=list(con_attr),
                             loi_rasts_comb_l=list(loi_rasts_comb),
                             p=list(p)
@@ -279,22 +285,36 @@ fasttrib_points<-function(
         `%>%` <- magrittr::`%>%`
 
         p()
-        exactextractr::exact_extract(
+        out<-terra::extract(
           loi_rasts_comb_l,
           x,
-          weights=NULL,
-          include_cell=T,
-          fun=NULL,
-          include_cols="link_id",
-          progress=F
+          cells=T,
+          ID=F,
+          fun=NULL
         ) %>%
-          dplyr::bind_rows() %>%
-          dplyr::select(-coverage_fraction) %>%
-          stats::setNames(c("subb_link_id",names(loi_rasts_comb_l),"cell_number")) %>%
-          dplyr::select(cell_number,subb_link_id,everything()) %>%
+          tibble::as_tibble() %>%
+          dplyr::mutate(subb_link_id=x$link_id) %>%
+          dplyr::rename(cell_number=cell) %>%
           DBI::dbAppendTable(conn=con_attr_l,
                              name="attrib_tbl",
                              value=.)
+        return(NULL)
+        # exactextractr::exact_extract(
+        #   loi_rasts_comb_l,
+        #   x,
+        #   weights=NULL,
+        #   include_cell=T,
+        #   fun=NULL,
+        #   include_cols="link_id",
+        #   progress=F
+        # ) %>%
+        #   dplyr::bind_rows() %>%
+        #   dplyr::select(-coverage_fraction) %>%
+        #   stats::setNames(c("subb_link_id",names(loi_rasts_comb_l),"cell_number")) %>%
+        #   dplyr::select(cell_number,subb_link_id,everything()) %>%
+        #   DBI::dbAppendTable(conn=con_attr_l,
+        #                      name="attrib_tbl",
+        #                      value=.)
       })
 
       )
@@ -448,7 +468,7 @@ fasttrib_points<-function(
 
       p <- progressor(steps = nrow(all_subb))
 
-      s_trg_weights<-pmap(list(x=split(all_subb,all_subb$link_id),
+      s_trg_weights<-pmap(list(x=terra::split(all_subb_v,"link_id"),
                                con_attr_l=list(con_attr),
                                hw2_l=list(terra::rast(hw2)),
                                p=list(p)
@@ -461,22 +481,37 @@ fasttrib_points<-function(
         `%>%` <- magrittr::`%>%`
 
         p()
-        exactextractr::exact_extract(
+        out<-terra::extract(
           hw2_l,
           x,
-          weights=NULL,
-          include_cell=T,
-          fun=NULL,
-          include_cols="link_id",
-          progress=F
+          cells=T,
+          ID=F,
+          fun=NULL
         ) %>%
-          dplyr::bind_rows() %>%
-          dplyr::select(-coverage_fraction) %>%
-          stats::setNames(c("subb_link_id",names(hw2_l),"cell_number")) %>%
-          dplyr::select(cell_number,subb_link_id,everything()) %>%
+          tibble::as_tibble() %>%
+          dplyr::mutate(subb_link_id=x$link_id) %>%
+          dplyr::rename(cell_number=cell) %>%
           DBI::dbAppendTable(conn=con_attr_l,
                              name="s_target_weights",
                              value=.)
+        return(NULL)
+
+        # exactextractr::exact_extract(
+        #   hw2_l,
+        #   x,
+        #   weights=NULL,
+        #   include_cell=T,
+        #   fun=NULL,
+        #   include_cols="link_id",
+        #   progress=F
+        # ) %>%
+        #   dplyr::bind_rows() %>%
+        #   dplyr::select(-coverage_fraction) %>%
+        #   stats::setNames(c("subb_link_id",names(hw2_l),"cell_number")) %>%
+        #   dplyr::select(cell_number,subb_link_id,everything()) %>%
+        #   DBI::dbAppendTable(conn=con_attr_l,
+        #                      name="s_target_weights",
+        #                      value=.)
       })
 
       )
@@ -653,6 +688,8 @@ fasttrib_points<-function(
                                 sub_catch<-all_catch %>%
                                   dplyr::filter(link_id %in% x$link_id)
 
+                                sub_catch_v<-terra::vect(sub_catch %>% dplyr::select(link_id))
+
                                 if (!use_exising_hw){
                                   hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
                                                                target_O = x,
@@ -673,9 +710,9 @@ fasttrib_points<-function(
                                   names(hw)<-sapply(hw,names)
                                 }
 
-                                out<-pmap(list(x=split(sub_catch,sub_catch$link_id),
-                                               con_attr_l=list(con_attr),
-                                               hw2_l=list(terra::rast(hw))
+                                out<-purrr::pmap(list(x=terra::split(sub_catch_v,"link_id"),
+                                                      con_attr_l=list(con_attr_l),
+                                                      hw2_l=list(terra::rast(hw))
                                 ),
                                 carrier::crate(function(x,
                                                         con_attr_l,
@@ -683,22 +720,38 @@ fasttrib_points<-function(
                                   options(scipen = 999)
                                   `%>%` <- magrittr::`%>%`
 
-                                  exactextractr::exact_extract(
+                                  out<-terra::extract(
                                     hw2_l,
                                     x,
-                                    weights=NULL,
-                                    include_cell=T,
-                                    fun=NULL,
-                                    include_cols="link_id",
-                                    progress=F
+                                    cells=T,
+                                    ID=F,
+                                    fun=NULL
                                   ) %>%
-                                    dplyr::bind_rows() %>%
-                                    dplyr::select(-coverage_fraction) %>%
-                                    stats::setNames(c("catch_link_id",names(hw2_l),"cell_number")) %>%
-                                    dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                    tibble::as_tibble() %>%
+                                    dplyr::mutate(catch_link_id=x$link_id) %>%
+                                    dplyr::rename(cell_number=cell) %>%
                                     DBI::dbAppendTable(conn=con_attr_l,
                                                        name="o_target_weights",
                                                        value=.)
+
+                                  return(NULL)
+
+                                  # exactextractr::exact_extract(
+                                  #   hw2_l,
+                                  #   x,
+                                  #   weights=NULL,
+                                  #   include_cell=T,
+                                  #   fun=NULL,
+                                  #   include_cols="link_id",
+                                  #   progress=F
+                                  # ) %>%
+                                  #   dplyr::bind_rows() %>%
+                                  #   dplyr::select(-coverage_fraction) %>%
+                                  #   stats::setNames(c("catch_link_id",names(hw2_l),"cell_number")) %>%
+                                  #   dplyr::select(cell_number,catch_link_id,everything()) %>%
+                                  #   DBI::dbAppendTable(conn=con_attr_l,
+                                  #                      name="o_target_weights",
+                                  #                      value=.)
                                 }))
 
                                 # out<-exactextractr::exact_extract(
@@ -2198,4 +2251,28 @@ fasttrib_points<-function(
   # return(final_out)
 }
 
-
+#' @export
+dbWithWriteTransaction <- function(conn, code) {
+  dbExecute(conn, "BEGIN IMMEDIATE")
+  rollback <- function(e) {
+    call <- DBI::dbExecute(conn, "ROLLBACK")
+    if (identical(call, FALSE)) {
+      stop(paste(
+        "Failed to rollback transaction.",
+        "Tried to roll back because an error occurred:",
+        conditionMessage(e)
+      ), call. = FALSE)
+    }
+    if (inherits(e, "error")) stop(e)
+  }
+  tryCatch(
+    {
+      res <- force(code)
+      DBI::dbExecute(conn, "COMMIT")
+      res
+    },
+    db_abort = rollback,
+    error = rollback,
+    interrupt = rollback
+  )
+}
