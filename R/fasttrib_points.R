@@ -127,7 +127,14 @@ fasttrib_points<-function(
 
 
 
-  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+  DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+  DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
+  DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+  # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
+  DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+  DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+  DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
@@ -261,9 +268,11 @@ fasttrib_points<-function(
               "attrib_tbl",
               overwrite =T,
               temporary =F,
-              indexes=c("subb_link_id","cell_number"),
+              #indexes=c("subb_link_id","cell_number"),
               analyze=T,
               in_transaction=T)
+
+    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
   }
 
   # Get Upstream flowpaths --------------------------------------------------
@@ -389,9 +398,12 @@ fasttrib_points<-function(
               "s_target_weights",
               overwrite =T,
               temporary =F,
-              indexes=c("subb_link_id","cell_number"),
+              #indexes=c("subb_link_id","cell_number"),
               analyze=T,
               in_transaction=T)
+
+    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_s_target_weights ON s_target_weights (subb_link_id, cell_number)")
+
   }
 
   # Separate target_o into non-overlapping groups ---------------------------
@@ -490,7 +502,7 @@ fasttrib_points<-function(
                   "o_target_weights",
                   overwrite =T,
                   temporary =F,
-                  indexes=c("catch_link_id","cell_number"),
+                  #indexes=c("catch_link_id","cell_number"),
                   analyze=T,
                   in_transaction=T)
 
@@ -570,24 +582,34 @@ fasttrib_points<-function(
                                   dplyr::bind_rows() %>%
                                   dplyr::select(-coverage_fraction) %>%
                                   stats::setNames(c("catch_link_id",names(hw),"cell_number")) %>%
-                                  dplyr::rows_insert(y=.,
-                                                     x=new_tbl,
-                                                     by="catch_link_id",
-                                                     copy=T,
-                                                     in_place=T,
-                                                     conflict = "ignore")
+                                  DBI::dbAppendTable(conn=con_attr_l,
+                                                     name="o_target_weights",
+                                                     value=.)
+                                  # dplyr::rows_insert(y=., # this is very slow for some reason
+                                  #                    x=new_tbl,
+                                  #                    by="catch_link_id",
+                                  #                    copy=T,
+                                  #                    in_place=T,
+                                  #                    conflict = "ignore")
 
                                 p()
                                 return(NULL)
                               })
 
           }))
+
+        DBI::dbSendStatement(con_attr,"CREATE INDEX idx_o_target_weights ON o_target_weights (catch_link_id, cell_number)")
+
       })
 
     }
   } else {
     target_O_sub<-NULL
   }
+
+  DBI::dbSendStatement(con_attr,"PRAGMA analysis_limit=1000")
+  DBI::dbSendStatement(con_attr,"PRAGMA vacuum")
+  DBI::dbSendStatement(con_attr,"PRAGMA optimize")
 
   DBI::dbDisconnect(con_attr)
 
@@ -610,24 +632,32 @@ fasttrib_points<-function(
 
       p <- progressor(steps = nrow(us_flowpaths_out))
       lumped_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=furrr::future_pmap_dfr(
+        dplyr::mutate(attr=pmap_dfr(#furrr::future_
           list(
             link_id_in=link_id,
             attr_db_loc=list(attr_db_loc),
             loi_rasts_names=list(loi_rasts_names),
             p=list(p)
           ),
-          .options = furrr_options(globals = FALSE),
+          #.options = furrr_options(globals = FALSE),
           carrier::crate(
             function(link_id_in,
                      attr_db_loc,
                      loi_rasts_names,
                      p
             ){
+              #browser()
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
-              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+              # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+              # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
+              # DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+              # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
+              # DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+              # DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+              # DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
               out<-dplyr::semi_join(
                 dplyr::tbl(con_attr,"attrib_tbl") %>%
@@ -636,7 +666,8 @@ fasttrib_points<-function(
                   dplyr::filter(pour_point_id %in% link_id_in) %>%
                   dplyr::rename(link_id=origin_link_id),
                 by="link_id"
-              )
+              ) %>%
+                dplyr::compute()
 
               attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
 
@@ -755,7 +786,14 @@ fasttrib_points<-function(
               `%>%` <- magrittr::`%>%`
               #browser()
 
-              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+              # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+              # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
+              # DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+              # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
+              # DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+              # DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+              # DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
               attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
               names(attr_nms)<-attr_nms
@@ -774,7 +812,8 @@ fasttrib_points<-function(
                   dplyr::tbl(con_attr,"s_target_weights") %>%
                     dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
                   by="cell_number"
-                )
+                ) %>%
+                dplyr::compute()
 
               if ("iFLS" %in% weighting_scheme_s){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                 out<-out %>%
@@ -784,7 +823,8 @@ fasttrib_points<-function(
                       dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","iFLS"))),
 
                     by = c("cell_number", "link_id")
-                  )
+                  )%>%
+                  dplyr::compute()
               }
 
               if ("HAiFLS" %in% weighting_scheme_s){
@@ -794,7 +834,8 @@ fasttrib_points<-function(
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLS")),.names="{.col}_HAiFLS" )) %>%
                       dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLS"))),
                     by = c("cell_number", "link_id")
-                  )
+                  )%>%
+                  dplyr::compute()
               }
 
 
@@ -969,7 +1010,14 @@ fasttrib_points<-function(
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
-              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+              con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+              # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+              # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
+              # DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+              # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
+              # DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+              # DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+              # DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
               attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
               names(attr_nms)<-attr_nms
@@ -980,14 +1028,34 @@ fasttrib_points<-function(
               mean_out<-NULL
               sd_out<-NULL
 
-              out<-dplyr::left_join(
-                dplyr::tbl(con_attr,"o_target_weights") %>%
-                  dplyr::select(catch_link_id,cell_number,tidyselect::any_of(weighting_scheme_o)) %>%
-                  dplyr::filter(catch_link_id %in% link_id_in),
+              out<-dplyr::semi_join(
                 dplyr::tbl(con_attr,"attrib_tbl") %>%
                   dplyr::rename(link_id=subb_link_id),
-                by="cell_number"
-              )
+                dplyr::tbl(con_attr,"us_flowpaths") %>%
+                  dplyr::filter(pour_point_id %in% link_id_in) %>%
+                  dplyr::rename(link_id=origin_link_id),
+                by="link_id"
+              ) %>%
+                dplyr::left_join(
+                  dplyr::tbl(con_attr,"o_target_weights") %>%
+                    dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
+                    dplyr::filter(catch_link_id %in% link_id_in) %>%
+                    dplyr::select(-catch_link_id),
+                  by=c("cell_number")
+                )%>%
+                dplyr::compute()
+
+
+              # out<-dplyr::left_join(
+              #   dplyr::tbl(con_attr,"o_target_weights") %>%
+              #     dplyr::select(catch_link_id,cell_number,tidyselect::any_of(weighting_scheme_o)) %>%
+              #     dplyr::rename(link_id=catch_link_id) %>%
+              #     dplyr::filter(link_id %in% link_id_in),
+              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
+              #     dplyr::select(-tidyselect::any_of("link_id")),
+              #   by="cell_number"
+              # ) %>%
+              #   dplyr::compute()
 
               if ("iFLO" %in% weighting_scheme_o){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                 out<-out %>%
@@ -997,7 +1065,8 @@ fasttrib_points<-function(
                       dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","iFLO"))),
 
                     by = c("cell_number", "link_id")
-                  )
+                  )%>%
+                  dplyr::compute()
               }
 
               if ("HAiFLO" %in% weighting_scheme_o){
@@ -1007,7 +1076,8 @@ fasttrib_points<-function(
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLO")),.names="{.col}_HAiFLO" )) %>%
                       dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLO"))),
                     by = c("cell_number", "link_id")
-                  )
+                  )%>%
+                  dplyr::compute()
               }
 
               # out<-out %>%
