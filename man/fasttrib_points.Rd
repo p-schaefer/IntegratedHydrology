@@ -17,6 +17,7 @@ fasttrib_points(
      (x * 0.001 + 1)^-1
  },
   use_exising_hw = F,
+  use_existing_attr = F,
   store_hw = F,
   out_filename = NULL,
   temp_dir = NULL,
@@ -43,6 +44,8 @@ fasttrib_points(
 \item{inv_function}{function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.}
 
 \item{use_exising_hw}{logical. Should the function look for existing hydroweight layers in the zip file?}
+
+\item{use_existing_attr}{logical. Should the function look for existing attribute layers in the database file?}
 
 \item{store_hw}{logical. Should hydroweight layer be stored and added to the zip file?}
 

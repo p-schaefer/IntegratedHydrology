@@ -929,7 +929,7 @@ fasttrib_points_time_big<-system.time(
       target_o_type="segment_whole",
       out_filename="all_points_wgtattr.csv",
       weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-      loi_numeric_stats = c("mean", "sd", "max","min"),
+      loi_numeric_stats = c("mean", "stdev", "max","min"),
       inv_function = function(x) {
         (x * 0.001 + 1)^-1
       },
