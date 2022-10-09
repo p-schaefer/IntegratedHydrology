@@ -250,27 +250,79 @@ fasttrib_points<-function(
   if (!use_existing_attr){
     if (verbose) print("Writing LOI to attributes database")
 
-    attrib_tbl<-exactextractr::exact_extract(
-      loi_rasts_comb,
-      all_subb,
-      weights=NULL,
-      include_cell=T,
-      fun=NULL,
-      include_cols="link_id",
-      progress=F
-    )%>%
-      dplyr::bind_rows() %>%
-      dplyr::select(-coverage_fraction) %>%
-      stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
-      select(cell_number,subb_link_id,everything()) %>%
-      copy_to(df=.,
-              con_attr,
-              "attrib_tbl",
-              overwrite =T,
-              temporary =F,
-              #indexes=c("subb_link_id","cell_number"),
-              analyze=T,
-              in_transaction=T)
+    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(names(loi_rasts_comb))+2),nrow=1) %>%
+                          setNames(c("subb_link_id","cell_number",names(loi_rasts_comb))) %>%
+                          mutate(across(everything(),~1.1)) %>%
+                          .[F,],
+                        con_attr,
+                        "attrib_tbl",
+                        overwrite =T,
+                        temporary =F,
+                        #indexes=c("subb_link_id","cell_number"),
+                        analyze=T,
+                        in_transaction=T)
+
+    with_progress(enable=T,{
+
+      p <- progressor(steps = nrow(all_subb))
+
+      attrib_tbl<-pmap(list(x=split(all_subb,all_subb$link_id),
+                            con_attr_l=list(con_attr),
+                            loi_rasts_comb_l=list(loi_rasts_comb),
+                            p=list(p)
+      ),
+      carrier::crate(function(x,
+                              con_attr_l,
+                              loi_rasts_comb_l,
+                              p){
+        options(scipen = 999)
+        `%>%` <- magrittr::`%>%`
+
+        p()
+        exactextractr::exact_extract(
+          loi_rasts_comb_l,
+          x,
+          weights=NULL,
+          include_cell=T,
+          fun=NULL,
+          include_cols="link_id",
+          progress=F
+        ) %>%
+          dplyr::bind_rows() %>%
+          dplyr::select(-coverage_fraction) %>%
+          stats::setNames(c("subb_link_id",names(loi_rasts_comb_l),"cell_number")) %>%
+          dplyr::select(cell_number,subb_link_id,everything()) %>%
+          DBI::dbAppendTable(conn=con_attr_l,
+                             name="attrib_tbl",
+                             value=.)
+      })
+
+      )
+    })
+
+    attrib_tbl<-tbl(con_attr,"attrib_tbl")
+
+    # attrib_tbl<-exactextractr::exact_extract(
+    #   loi_rasts_comb,
+    #   all_subb,
+    #   weights=NULL,
+    #   include_cell=T,
+    #   fun=NULL,
+    #   include_cols="link_id",
+    #   progress=F
+    # )%>%
+    #   dplyr::bind_rows() %>%
+    #   dplyr::select(-coverage_fraction) %>%
+    #   stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
+    #   select(cell_number,subb_link_id,everything()) %>%
+    #   copy_to(df=.,
+    #           con_attr,
+    #           "attrib_tbl",
+    #           overwrite =T,
+    #           temporary =F,
+    #           #indexes=c("subb_link_id","cell_number"),
+    #           analyze=T,
+    #           in_transaction=T)
 
     DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
   }
@@ -380,27 +432,79 @@ fasttrib_points<-function(
     hw2<-map(hw_streams_lo,terra::rast)
     names(hw2)<-sapply(hw2,names)
 
-    s_trg_weights<-exactextractr::exact_extract(
-      terra::rast(hw2),
-      all_subb,
-      weights=NULL,
-      include_cell=T,
-      fun=NULL,
-      include_cols="link_id",
-      progress=F
-    )%>%
-      dplyr::bind_rows() %>%
-      dplyr::select(-coverage_fraction) %>%
-      stats::setNames(c("subb_link_id",names(hw2),"cell_number")) %>%
-      select(cell_number,subb_link_id,everything()) %>%
-      copy_to(df=.,
-              con_attr,
-              "s_target_weights",
-              overwrite =T,
-              temporary =F,
-              #indexes=c("subb_link_id","cell_number"),
-              analyze=T,
-              in_transaction=T)
+    s_trg_weights<-copy_to(df=as_tibble(matrix(ncol = length(names(hw2))+2),nrow=1) %>%
+                             setNames(c("subb_link_id","cell_number",names(hw2))) %>%
+                             mutate(across(everything(),~1.1)) %>%
+                             .[F,],
+                           con_attr,
+                           "s_target_weights",
+                           overwrite =T,
+                           temporary =F,
+                           #indexes=c("subb_link_id","cell_number"),
+                           analyze=T,
+                           in_transaction=T)
+
+    with_progress(enable=T,{
+
+      p <- progressor(steps = nrow(all_subb))
+
+      s_trg_weights<-pmap(list(x=split(all_subb,all_subb$link_id),
+                               con_attr_l=list(con_attr),
+                               hw2_l=list(terra::rast(hw2)),
+                               p=list(p)
+      ),
+      carrier::crate(function(x,
+                              con_attr_l,
+                              hw2_l,
+                              p){
+        options(scipen = 999)
+        `%>%` <- magrittr::`%>%`
+
+        p()
+        exactextractr::exact_extract(
+          hw2_l,
+          x,
+          weights=NULL,
+          include_cell=T,
+          fun=NULL,
+          include_cols="link_id",
+          progress=F
+        ) %>%
+          dplyr::bind_rows() %>%
+          dplyr::select(-coverage_fraction) %>%
+          stats::setNames(c("subb_link_id",names(hw2_l),"cell_number")) %>%
+          dplyr::select(cell_number,subb_link_id,everything()) %>%
+          DBI::dbAppendTable(conn=con_attr_l,
+                             name="s_target_weights",
+                             value=.)
+      })
+
+      )
+    })
+
+    s_trg_weights<-tbl(con_attr,"s_target_weights")
+
+    # s_trg_weights<-exactextractr::exact_extract(
+    #   terra::rast(hw2),
+    #   all_subb,
+    #   weights=NULL,
+    #   include_cell=T,
+    #   fun=NULL,
+    #   include_cols="link_id",
+    #   progress=F
+    # )%>%
+    #   dplyr::bind_rows() %>%
+    #   dplyr::select(-coverage_fraction) %>%
+    #   stats::setNames(c("subb_link_id",names(hw2),"cell_number")) %>%
+    #   select(cell_number,subb_link_id,everything()) %>%
+    #   copy_to(df=.,
+    #           con_attr,
+    #           "s_target_weights",
+    #           overwrite =T,
+    #           temporary =F,
+    #           #indexes=c("subb_link_id","cell_number"),
+    #           analyze=T,
+    #           in_transaction=T)
 
     DBI::dbSendStatement(con_attr,"CREATE INDEX inx_s_target_weights ON s_target_weights (subb_link_id, cell_number)")
 
@@ -569,30 +673,51 @@ fasttrib_points<-function(
                                   names(hw)<-sapply(hw,names)
                                 }
 
-                                out<-exactextractr::exact_extract(
-                                  terra::rast(hw),
-                                  sub_catch,
-                                  weights=NULL,
-                                  #fun="sum",
-                                  include_cell=T,
-                                  fun=NULL,
-                                  include_cols="link_id",
-                                  progress=F
-                                )%>%
-                                  dplyr::bind_rows() %>%
-                                  dplyr::select(-coverage_fraction) %>%
-                                  stats::setNames(c("catch_link_id",names(hw),"cell_number")) %>%
-                                  DBI::dbAppendTable(conn=con_attr_l,
-                                                     name="o_target_weights",
-                                                     value=.)
-                                  # dplyr::rows_insert(y=., # this is very slow for some reason
-                                  #                    x=new_tbl,
-                                  #                    by="catch_link_id",
-                                  #                    copy=T,
-                                  #                    in_place=T,
-                                  #                    conflict = "ignore")
+                                out<-pmap(list(x=split(sub_catch,sub_catch$link_id),
+                                               con_attr_l=list(con_attr),
+                                               hw2_l=list(terra::rast(hw))
+                                ),
+                                carrier::crate(function(x,
+                                                        con_attr_l,
+                                                        hw2_l){
+                                  options(scipen = 999)
+                                  `%>%` <- magrittr::`%>%`
 
-                                p()
+                                  exactextractr::exact_extract(
+                                    hw2_l,
+                                    x,
+                                    weights=NULL,
+                                    include_cell=T,
+                                    fun=NULL,
+                                    include_cols="link_id",
+                                    progress=F
+                                  ) %>%
+                                    dplyr::bind_rows() %>%
+                                    dplyr::select(-coverage_fraction) %>%
+                                    stats::setNames(c("catch_link_id",names(hw2_l),"cell_number")) %>%
+                                    dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                    DBI::dbAppendTable(conn=con_attr_l,
+                                                       name="o_target_weights",
+                                                       value=.)
+                                }))
+
+                                # out<-exactextractr::exact_extract(
+                                #   terra::rast(hw),
+                                #   sub_catch,
+                                #   weights=NULL,
+                                #   #fun="sum",
+                                #   include_cell=T,
+                                #   fun=NULL,
+                                #   include_cols="link_id",
+                                #   progress=F
+                                # )%>%
+                                #   dplyr::bind_rows() %>%
+                                #   dplyr::select(-coverage_fraction) %>%
+                                #   stats::setNames(c("catch_link_id",names(hw),"cell_number")) %>%
+                                #   DBI::dbAppendTable(conn=con_attr_l,
+                                #                      name="o_target_weights",
+                                #                      value=.)
+
                                 return(NULL)
                               })
 
