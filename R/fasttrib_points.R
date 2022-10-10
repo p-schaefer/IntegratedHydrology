@@ -341,7 +341,12 @@ fasttrib_points<-function(
                                           dplyr::rename(cell_number=cell,
                                                         subb_link_id=link_id) %>%
                                           dplyr::select(-ID) %>%
-                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        file.rename(
+                                          file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                          file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))
+                                        )
 
                                         return(NA)
 
@@ -603,7 +608,12 @@ fasttrib_points<-function(
                                           dplyr::rename(cell_number=cell,
                                                         subb_link_id=link_id) %>%
                                           dplyr::select(-ID) %>%
-                                          data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                          data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        file.rename(
+                                          file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                          file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))
+                                        )
 
                                         return(NA)
 
@@ -919,7 +929,12 @@ fasttrib_points<-function(
                                                                       dplyr::rename(cell_number=cell,
                                                                                     catch_link_id=link_id) %>%
                                                                       dplyr::select(-ID) %>%
-                                                                      data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                                                      data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                                                    file.rename(
+                                                                      file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                                                      file.path(temp_dir,paste0("o_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))
+                                                                    )
 
                                                                     return(NA)
 
