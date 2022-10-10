@@ -1043,14 +1043,14 @@ fasttrib_points<-function(
 
       p <- progressor(steps = nrow(us_flowpaths_out))
       lumped_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=pmap_dfr(#furrr::future_
+        dplyr::mutate(attr=future_pmap_dfr(#furrr::future_
           list(
             link_id_in=link_id,
             attr_db_loc=list(attr_db_loc),
             loi_rasts_names=list(loi_rasts_names),
             p=list(p)
           ),
-          #.options = furrr_options(globals = FALSE),
+          .options = furrr_options(globals = FALSE),
           carrier::crate(
             function(link_id_in,
                      attr_db_loc,
