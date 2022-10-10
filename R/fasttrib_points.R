@@ -973,6 +973,7 @@ fasttrib_points<-function(
                                   fr<-file.remove(fl_attr)
                                 }
 
+                                file.remove(hw)
 
                                 # out<-purrr::pmap(list(x=terra::split(sub_catch_v,"link_id"),
                                 #                       con_attr_l=list(con_attr_l),
