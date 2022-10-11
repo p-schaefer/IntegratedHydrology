@@ -336,7 +336,7 @@ fasttrib_points<-function(
                                         ) %>%
                                           dplyr::bind_rows() %>%
                                           dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb_l),"cell_number")) %>%
+                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
                                           dplyr::select(cell_number,subb_link_id,everything()) %>%
                                           data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
@@ -618,8 +618,8 @@ fasttrib_points<-function(
                                         ) %>%
                                           dplyr::bind_rows() %>%
                                           dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(hw2_l),"cell_number")) %>%
-                                          dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                          dplyr::select(cell_number,subb_link_id,tidyselect::everything()) %>%
                                           data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
 
@@ -955,8 +955,8 @@ fasttrib_points<-function(
                                                                     ) %>%
                                                                       dplyr::bind_rows() %>%
                                                                       dplyr::select(-coverage_fraction) %>%
-                                                                      stats::setNames(c("catch_link_id",names(hw2_l),"cell_number")) %>%
-                                                                      dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                                                      stats::setNames(c("catch_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                                                      dplyr::select(cell_number,subb_link_id,tidyselect::everything()) %>%
                                                                       data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
 
