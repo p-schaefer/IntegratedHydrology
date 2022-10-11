@@ -437,8 +437,13 @@ attrib_points<-function(
                                              inv_function = inv_fun,
                                              clean_tempfiles=T,
                                              return_products = T,
-                                             wrap_return_products=F,
+                                             wrap_return_products=T,
                                              save_output=F)
+
+                hw<-purrr::map(hw,terra::unwrap)
+
+                # hw_fl<-unzip(list=T,hw)
+                # hw_fl<-purrr::map(hw_fl,file.path("/vsizip",hw,.))
               }
 
               t_dir2<-file.path(t_dir,basename(tempfile()))
