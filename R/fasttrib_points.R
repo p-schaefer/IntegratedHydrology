@@ -179,9 +179,6 @@ fasttrib_points<-function(
   all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 
-  all_subb_v<-terra::vect(all_subb %>% select(link_id))
-  all_catch_v<-terra::vect(all_catch %>% select(link_id))
-
   # Get target link_id ------------------------------------------------------
   sample_points<-as.character(sample_points)
   link_id<-as.character(link_id)
@@ -248,6 +245,75 @@ fasttrib_points<-function(
   loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
 
   target_crs<-crs(vect(all_subb[1,]))
+
+  # Get Upstream flowpaths --------------------------------------------------
+
+  us_fp_fun<-function(link_id_in,db_loc=db_loc){
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+    out<-tbl(con,"us_flowpaths") %>%
+      filter(pour_point_id %in% link_id_in) %>%
+      rename(link_id=origin_link_id) %>%
+      collect() %>%
+      group_by(pour_point_id) %>%
+      nest() %>%
+      ungroup()
+
+    out2<-out$data
+    names(out2)<-out$pour_point_id
+
+    out2<-out2[link_id_in]
+
+    DBI::dbDisconnect(con)
+    return(out2)
+  }
+
+  # browser()
+  us_flowpaths_out<-target_IDs %>%
+    select(link_id) %>%
+    mutate(link_id=as.character(link_id)) %>%
+    mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
+
+  # Select correct target for O -------------------------------------
+  if (target_o_type=="point"){
+    target_O<-all_points
+  } else {
+    if (target_o_type=="segment_point"){
+      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+    } else {
+      if (verbose) print("Merging stream segments")
+
+      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+        select(link_id) %>%
+        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        group_by(link_id) %>%
+        summarize(geometry=st_union(geometry)) %>%
+        ungroup()
+
+    }
+  }
+
+  #browser()
+
+  # Sort everything by target_IDs
+  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
+  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
+  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
+
+  target_IDs<-target_IDs[match(target_O[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+  target_IDs<-target_IDs[match(all_points[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+  target_IDs<-target_IDs[match(all_catch[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
+
+  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
+  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
+  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
+
+  us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
+
+  all_subb<-all_subb %>%
+    filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
+
+  all_subb_v<-terra::vect(all_subb %>% select(link_id))
+  all_catch_v<-terra::vect(all_catch %>% select(link_id))
 
 
   # Upload loi rasters to attributes database -------------------------------
@@ -327,7 +393,7 @@ fasttrib_points<-function(
 
                                         out<-exactextractr::exact_extract(
                                           loi_rasts_comb,
-                                          xx,
+                                          sf::st_as_sf(xx),
                                           weights=NULL,
                                           include_cell=T,
                                           fun=NULL,
@@ -432,73 +498,6 @@ fasttrib_points<-function(
 
     DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
   }
-
-  # Get Upstream flowpaths --------------------------------------------------
-
-  us_fp_fun<-function(link_id_in,db_loc=db_loc){
-    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    out<-tbl(con,"us_flowpaths") %>%
-      filter(pour_point_id %in% link_id_in) %>%
-      rename(link_id=origin_link_id) %>%
-      collect() %>%
-      group_by(pour_point_id) %>%
-      nest() %>%
-      ungroup()
-
-    out2<-out$data
-    names(out2)<-out$pour_point_id
-
-    out2<-out2[link_id_in]
-
-    DBI::dbDisconnect(con)
-    return(out2)
-  }
-
-  # browser()
-  us_flowpaths_out<-target_IDs %>%
-    select(link_id) %>%
-    mutate(link_id=as.character(link_id)) %>%
-    mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
-
-  # Select correct target for O -------------------------------------
-  if (target_o_type=="point"){
-    target_O<-all_points
-  } else {
-    if (target_o_type=="segment_point"){
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
-    } else {
-      if (verbose) print("Merging stream segments")
-
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
-        select(link_id) %>%
-        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        group_by(link_id) %>%
-        summarize(geometry=st_union(geometry)) %>%
-        ungroup()
-
-    }
-  }
-
-  #browser()
-
-  # Sort everything by target_IDs
-  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
-  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
-  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
-
-  target_IDs<-target_IDs[match(target_O[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-  target_IDs<-target_IDs[match(all_points[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-  target_IDs<-target_IDs[match(all_catch[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-
-  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
-  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
-  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
-
-  us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
-
-  all_subb<-all_subb %>%
-    filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
-
 
   # Calculate weighted distances -------------------------------------
   if (!use_existing_attr){
@@ -609,7 +608,7 @@ fasttrib_points<-function(
 
                                         out<-exactextractr::exact_extract(
                                           loi_rasts_comb,
-                                          xx,
+                                          sf::st_as_sf(xx),
                                           weights=NULL,
                                           include_cell=T,
                                           fun=NULL,
@@ -791,7 +790,6 @@ fasttrib_points<-function(
 
         p <- progressor(steps = length(target_O_sub))
 
-        splt<-1
 
         o_trg_weights<-tibble(catch_link_id="1.1",
                               cell_number=1L,
@@ -811,22 +809,24 @@ fasttrib_points<-function(
                   analyze=T,
                   in_transaction=T)
 
+        spltl<-1
+
         loi_dw_out<-pmap( # I don't think this can be parallel
           #loi_dw_out<-future_pmap_dfr(
           #  .options = furrr_options(globals = FALSE),
           list(
-            target_O_subs=suppressWarnings(split(target_O_sub,1:splt)),
-            weighting_scheme_o=rep(list(weighting_scheme_o),splt),
-            all_catch=rep(list(all_catch),splt),
-            inv_function=rep(list(inv_function),splt),
-            use_exising_hw=rep(list(use_exising_hw),splt),
-            temp_dir=rep(list(temp_dir),splt),
-            n_cores=rep(list(n_cores),splt),
-            con_attr_l=rep(list(con_attr),splt),
-            new_tbl=rep(list(o_trg_weights),splt),
-            zip_loc=rep(list(zip_loc),splt),
-            dw_dir=rep(list(dw_dir),splt),
-            p=rep(list(p),splt)
+            target_O_subs=suppressWarnings(split(target_O_sub,1:spltl)),
+            weighting_scheme_o=rep(list(weighting_scheme_o),spltl),
+            all_catch=rep(list(all_catch),spltl),
+            inv_function=rep(list(inv_function),spltl),
+            use_exising_hw=rep(list(use_exising_hw),spltl),
+            temp_dir=rep(list(temp_dir),spltl),
+            n_cores=rep(list(n_cores),spltl),
+            con_attr_l=rep(list(con_attr),spltl),
+            new_tbl=rep(list(o_trg_weights),spltl),
+            zip_loc=rep(list(zip_loc),spltl),
+            dw_dir=rep(list(dw_dir),spltl),
+            p=rep(list(p),spltl)
           ),
           carrier::crate(function(target_O_subs,
                                   weighting_scheme_o,
@@ -841,6 +841,7 @@ fasttrib_points<-function(
                                   dw_dir,
                                   p
           ) {
+            #browser()
             options(scipen = 999)
             `%>%` <- magrittr::`%>%`
 
@@ -854,10 +855,10 @@ fasttrib_points<-function(
             o_out<-purrr::map(target_O_subs, # I don't think this can be parallel
                               function(x){
                                 #print(x$unn_group[[1]])
-                                sub_catch<-all_catch %>%
+                                all_catch<-all_catch %>%
                                   dplyr::filter(link_id %in% x$link_id)
 
-                                sub_catch_v<-terra::vect(sub_catch %>% dplyr::select(link_id))
+                                sub_catch_v<-terra::vect(all_catch %>% dplyr::select(link_id))
 
                                 if (!use_exising_hw){
                                   hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
@@ -901,6 +902,7 @@ fasttrib_points<-function(
                                 splt<-purrr::map(splt,~purrr::map(.,terra::wrap))
 
                                 total_outs<-sum(unlist(purrr::map(splt,~purrr::map(.,length))))
+                                #browser()
 
                                 out<-furrr::future_pmap(list(x=splt,
                                                              loi_rasts_exists=list(hw_o_lo),
@@ -946,7 +948,7 @@ fasttrib_points<-function(
 
                                                                     out<-exactextractr::exact_extract(
                                                                       loi_rasts_comb,
-                                                                      xx,
+                                                                      sf::st_as_sf(xx),
                                                                       weights=NULL,
                                                                       include_cell=T,
                                                                       fun=NULL,
@@ -956,7 +958,7 @@ fasttrib_points<-function(
                                                                       dplyr::bind_rows() %>%
                                                                       dplyr::select(-coverage_fraction) %>%
                                                                       stats::setNames(c("catch_link_id",names(loi_rasts_comb),"cell_number")) %>%
-                                                                      dplyr::select(cell_number,subb_link_id,tidyselect::everything()) %>%
+                                                                      dplyr::select(cell_number,catch_link_id,tidyselect::everything()) %>%
                                                                       data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
 
