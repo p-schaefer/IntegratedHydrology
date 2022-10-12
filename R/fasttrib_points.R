@@ -249,190 +249,6 @@ fasttrib_points<-function(
 
   target_crs<-crs(vect(all_subb[1,]))
 
-
-  # Upload loi rasters to attributes database -------------------------------
-  if (!use_existing_attr){
-    if (verbose) print("Writing LOI to attributes database")
-
-    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(names(loi_rasts_comb))+2,nrow=1),.name_repair="minimal") %>%
-                          setNames(c("subb_link_id","cell_number",names(loi_rasts_comb))) %>%
-                          mutate(across(everything(),~1.1)) %>%
-                          .[F,],
-                        con_attr,
-                        "attrib_tbl",
-                        overwrite =T,
-                        temporary =F,
-                        #indexes=c("subb_link_id","cell_number"),
-                        analyze=T,
-                        in_transaction=T)
-
-
-    n_cores_2<-n_cores
-    if (n_cores_2>1) n_cores_2<-n_cores_2-1
-
-    all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
-    splt<-terra::split(all_subb_v,"core")
-    splt<-lapply(splt,function(x){
-      x$split<-rep(1:10,length.out=nrow(x))
-      terra::split(x,"split")
-    })
-    splt<-map(splt,~map(.,terra::wrap))
-
-    total_outs<-sum(unlist(map(splt,~map(.,length))))
-
-    out<-furrr::future_pmap(list(x=splt,
-                                 loi_rasts_exists=list(loi_rasts_exists),
-                                 loi_cols=list(loi_cols),
-                                 temp_dir=list(temp_dir)),
-                            .options = furrr_options(globals = FALSE),
-                            carrier::crate(
-                              function(x,
-                                       loi_rasts_exists,
-                                       loi_cols,
-                                       temp_dir
-                              ){
-                                #browser()
-
-                                options(scipen = 999)
-                                `%>%` <- magrittr::`%>%`
-
-                                loi_rasts<-purrr::map(loi_rasts_exists,terra::rast)
-                                loi_rasts_comb<-terra::rast(loi_rasts)
-                                names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
-                                loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
-
-
-                                splt<-x
-
-                                attrib_tbl<-future::future(
-                                  packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
-                                  globals = c("splt","loi_rasts_comb","temp_dir"),
-                                  {
-                                    options(future.rng.onMisuse = "ignore")
-
-                                    out<-purrr::pmap(list(xx=splt,
-                                                          loi_rasts_comb=list(loi_rasts_comb),
-                                                          temp_dir=list(temp_dir)
-                                    ),
-                                    carrier::crate(
-                                      function(xx,
-                                               loi_rasts_comb,
-                                               temp_dir
-                                      ){
-                                        #browser()
-                                        options(scipen = 999)
-                                        `%>%` <- magrittr::`%>%`
-
-                                        xx<-terra::unwrap(xx)
-
-                                        out<-exactextractr::exact_extract(
-                                          loi_rasts_comb,
-                                          xx,
-                                          weights=NULL,
-                                          include_cell=T,
-                                          fun=NULL,
-                                          include_cols="link_id",
-                                          progress=F
-                                        ) %>%
-                                          dplyr::bind_rows() %>%
-                                          dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb_l),"cell_number")) %>%
-                                          dplyr::select(cell_number,subb_link_id,everything()) %>%
-                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
-                                        # out<-terra::extract(
-                                        #   loi_rasts_comb,
-                                        #   xx,
-                                        #   cells=T,
-                                        #   ID=T,
-                                        #   fun=NULL
-                                        # ) %>%
-                                        #   tibble::as_tibble() %>%
-                                        #   dplyr::left_join(sf::st_as_sf(xx) %>%
-                                        #                      tibble::as_tibble() %>%
-                                        #                      dplyr::select(link_id) %>%
-                                        #                      dplyr::mutate(ID=dplyr::row_number()),
-                                        #                    by="ID") %>%
-                                        #   dplyr::rename(cell_number=cell,
-                                        #                 subb_link_id=link_id) %>%
-                                        #   dplyr::select(-ID) %>%
-                                        #   data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
-                                        file.rename(
-                                          file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
-                                          file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))
-                                        )
-
-                                        return(NA)
-
-                                      }
-                                    ))
-                                  })
-
-                                return(attrib_tbl)
-                              })
-
-    )
-
-    #browser()
-    #future_attrib_tbl <- lapply(out,future::futureOf)
-
-    total_procs<-0
-
-    with_progress(enable=T,{
-      p <- progressor(steps = total_outs)
-
-      while(total_procs<total_outs){
-        Sys.sleep(0.2)
-
-        fl_attr<-list.files(temp_dir,"attr_sub_",full.names = T)
-        fl_attr<-fl_attr[grepl(".csv",fl_attr)]
-
-        if (length(fl_attr)>0) {
-          df<-purrr::map(fl_attr,data.table::fread) %>%
-            dplyr::bind_rows()
-
-          out<-DBI::dbAppendTable(conn=con_attr,
-                                  name="attrib_tbl",
-                                  value=df)
-
-          fr<-file.remove(fl_attr)
-          for (i in seq_along(fr)){
-            p()
-          }
-          #eval(parse(text=paste0(rep("p();",sum(fr)))))
-          #rep(p,sum(fr))
-          total_procs<-total_procs+sum(fr)
-        }
-      }
-
-    })
-
-    Sys.sleep(0.2)
-
-    fl_attr<-list.files(temp_dir,"attr_sub_",full.names = T)
-    fl_attr<-fl_attr[grepl(".csv",fl_attr)]
-
-    if (length(fl_attr)>0) {
-      df<-purrr::map(fl_attr,data.table::fread) %>%
-        dplyr::bind_rows()
-
-      out<-DBI::dbAppendTable(conn=con_attr,
-                              name="attrib_tbl",
-                              value=df)
-
-      fr<-file.remove(fl_attr)
-    }
-
-
-    #})
-
-    attrib_tbl<-tbl(con_attr,"attrib_tbl")
-
-
-    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
-  }
-
   # Get Upstream flowpaths --------------------------------------------------
 
   us_fp_fun<-function(link_id_in,db_loc=db_loc){
@@ -499,6 +315,222 @@ fasttrib_points<-function(
   all_subb<-all_subb %>%
     filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
 
+  # Upload loi rasters to attributes database -------------------------------
+  if (!use_existing_attr){
+    if (verbose) print("Writing LOI to attributes database")
+
+    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(names(loi_rasts_comb))+2,nrow=1),.name_repair="minimal") %>%
+                          setNames(c("subb_link_id","cell_number",names(loi_rasts_comb))) %>%
+                          mutate(across(everything(),~1.1)) %>%
+                          .[F,],
+                        con_attr,
+                        "attrib_tbl",
+                        overwrite =T,
+                        temporary =F,
+                        #indexes=c("subb_link_id","cell_number"),
+                        analyze=T,
+                        in_transaction=T)
+
+
+    n_cores_2<-n_cores
+    if (n_cores_2>1) n_cores_2<-n_cores_2-1
+
+    #browser()
+
+    all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
+    splt<-split(all_subb,all_subb$core)
+    splt<-lapply(splt,function(x){
+      x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
+      split(x,x$split)
+    })
+
+
+    # all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
+    # splt<-terra::split(all_subb_v,"core")
+    # splt<-lapply(splt,function(x){
+    #   x$split<-rep(1:10,length.out=nrow(x))
+    #   terra::split(x,"split")
+    # })
+
+    total_outs<-sum(unlist(map(splt,~map(.,length))))
+
+    # splt<-map(splt,~map(.,terra::wrap))
+
+    out<-furrr::future_pmap(list(x=splt,
+                                 loi_rasts_exists=list(loi_rasts_exists),
+                                 loi_cols=list(loi_cols),
+                                 temp_dir=list(temp_dir)),
+                            .options = furrr_options(globals = FALSE),
+                            carrier::crate(
+                              function(x,
+                                       loi_rasts_exists,
+                                       loi_cols,
+                                       temp_dir
+                              ){
+                                #browser()
+
+                                options(scipen = 999)
+                                `%>%` <- magrittr::`%>%`
+
+                                loi_rasts<-purrr::map(loi_rasts_exists,terra::rast)
+                                loi_rasts_comb<-terra::rast(loi_rasts)
+                                names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
+                                loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
+
+
+                                splt<-x
+
+                                attrib_tbl<-future::future(
+                                  packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
+                                  globals = c("splt","loi_rasts_comb","temp_dir"),
+                                  {
+                                    options(future.rng.onMisuse = "ignore")
+
+                                    out<-purrr::pmap(list(xx=splt,
+                                                          loi_rasts_comb=list(loi_rasts_comb),
+                                                          temp_dir=list(temp_dir)
+                                    ),
+                                    carrier::crate(
+                                      function(xx,
+                                               loi_rasts_comb,
+                                               temp_dir
+                                      ){
+                                        #browser()
+                                        options(scipen = 999)
+                                        `%>%` <- magrittr::`%>%`
+
+                                        #xx<-terra::unwrap(xx)
+
+                                        out<-exactextractr::exact_extract(
+                                          loi_rasts_comb,
+                                          xx,
+                                          weights=NULL,
+                                          include_cell=T,
+                                          fun=NULL,
+                                          include_cols="link_id",
+                                          progress=F
+                                        ) %>%
+                                          dplyr::bind_rows() %>%
+                                          dplyr::select(-coverage_fraction) %>%
+                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                          dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        # out<-terra::extract(
+                                        #   loi_rasts_comb,
+                                        #   xx,
+                                        #   cells=T,
+                                        #   ID=T,
+                                        #   fun=NULL
+                                        # ) %>%
+                                        #   tibble::as_tibble() %>%
+                                        #   dplyr::left_join(sf::st_as_sf(xx) %>%
+                                        #                      tibble::as_tibble() %>%
+                                        #                      dplyr::select(link_id) %>%
+                                        #                      dplyr::mutate(ID=dplyr::row_number()),
+                                        #                    by="ID") %>%
+                                        #   dplyr::rename(cell_number=cell,
+                                        #                 subb_link_id=link_id) %>%
+                                        #   dplyr::select(-ID) %>%
+                                        #   data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        if (file.exists(file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
+                                          file.remove(file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        file.rename(
+                                          file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                          file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))
+                                        )
+
+                                        # gg<-gc()
+
+                                        return(NA)
+
+                                      }
+                                    ))
+                                  })
+
+                                return(attrib_tbl)
+                              })
+
+    )
+
+    #browser()
+    #future_attrib_tbl <- lapply(out,future::futureOf)
+
+    total_procs<-0
+
+    with_progress(enable=T,{
+      p <- progressor(steps = total_outs)
+
+      #print(sapply(out,function(x) x$state))
+
+      while(any(sapply(out,function(x) x$state) != "finished")){
+        Sys.sleep(0.2)
+
+        errs<-unique(unlist(sapply(out,function(x) {
+          if (length(x$result$conditions) >0){
+            return(paste0(x$result$conditions[[1]]$condition))
+          } else {return(NULL)}
+        })))
+
+        if (length(errs)>0) stop(paste0(errs,collapse="\n"))
+
+        fl_attr<-list.files(temp_dir,"attr_sub_",full.names = T)
+        fl_attr<-fl_attr[grepl(".csv",fl_attr)]
+
+        if (length(fl_attr)>0) {
+          df<-purrr::map(fl_attr,data.table::fread) %>%
+            dplyr::bind_rows()
+
+          out<-DBI::dbAppendTable(conn=con_attr,
+                                  name="attrib_tbl",
+                                  value=df)
+
+          fr<-file.remove(fl_attr)
+          for (i in seq_along(fr)){
+            p()
+          }
+          #eval(parse(text=paste0(rep("p();",sum(fr)))))
+          #rep(p,sum(fr))
+          total_procs<-total_procs+sum(fr)
+        }
+      }
+
+    })
+
+    Sys.sleep(0.2)
+
+    errs<-unique(unlist(sapply(out,function(x) {
+      if (length(x$result$conditions) >0){
+        return(paste0(x$result$conditions[[1]]$condition))
+      } else {return(NULL)}
+    })))
+
+    if (length(errs)>0) stop(paste0(errs,collapse="\n"))
+
+    fl_attr<-list.files(temp_dir,"attr_sub_",full.names = T)
+    fl_attr<-fl_attr[grepl(".csv",fl_attr)]
+
+    if (length(fl_attr)>0) {
+      df<-purrr::map(fl_attr,data.table::fread) %>%
+        dplyr::bind_rows()
+
+      out<-DBI::dbAppendTable(conn=con_attr,
+                              name="attrib_tbl",
+                              value=df)
+
+      fr<-file.remove(fl_attr)
+    }
+
+
+    #})
+
+    attrib_tbl<-tbl(con_attr,"attrib_tbl")
+
+
+    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
+  }
 
   # Calculate weighted distances -------------------------------------
   if (!use_existing_attr){
@@ -561,9 +593,10 @@ fasttrib_points<-function(
     #   x$split<-rep(1:10,length.out=nrow(x))
     #   terra::split(x,"split")
     # })
-    # splt<-map(splt,~map(.,terra::wrap))
 
     #total_outs<-sum(unlist(map(splt,~map(.,length))))
+
+    # splt<-map(splt,~map(.,terra::wrap))
 
     out<-furrr::future_pmap(list(x=splt,
                                  loi_rasts_exists=list(hw_streams_lo),
@@ -618,7 +651,7 @@ fasttrib_points<-function(
                                         ) %>%
                                           dplyr::bind_rows() %>%
                                           dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(hw2_l),"cell_number")) %>%
+                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
                                           dplyr::select(cell_number,subb_link_id,everything()) %>%
                                           data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
@@ -640,6 +673,8 @@ fasttrib_points<-function(
                                         #                 subb_link_id=link_id) %>%
                                         #   dplyr::select(-ID) %>%
                                         #   data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                        if (file.exists(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
+                                          file.remove(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
                                         file.rename(
                                           file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
@@ -665,8 +700,16 @@ fasttrib_points<-function(
     with_progress(enable=T,{
       p <- progressor(steps = total_outs)
 
-      while(total_procs<total_outs){
+      while(any(sapply(out,function(x) x$state) != "finished")){
         Sys.sleep(0.2)
+
+        errs<-unique(unlist(sapply(out,function(x) {
+          if (length(x$result$conditions) >0){
+            return(paste0(x$result$conditions[[1]]$condition))
+          } else {return(NULL)}
+        })))
+
+        if (length(errs)>0) stop(paste0(errs,collapse="\n"))
 
         fl_attr<-list.files(temp_dir,"s_target_weights_sub_",full.names = T)
         fl_attr<-fl_attr[grepl(".csv",fl_attr)]
@@ -690,6 +733,14 @@ fasttrib_points<-function(
     })
 
     Sys.sleep(0.2)
+
+    errs<-unique(unlist(sapply(out,function(x) {
+      if (length(x$result$conditions) >0){
+        return(paste0(x$result$conditions[[1]]$condition))
+      } else {return(NULL)}
+    })))
+
+    if (length(errs)>0) stop(paste0(errs,collapse="\n"))
 
     fl_attr<-list.files(temp_dir,"s_target_weights_sub_",full.names = T)
     fl_attr<-fl_attr[grepl(".csv",fl_attr)]
@@ -857,7 +908,7 @@ fasttrib_points<-function(
                                 sub_catch<-all_catch %>%
                                   dplyr::filter(link_id %in% x$link_id)
 
-                                sub_catch_v<-terra::vect(sub_catch %>% dplyr::select(link_id))
+                                #sub_catch_v<-terra::vect(sub_catch %>% dplyr::select(link_id))
 
                                 if (!use_exising_hw){
                                   hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
@@ -892,15 +943,23 @@ fasttrib_points<-function(
                                 n_cores_2<-n_cores # already run above
                                 if (n_cores_2>1) n_cores_2<-n_cores_2-1
 
-                                sub_catch_v$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch_v))
-                                splt<-terra::split(sub_catch_v,"core")
+                                sub_catch$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch))
+                                splt<-split(sub_catch,sub_catch$core)
                                 splt<-lapply(splt,function(x){
-                                  x$split<-rep(1:10,length.out=nrow(x))
-                                  terra::split(x,"split")
+                                  x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
+                                  split(x,x$split)
                                 })
-                                splt<-purrr::map(splt,~purrr::map(.,terra::wrap))
+
+                                # sub_catch_v$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch_v))
+                                # splt<-terra::split(sub_catch_v,"core")
+                                # splt<-lapply(splt,function(x){
+                                #   x$split<-rep(1:10,length.out=nrow(x))
+                                #   terra::split(x,"split")
+                                # })
 
                                 total_outs<-sum(unlist(purrr::map(splt,~purrr::map(.,length))))
+
+                                # splt<-purrr::map(splt,~purrr::map(.,terra::wrap))
 
                                 out<-furrr::future_pmap(list(x=splt,
                                                              loi_rasts_exists=list(hw_o_lo),
@@ -942,7 +1001,7 @@ fasttrib_points<-function(
                                                                     options(scipen = 999)
                                                                     `%>%` <- magrittr::`%>%`
 
-                                                                    xx<-terra::unwrap(xx)
+                                                                    #xx<-terra::unwrap(xx)
 
                                                                     out<-exactextractr::exact_extract(
                                                                       loi_rasts_comb,
@@ -955,8 +1014,8 @@ fasttrib_points<-function(
                                                                     ) %>%
                                                                       dplyr::bind_rows() %>%
                                                                       dplyr::select(-coverage_fraction) %>%
-                                                                      stats::setNames(c("catch_link_id",names(hw2_l),"cell_number")) %>%
-                                                                      dplyr::select(cell_number,subb_link_id,everything()) %>%
+                                                                      stats::setNames(c("catch_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                                                      dplyr::select(cell_number,catch_link_id,everything()) %>%
                                                                       data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
 
@@ -977,6 +1036,8 @@ fasttrib_points<-function(
                                                                     #                 catch_link_id=link_id) %>%
                                                                     #   dplyr::select(-ID) %>%
                                                                     #   data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                                                    if (file.exists(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
+                                                                      file.remove(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
                                                                     file.rename(
                                                                       file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
@@ -999,8 +1060,17 @@ fasttrib_points<-function(
 
                                 total_procs<-0
 
-                                while(total_procs<total_outs){
+                                while(any(sapply(out,function(x) x$state) != "finished")){
                                   Sys.sleep(0.2)
+
+                                  errs<-unique(unlist(sapply(out,function(x) {
+                                    if (length(x$result$conditions) >0){
+                                      return(paste0(x$result$conditions[[1]]$condition))
+                                    } else {return(NULL)}
+                                  })))
+
+                                  if (length(errs)>0) stop(paste0(errs,collapse="\n"))
+
 
                                   fl_attr<-list.files(temp_dir_sub,"o_target_weights_sub_",full.names = T)
                                   fl_attr<-fl_attr[grepl(".csv",fl_attr)]
@@ -1018,8 +1088,16 @@ fasttrib_points<-function(
                                   }
                                 }
 
-
                                 Sys.sleep(0.2)
+
+                                errs<-unique(unlist(sapply(out,function(x) {
+                                  if (length(x$result$conditions) >0){
+                                    return(paste0(x$result$conditions[[1]]$condition))
+                                  } else {return(NULL)}
+                                })))
+
+                                if (length(errs)>0) stop(paste0(errs,collapse="\n"))
+
 
                                 fl_attr<-list.files(temp_dir_sub,"o_target_weights_sub_",full.names = T)
                                 fl_attr<-fl_attr[grepl(".csv",fl_attr)]
