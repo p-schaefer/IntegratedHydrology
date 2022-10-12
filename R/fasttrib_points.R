@@ -334,24 +334,24 @@ fasttrib_points<-function(
 
     #browser()
 
-    all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
-    splt<-split(all_subb,all_subb$core)
-    splt<-lapply(splt,function(x){
-      x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
-      split(x,x$split)
-    })
-
-
-    # all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
-    # splt<-terra::split(all_subb_v,"core")
+    # all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
+    # splt<-split(all_subb,all_subb$core)
     # splt<-lapply(splt,function(x){
-    #   x$split<-rep(1:10,length.out=nrow(x))
-    #   terra::split(x,"split")
+    #   x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
+    #   split(x,x$split)
     # })
+
+
+    all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
+    splt<-terra::split(all_subb_v,"core")
+    splt<-lapply(splt,function(x){
+      x$split<-rep(1:ceiling(nrow(x)/10),length.out=nrow(x))
+      terra::split(x,"split")
+    })
 
     total_outs<-sum(unlist(map(splt,~map(.,length))))
 
-    # splt<-map(splt,~map(.,terra::wrap))
+    splt<-map(splt,~map(.,terra::wrap))
 
     out<-furrr::future_pmap(list(x=splt,
                                  loi_rasts_exists=list(loi_rasts_exists),
@@ -397,38 +397,40 @@ fasttrib_points<-function(
                                         `%>%` <- magrittr::`%>%`
 
 
-                                        out<-exactextractr::exact_extract(
-                                          loi_rasts_comb,
-                                          xx,
-                                          weights=NULL,
-                                          include_cell=T,
-                                          fun=NULL,
-                                          include_cols="link_id",
-                                          progress=F
-                                        ) %>%
-                                          dplyr::bind_rows() %>%
-                                          dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
-                                          dplyr::select(cell_number,subb_link_id,everything()) %>%
-                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
-                                        # out<-terra::extract(
+                                        # out<-exactextractr::exact_extract(
                                         #   loi_rasts_comb,
                                         #   xx,
-                                        #   cells=T,
-                                        #   ID=T,
-                                        #   fun=NULL
+                                        #   weights=NULL,
+                                        #   include_cell=T,
+                                        #   fun=NULL,
+                                        #   include_cols="link_id",
+                                        #   progress=F
                                         # ) %>%
-                                        #   tibble::as_tibble() %>%
-                                        #   dplyr::left_join(sf::st_as_sf(xx) %>%
-                                        #                      tibble::as_tibble() %>%
-                                        #                      dplyr::select(link_id) %>%
-                                        #                      dplyr::mutate(ID=dplyr::row_number()),
-                                        #                    by="ID") %>%
-                                        #   dplyr::rename(cell_number=cell,
-                                        #                 subb_link_id=link_id) %>%
-                                        #   dplyr::select(-ID) %>%
+                                        #   dplyr::bind_rows() %>%
+                                        #   dplyr::select(-coverage_fraction) %>%
+                                        #   stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                        #   dplyr::select(cell_number,subb_link_id,everything()) %>%
                                         #   data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        xx<-terra::unwrap(xx)
+
+                                        out<-terra::extract(
+                                          loi_rasts_comb,
+                                          xx,
+                                          cells=T,
+                                          ID=T,
+                                          fun=NULL
+                                        ) %>%
+                                          tibble::as_tibble() %>%
+                                          dplyr::left_join(sf::st_as_sf(xx) %>%
+                                                             tibble::as_tibble() %>%
+                                                             dplyr::select(link_id) %>%
+                                                             dplyr::mutate(ID=dplyr::row_number()),
+                                                           by="ID") %>%
+                                          dplyr::rename(cell_number=cell,
+                                                        subb_link_id=link_id) %>%
+                                          dplyr::select(-ID) %>%
+                                          data.table::fwrite(file=file.path(temp_dir,paste0("attr_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
                                         if (file.exists(file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
                                           file.remove(file.path(temp_dir,paste0("attr_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
@@ -636,39 +638,39 @@ fasttrib_points<-function(
 
                                         xx<-terra::unwrap(xx)
 
-                                        out<-exactextractr::exact_extract(
-                                          loi_rasts_comb,
-                                          xx,
-                                          weights=NULL,
-                                          include_cell=T,
-                                          fun=NULL,
-                                          include_cols="link_id",
-                                          progress=F
-                                        ) %>%
-                                          dplyr::bind_rows() %>%
-                                          dplyr::select(-coverage_fraction) %>%
-                                          stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
-                                          dplyr::select(cell_number,subb_link_id,tidyselect::everything()) %>%
-                                          data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
-
-                                        # out<-terra::extract(
+                                        # out<-exactextractr::exact_extract(
                                         #   loi_rasts_comb,
                                         #   xx,
-                                        #   cells=T,
-                                        #   ID=T,
-                                        #   fun=NULL
+                                        #   weights=NULL,
+                                        #   include_cell=T,
+                                        #   fun=NULL,
+                                        #   include_cols="link_id",
+                                        #   progress=F
                                         # ) %>%
-                                        #   tibble::as_tibble() %>%
-                                        #   dplyr::left_join(sf::st_as_sf(xx) %>%
-                                        #                      tibble::as_tibble() %>%
-                                        #                      dplyr::select(link_id) %>%
-                                        #                      dplyr::mutate(ID=dplyr::row_number()),
-                                        #                    by="ID") %>%
-                                        #   dplyr::rename(cell_number=cell,
-                                        #                 subb_link_id=link_id) %>%
-                                        #   dplyr::select(-ID) %>%
+                                        #   dplyr::bind_rows() %>%
+                                        #   dplyr::select(-coverage_fraction) %>%
+                                        #   stats::setNames(c("subb_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                        #   dplyr::select(cell_number,subb_link_id,tidyselect::everything()) %>%
                                         #   data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+                                        out<-terra::extract(
+                                          loi_rasts_comb,
+                                          xx,
+                                          cells=T,
+                                          ID=T,
+                                          fun=NULL
+                                        ) %>%
+                                          tibble::as_tibble() %>%
+                                          dplyr::left_join(sf::st_as_sf(xx) %>%
+                                                             tibble::as_tibble() %>%
+                                                             dplyr::select(link_id) %>%
+                                                             dplyr::mutate(ID=dplyr::row_number()),
+                                                           by="ID") %>%
+                                          dplyr::rename(cell_number=cell,
+                                                        subb_link_id=link_id) %>%
+                                          dplyr::select(-ID) %>%
+                                          data.table::fwrite(file=file.path(temp_dir,paste0("s_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
                                         if (file.exists(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
                                           file.remove(file.path(temp_dir,paste0("s_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
@@ -939,24 +941,24 @@ fasttrib_points<-function(
                                 n_cores_2<-n_cores # already run above
                                 if (n_cores_2>1) n_cores_2<-n_cores_2-1
 
-                                sub_catch$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch))
-                                splt<-split(sub_catch,sub_catch$core)
+                                # sub_catch$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch))
+                                # splt<-split(sub_catch,sub_catch$core)
+                                # splt<-lapply(splt,function(x){
+                                #   x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
+                                #   split(x,x$split)
+                                # })
+
+                                sub_catch_v$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch_v))
+                                splt<-terra::split(sub_catch_v,"core")
                                 splt<-lapply(splt,function(x){
                                   x$split<-rep(1:ceiling(nrow(x)/5),length.out=nrow(x))
-                                  split(x,x$split)
+                                  terra::split(x,"split")
                                 })
-
-                                # sub_catch_v$core<-rep(1:(n_cores_2),length.out=nrow(sub_catch_v))
-                                # splt<-terra::split(sub_catch_v,"core")
-                                # splt<-lapply(splt,function(x){
-                                #   x$split<-rep(1:10,length.out=nrow(x))
-                                #   terra::split(x,"split")
-                                # })
 
                                 total_outs<-sum(unlist(purrr::map(splt,~purrr::map(.,length))))
                                 #browser()
 
-                                # splt<-purrr::map(splt,~purrr::map(.,terra::wrap))
+                                splt<-purrr::map(splt,~purrr::map(.,terra::wrap))
 
                                 out<-furrr::future_pmap(list(x=splt,
                                                              loi_rasts_exists=list(hw_o_lo),
@@ -998,41 +1000,42 @@ fasttrib_points<-function(
                                                                     options(scipen = 999)
                                                                     `%>%` <- magrittr::`%>%`
 
-                                                                    #xx<-terra::unwrap(xx)
+                                                                    xx<-terra::unwrap(xx)
 
-                                                                    out<-exactextractr::exact_extract(
-                                                                      loi_rasts_comb,
-                                                                      xx,
-                                                                      weights=NULL,
-                                                                      include_cell=T,
-                                                                      fun=NULL,
-                                                                      include_cols="link_id",
-                                                                      progress=F
-                                                                    ) %>%
-                                                                      dplyr::bind_rows() %>%
-                                                                      dplyr::select(-coverage_fraction) %>%
-                                                                      stats::setNames(c("catch_link_id",names(loi_rasts_comb),"cell_number")) %>%
-                                                                      dplyr::select(cell_number,catch_link_id,tidyselect::everything()) %>%
-                                                                      data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
-
-                                                                    # out<-terra::extract(
+                                                                    # out<-exactextractr::exact_extract(
                                                                     #   loi_rasts_comb,
                                                                     #   xx,
-                                                                    #   cells=T,
-                                                                    #   ID=T,
-                                                                    #   fun=NULL
+                                                                    #   weights=NULL,
+                                                                    #   include_cell=T,
+                                                                    #   fun=NULL,
+                                                                    #   include_cols="link_id",
+                                                                    #   progress=F
                                                                     # ) %>%
-                                                                    #   tibble::as_tibble() %>%
-                                                                    #   dplyr::left_join(sf::st_as_sf(xx) %>%
-                                                                    #                      tibble::as_tibble() %>%
-                                                                    #                      dplyr::select(link_id) %>%
-                                                                    #                      dplyr::mutate(ID=dplyr::row_number()),
-                                                                    #                    by="ID") %>%
-                                                                    #   dplyr::rename(cell_number=cell,
-                                                                    #                 catch_link_id=link_id) %>%
-                                                                    #   dplyr::select(-ID) %>%
+                                                                    #   dplyr::bind_rows() %>%
+                                                                    #   dplyr::select(-coverage_fraction) %>%
+                                                                    #   stats::setNames(c("catch_link_id",names(loi_rasts_comb),"cell_number")) %>%
+                                                                    #   dplyr::select(cell_number,catch_link_id,tidyselect::everything()) %>%
                                                                     #   data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+
+                                                                    out<-terra::extract(
+                                                                      loi_rasts_comb,
+                                                                      xx,
+                                                                      cells=T,
+                                                                      ID=T,
+                                                                      fun=NULL
+                                                                    ) %>%
+                                                                      tibble::as_tibble() %>%
+                                                                      dplyr::left_join(sf::st_as_sf(xx) %>%
+                                                                                         tibble::as_tibble() %>%
+                                                                                         dplyr::select(link_id) %>%
+                                                                                         dplyr::mutate(ID=dplyr::row_number()),
+                                                                                       by="ID") %>%
+                                                                      dplyr::rename(cell_number=cell,
+                                                                                    catch_link_id=link_id) %>%
+                                                                      dplyr::select(-ID) %>%
+                                                                      data.table::fwrite(file=file.path(temp_dir,paste0("o_target_weights_sub_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
                                                                     if (file.exists(file.path(temp_dir,paste0("o_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv"))))
                                                                       file.remove(file.path(temp_dir,paste0("o_target_weights_sub_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
