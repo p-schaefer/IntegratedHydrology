@@ -404,15 +404,15 @@ fasttrib_points<-function(
 
     #browser()
     ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
-                                      polygons=all_subb_v,
-                                      n_per_cycle=10,
-                                      rasts=hw_streams_lo,
-                                      cols=names(hw_streams_lo),
-                                      temp_dir=temp_dir,
-                                      tbl_nm="s_target_weights",
-                                      sub_nm="s_target_weights",
-                                      con=con_attr,
-                                      link_id_nm="subb_link_id"
+                                          polygons=all_subb_v,
+                                          n_per_cycle=10,
+                                          rasts=hw_streams_lo,
+                                          cols=names(hw_streams_lo),
+                                          temp_dir=temp_dir,
+                                          tbl_nm="s_target_weights",
+                                          sub_nm="s_target_weights",
+                                          con=con_attr,
+                                          link_id_nm="subb_link_id"
     )
 
     # n_cores_2<-n_cores # already run above
@@ -1692,33 +1692,50 @@ parallel_layer_processing <- function(n_cores,
   }
 
   #browser()
+  all_subb<-sf::st_as_sf(all_subb_v) %>%
+    dplyr::select(link_id)
+  fp<-file.path(temp_dir,paste0(tbl_nm,"_",basename(tempfile()),".shp"))
+  ot<-sf::write_sf(all_subb,fp,overwrite=T)
 
+  all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
+  splt<-split(all_subb,all_subb$core)
+  splt<-lapply(splt,function(x){
+    x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
+    x<-as_tibble(x) %>%
+      select(link_id,core,split)
+    split(x,x$split)
+  })
 
-  if (use_terra){
-    if (!inherits(all_subb_v,"SpatVector")) all_subb_v<-terra::vect(all_subb_v)
-
-    all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
-    splt<-terra::split(all_subb_v,"core")
-    splt<-lapply(splt,function(x){
-      x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
-      terra::split(x,"split")
-    })
-
-
-    splt<-lapply(splt,function(x) lapply(x,terra::wrap))
-
-  } else {
-    all_subb<-sf::st_as_sf(all_subb_v)
-
-    all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
-    splt<-split(all_subb,all_subb$core)
-    splt<-lapply(splt,function(x){
-      x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
-      split(x,x$split)
-    })
-
-  }
   total_outs<-sum(unlist(map(splt,length)))
+
+  #total<-dplyr::bind_rows(purrr::map(splt,dplyr::bind_rows))
+
+
+  # if (use_terra){
+  #   if (!inherits(all_subb_v,"SpatVector")) all_subb_v<-terra::vect(all_subb_v)
+  #
+  #   all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
+  #   splt<-terra::split(all_subb_v,"core")
+  #   splt<-lapply(splt,function(x){
+  #     x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
+  #     terra::split(x,"split")
+  #   })
+  #
+  #
+  #   splt<-lapply(splt,function(x) lapply(x,terra::wrap))
+  #
+  # } else {
+  #   all_subb<-sf::st_as_sf(all_subb_v)
+  #
+  #   all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
+  #   splt<-split(all_subb,all_subb$core)
+  #   splt<-lapply(splt,function(x){
+  #     x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
+  #     split(x,x$split)
+  #   })
+  #
+  # }
+  # total_outs<-sum(unlist(map(splt,length)))
 
   #splt<-map(splt,~map(.,terra::wrap))
 
@@ -1729,7 +1746,8 @@ parallel_layer_processing <- function(n_cores,
                             temp_dir=list(temp_dir),
                             link_id_nm=list(link_id_nm),
                             sub_nm=list(sub_nm),
-                            use_terra=list(use_terra)
+                            use_terra=list(use_terra),
+                            fp=list(fp)
     ),
     .options = furrr_options(globals = FALSE),
     carrier::crate(
@@ -1739,7 +1757,8 @@ parallel_layer_processing <- function(n_cores,
                temp_dir,
                link_id_nm,
                sub_nm,
-               use_terra
+               use_terra,
+               fp
       ){
         #browser()
 
@@ -1757,7 +1776,7 @@ parallel_layer_processing <- function(n_cores,
         attrib_tbl<-future::future(
           packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
           globals = c("splt","loi_rasts_comb","temp_dir",
-                      "link_id_nm","sub_nm","use_terra"),
+                      "link_id_nm","sub_nm","use_terra","fp"),
           {
             options(future.rng.onMisuse = "ignore")
 
@@ -1766,7 +1785,8 @@ parallel_layer_processing <- function(n_cores,
                                   temp_dir=list(temp_dir),
                                   sub_nm=list(sub_nm),
                                   link_id_nm=list(link_id_nm),
-                                  use_terra=list(use_terra)
+                                  use_terra=list(use_terra),
+                                  fp=list(fp)
             ),
             carrier::crate(
               function(xx,
@@ -1774,14 +1794,20 @@ parallel_layer_processing <- function(n_cores,
                        temp_dir,
                        sub_nm,
                        link_id_nm,
-                       use_terra
+                       use_terra,
+                       fp
               ){
                 #browser()
                 options(scipen = 999)
                 `%>%` <- magrittr::`%>%`
 
+                xx<-sf::read_sf(fp) %>%
+                  dplyr::left_join(xx) %>%
+                  dplyr::filter(!is.na(core))
+
+
                 if (use_terra) {
-                  xx<-terra::unwrap(xx)
+                  xx<-terra::vect(xx)
 
                   out<-terra::extract(
                     loi_rasts_comb,
@@ -1803,6 +1829,7 @@ parallel_layer_processing <- function(n_cores,
                     dplyr::select(-ID) %>%
                     data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
                 } else {
+
                   out<-exactextractr::exact_extract(
                     loi_rasts_comb,
                     xx,
@@ -1846,40 +1873,40 @@ parallel_layer_processing <- function(n_cores,
   total_procs<-0
 
   #with_progress(enable=T,{
-    p <- progressor(steps = total_outs)
+  p <- progressor(steps = total_outs)
 
-    #print(sapply(out,function(x) x$state))
+  #print(sapply(out,function(x) x$state))
 
-    while(!resolved(future_out)) {
-      Sys.sleep(0.2)
+  while(!resolved(future_out)) {
+    Sys.sleep(0.2)
 
-      #browser()
-      fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
-      fl_attr<-fl_attr[grepl(".csv",fl_attr)]
-      fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
+    #browser()
+    fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
+    fl_attr<-fl_attr[grepl(".csv",fl_attr)]
+    fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
 
-      if (length(fl_attr)>0) {
-        df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
-        fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
-        df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
+    if (length(fl_attr)>0) {
+      df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
+      fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
+      df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
-        df<-df %>%
-          dplyr::bind_rows()
+      df<-df %>%
+        dplyr::bind_rows()
 
-        if (nrow(df)>0){
-          ot<-DBI::dbAppendTable(conn=con_attr,
-                                 name=tbl_nm,
-                                 value=df)
-        }
-
-        fr<-suppressMessages(file.remove(fl_attr))
-        for (i in seq_along(fr)){
-          p()
-        }
-
-        total_procs<-total_procs+sum(fr)
+      if (nrow(df)>0){
+        ot<-DBI::dbAppendTable(conn=con_attr,
+                               name=tbl_nm,
+                               value=df)
       }
+
+      fr<-suppressMessages(file.remove(fl_attr))
+      for (i in seq_along(fr)){
+        p()
+      }
+
+      total_procs<-total_procs+sum(fr)
     }
+  }
 
   #})
 
@@ -1927,6 +1954,8 @@ parallel_layer_processing <- function(n_cores,
   if (any(grepl(paste0(sub_nm,"_s_"),fl_attr))) stop("Some intermediate files could not be read into database")
 
   if (total_procs<total_outs) stop("An error occured, not all attributes added to database")
+
+  fr<-file.remove(list.files(temp_dir,paste0(gsub(".shp","",basename(fp))),full.names = T))
 
   return(NULL)
 
