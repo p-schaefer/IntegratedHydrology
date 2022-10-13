@@ -332,7 +332,7 @@ fasttrib_points<-function(
                         in_transaction=T)
 
     ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
-                                          polygons=all_subb_v,
+                                          polygons=all_subb,
                                           n_per_cycle=10,
                                           rasts=loi_rasts_exists,
                                           cols=loi_cols,
@@ -340,7 +340,8 @@ fasttrib_points<-function(
                                           tbl_nm="attrib_tbl",
                                           sub_nm="attrib_tbl",
                                           con=con_attr,
-                                          link_id_nm="subb_link_id"
+                                          link_id_nm="subb_link_id",
+                                          use_terra=F
     )
 
     attrib_tbl<-tbl(con_attr,"attrib_tbl")
@@ -404,7 +405,7 @@ fasttrib_points<-function(
 
     #browser()
     ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
-                                          polygons=all_subb_v,
+                                          polygons=all_subb,
                                           n_per_cycle=10,
                                           rasts=hw_streams_lo,
                                           cols=names(hw_streams_lo),
@@ -412,7 +413,8 @@ fasttrib_points<-function(
                                           tbl_nm="s_target_weights",
                                           sub_nm="s_target_weights",
                                           con=con_attr,
-                                          link_id_nm="subb_link_id"
+                                          link_id_nm="subb_link_id",
+                                          use_terra=F
     )
 
     # n_cores_2<-n_cores # already run above
@@ -779,7 +781,8 @@ fasttrib_points<-function(
                                                                   tbl_nm="o_target_weights",
                                                                   sub_nm="o_target_weights",
                                                                   con=con_attr_l,
-                                                                  link_id_nm="catch_link_id"
+                                                                  link_id_nm="catch_link_id",
+                                                                  use_terra=F
                                 )
 
                                 # #browser()
@@ -1676,7 +1679,7 @@ parallel_layer_processing <- function(n_cores,
                                       sub_nm,
                                       con,
                                       link_id_nm=c("subb_link_id","catch_link_id"),
-                                      use_terra=T
+                                      use_terra=F
 ) {
   options(future.rng.onMisuse = "ignore")
 
