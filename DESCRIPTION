@@ -29,6 +29,7 @@ Imports:
     exactextractr,
     nngeo,
     parallel,
+    promises,
     units,
     rlang,
     RSQLite,
