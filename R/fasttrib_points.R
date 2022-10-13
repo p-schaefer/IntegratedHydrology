@@ -1641,10 +1641,13 @@ fasttrib_points<-function(
   #browser()
 
   final_out<-target_IDs %>%
-    mutate(link_id=as.character(link_id)) %>%
-    left_join(lumped_out ,by="link_id") %>%
-    left_join(s_targ_out ,by="link_id") %>%
-    left_join(o_targ_out ,by="link_id") %>%
+    mutate(link_id=as.character(link_id))
+
+  if (!is.null(lumped_out)) final_out<-left_join(final_out,lumped_out ,by="link_id")
+  if (!is.null(s_targ_out)) final_out<-left_join(final_out,s_targ_out ,by="link_id")
+  if (!is.null(o_targ_out)) final_out<-left_join(final_out,o_targ_out ,by="link_id")
+
+  final_out<-final_out %>%
     mutate(across(ends_with("_prop"),~ifelse(is.na(.),0,.)))
 
   data.table::fwrite(final_out,file.path(temp_dir,out_filename))
