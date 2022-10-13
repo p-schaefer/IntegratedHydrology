@@ -189,7 +189,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession)
+plan(multisession(workers=8))
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -353,11 +353,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-09 09:28:00
-#> 2           dem_d8.tif  454212 2022-10-09 09:28:00
-#> 3     dem_accum_d8.tif  904212 2022-10-09 09:28:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-09 09:28:00
-#> 5   dem_streams_d8.tif  904212 2022-10-09 09:28:00
+#> 1        dem_final.tif 1804210 2022-10-13 11:18:00
+#> 2           dem_d8.tif  454212 2022-10-13 11:18:00
+#> 3     dem_accum_d8.tif  904212 2022-10-13 11:18:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-13 11:18:00
+#> 5   dem_streams_d8.tif  904212 2022-10-13 11:18:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -365,7 +365,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpwZJNZp\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpI17zyp\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -912,32 +912,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-09 09:33:00
-#> 2            dem_d8.tif  454212 2022-10-09 09:33:00
-#> 3      dem_accum_d8.tif  904212 2022-10-09 09:33:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-09 09:33:00
-#> 5    dem_streams_d8.tif  904212 2022-10-09 09:33:00
-#> 6       site_id_col.csv      22 2022-10-09 09:33:00
-#> 7      stream_links.dbf   18372 2022-10-09 09:33:00
-#> 8      stream_links.prj     503 2022-10-09 09:33:00
-#> 9      stream_links.shp    6428 2022-10-09 09:33:00
-#> 10     stream_links.shx    1908 2022-10-09 09:33:00
-#> 11     stream_lines.dbf    5691 2022-10-09 09:33:00
-#> 12     stream_lines.prj     503 2022-10-09 09:33:00
-#> 13     stream_lines.shp   70924 2022-10-09 09:33:00
-#> 14     stream_lines.shx    1900 2022-10-09 09:33:00
-#> 15    stream_points.dbf  145016 2022-10-09 09:33:00
-#> 16    stream_points.prj     503 2022-10-09 09:33:00
-#> 17    stream_points.shp  162444 2022-10-09 09:33:00
-#> 18    stream_points.shx   46484 2022-10-09 09:33:00
-#> 19   Subbasins_poly.dbf    7782 2022-10-09 09:33:00
-#> 20   Subbasins_poly.prj     503 2022-10-09 09:33:00
-#> 21   Subbasins_poly.shp  380032 2022-10-09 09:33:00
-#> 22   Subbasins_poly.shx    1908 2022-10-09 09:33:00
-#> 23   Catchment_poly.dbf   18372 2022-10-09 09:33:00
-#> 24   Catchment_poly.prj     503 2022-10-09 09:33:00
-#> 25   Catchment_poly.shp  997812 2022-10-09 09:33:00
-#> 26   Catchment_poly.shx    1908 2022-10-09 09:33:00
+#> 1         dem_final.tif 1804210 2022-10-13 11:23:00
+#> 2            dem_d8.tif  454212 2022-10-13 11:23:00
+#> 3      dem_accum_d8.tif  904212 2022-10-13 11:23:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-13 11:23:00
+#> 5    dem_streams_d8.tif  904212 2022-10-13 11:23:00
+#> 6       site_id_col.csv      22 2022-10-13 11:23:00
+#> 7      stream_links.dbf   18372 2022-10-13 11:23:00
+#> 8      stream_links.prj     503 2022-10-13 11:23:00
+#> 9      stream_links.shp    6428 2022-10-13 11:23:00
+#> 10     stream_links.shx    1908 2022-10-13 11:23:00
+#> 11     stream_lines.dbf    5691 2022-10-13 11:23:00
+#> 12     stream_lines.prj     503 2022-10-13 11:23:00
+#> 13     stream_lines.shp   70924 2022-10-13 11:23:00
+#> 14     stream_lines.shx    1900 2022-10-13 11:23:00
+#> 15    stream_points.dbf  145016 2022-10-13 11:23:00
+#> 16    stream_points.prj     503 2022-10-13 11:23:00
+#> 17    stream_points.shp  162444 2022-10-13 11:23:00
+#> 18    stream_points.shx   46484 2022-10-13 11:23:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-13 11:23:00
+#> 20   Subbasins_poly.prj     503 2022-10-13 11:23:00
+#> 21   Subbasins_poly.shp  380032 2022-10-13 11:23:00
+#> 22   Subbasins_poly.shx    1908 2022-10-13 11:23:00
+#> 23   Catchment_poly.dbf   18372 2022-10-13 11:23:00
+#> 24   Catchment_poly.prj     503 2022-10-13 11:23:00
+#> 25   Catchment_poly.shp  997812 2022-10-13 11:23:00
+#> 26   Catchment_poly.shx    1908 2022-10-13 11:23:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1141,8 +1141,8 @@ final_attributes<-fasttrib_points(
   sample_points=hydro_out$snapped_points$site_id, # here we generate summaries for all sampled points
   out_filename="sample_points_wgtattr.csv",
   link_id=NULL,
-  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-  loi_numeric_stats = c("mean", "sd",  "min", "max"),
+  weighting_scheme =  c("lumped", "iFLS", "HAiFLS","iFLO","HAiFLO"), 
+  loi_numeric_stats = c("mean", "sd",  "min", "max"), 
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
@@ -1235,6 +1235,7 @@ fasttrib_points_time_big<-system.time(
 )
 #> [1] "Reading in data"
 #> [1] "Reading in LOI"
+#> [1] "Merging stream segments"
 #> [1] "Writing LOI to attributes database"
 #> [1] "Generating Stream Targeted Weights"
 #> [1] "Writing S-targeted weights to attributes database"
@@ -1313,23 +1314,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.38 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.43 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 0.87 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 2.26 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 57 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 55.38 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 50.95 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 60.94 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "2.78 min to calculate distance weights for 1206 reaches using 8 cores."
+#> [1] "3.54 min to calculate distance weights for 1206 reaches using 8 cores."
 
 
 # Plot some attributes along their respective stream lines for visualization:
@@ -1601,6 +1602,22 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #>  8 spatial            10   651    30 rmse    standa…  2.96     5  0.283  Prepro…
 #>  9 spatial            35  1627    38 rmse    standa…  2.96     5  0.344  Prepro…
 #> 10 spatial            44  1941    39 rmse    standa…  2.96     5  0.345  Prepro…
+#> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
+
+map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
+#> # A tibble: 10 × 10
+#>    Cross-valida…¹  mtry trees min_n .metric .esti…²   mean     n std_err .config
+#>    <chr>          <int> <int> <int> <chr>   <chr>    <dbl> <int>   <dbl> <chr>  
+#>  1 standard           2   827    18 rsq     standa… 0.218      5  0.109  Prepro…
+#>  2 standard           5   981    30 rsq     standa… 0.217      5  0.110  Prepro…
+#>  3 standard          12  1571    34 rsq     standa… 0.209      5  0.107  Prepro…
+#>  4 standard          11  1992    28 rsq     standa… 0.197      5  0.102  Prepro…
+#>  5 standard          16   636     9 rsq     standa… 0.195      5  0.0882 Prepro…
+#>  6 spatial           48    65     6 rsq     standa… 0.0596     5  0.0254 Prepro…
+#>  7 spatial          114  1284    36 rsq     standa… 0.0480     2  0.0297 Prepro…
+#>  8 spatial            7   184     4 rsq     standa… 0.0440     5  0.0117 Prepro…
+#>  9 spatial           72   119    31 rsq     standa… 0.0394     4  0.0190 Prepro…
+#> 10 spatial           46   818    33 rsq     standa… 0.0382     4  0.0195 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 

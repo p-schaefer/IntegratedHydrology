@@ -109,7 +109,7 @@ library(dplyr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession)
+plan(multisession(workers=8))
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -875,8 +875,8 @@ final_attributes<-fasttrib_points(
   sample_points=hydro_out$snapped_points$site_id, # here we generate summaries for all sampled points
   out_filename="sample_points_wgtattr.csv",
   link_id=NULL,
-  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-  loi_numeric_stats = c("mean", "sd",  "min", "max"),
+  weighting_scheme =  c("lumped", "iFLS", "HAiFLS","iFLO","HAiFLO"), 
+  loi_numeric_stats = c("mean", "sd",  "min", "max"), 
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
@@ -1205,6 +1205,8 @@ stopCluster(cl)
 # Where the data was collected.
 
 map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
+
+map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
 
 ```
 
