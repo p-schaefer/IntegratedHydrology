@@ -216,33 +216,6 @@ fasttrib_points<-function(
   target_IDs<-distinct(target_IDs)
 
 
-  # Setup loi  --------------------------------------------------------------
-  if (verbose) print("Reading in LOI")
-
-  loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
-  if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
-  loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
-  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
-  names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
-
-  loi_rasts<-map(loi_rasts_exists,rast)
-
-  loi_rasts_comb<-rast(loi_rasts)
-
-  names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
-  if (is.null(loi_cols)) loi_cols<-names(loi_rasts_comb)
-
-  if (any(!loi_cols %in% names(loi_rasts_comb))) stop(paste0("The following `loi_cols` are not present in the `loi`:",
-                                                             paste0(loi_cols[!loi_cols %in% names(loi_rasts_comb)],collapse = ", ")
-  ))
-
-  loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
-  loi_rasts_names<-map(loi_rasts,names)
-  loi_rasts_names<-loi_rasts_names[loi_rasts_names %in% loi_cols]
-  loi_rasts_names<-map(loi_rasts_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
-  loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
-  loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
-
   target_crs<-crs(vect(all_subb[1,]))
 
   # Get Upstream flowpaths --------------------------------------------------
@@ -596,6 +569,34 @@ fasttrib_points<-function(
   } else {
     target_O_sub<-NULL
   }
+
+  # Setup loi  --------------------------------------------------------------
+  if (verbose) print("Reading in LOI")
+
+  loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
+  if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
+  loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
+  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
+  names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
+
+  loi_rasts<-map(loi_rasts_exists,rast)
+
+  loi_rasts_comb<-rast(loi_rasts)
+
+  names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
+  if (is.null(loi_cols)) loi_cols<-names(loi_rasts_comb)
+
+  if (any(!loi_cols %in% names(loi_rasts_comb))) stop(paste0("The following `loi_cols` are not present in the `loi`:",
+                                                             paste0(loi_cols[!loi_cols %in% names(loi_rasts_comb)],collapse = ", ")
+  ))
+
+  loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
+  loi_rasts_names<-map(loi_rasts,names)
+  loi_rasts_names<-loi_rasts_names[loi_rasts_names %in% loi_cols]
+  loi_rasts_names<-map(loi_rasts_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
+  loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
+  loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
+
 
   # Upload loi rasters to attributes database -------------------------------
   if (!use_existing_attr){
@@ -1339,36 +1340,6 @@ parallel_layer_processing <- function(n_cores,
 
   total_outs<-sum(unlist(map(splt,length)))
 
-  #total<-dplyr::bind_rows(purrr::map(splt,dplyr::bind_rows))
-
-
-  # if (use_terra){
-  #   if (!inherits(all_subb_v,"SpatVector")) all_subb_v<-terra::vect(all_subb_v)
-  #
-  #   all_subb_v$core<-rep(1:(n_cores_2),length.out=nrow(all_subb_v))
-  #   splt<-terra::split(all_subb_v,"core")
-  #   splt<-lapply(splt,function(x){
-  #     x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
-  #     terra::split(x,"split")
-  #   })
-  #
-  #
-  #   splt<-lapply(splt,function(x) lapply(x,terra::wrap))
-  #
-  # } else {
-  #   all_subb<-sf::st_as_sf(all_subb_v)
-  #
-  #   all_subb$core<-rep(1:(n_cores_2),length.out=nrow(all_subb))
-  #   splt<-split(all_subb,all_subb$core)
-  #   splt<-lapply(splt,function(x){
-  #     x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
-  #     split(x,x$split)
-  #   })
-  #
-  # }
-  # total_outs<-sum(unlist(map(splt,length)))
-
-  #splt<-map(splt,~map(.,terra::wrap))
 
   out<-future::future(
     furrr::future_pmap(list(x=splt,
