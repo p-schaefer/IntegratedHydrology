@@ -425,7 +425,7 @@ attrib_points<-function(
                 hw<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
               } else {
                 #browser() #This is broken
-                hw<-hydroweight::hydroweight(hydroweight_dir=t_dir,
+                hw_zip<-hydroweight::hydroweight(hydroweight_dir=t_dir,
                                              target_O = to,
                                              #target_S = ts,
                                              target_uid = uid,
@@ -436,11 +436,14 @@ attrib_points<-function(
                                              weighting_scheme = weighting_s[grepl("FLO",weighting_s)],
                                              inv_function = inv_fun,
                                              clean_tempfiles=T,
-                                             return_products = T,
-                                             wrap_return_products=T,
-                                             save_output=F)
+                                             return_products = F,
+                                             wrap_return_products=F,
+                                             save_output=T)
 
-                hw<-purrr::map(hw,terra::unwrap)
+                hw<-purrr::map(file.path("/vsizip",hw_zip,unzip(list=T,hw_zip)$Name),terra::rast)
+                names(hw)<-sapply(hw,names)
+
+                #hw<-purrr::map(hw,terra::unwrap)
 
                 # hw_fl<-unzip(list=T,hw)
                 # hw_fl<-purrr::map(hw_fl,file.path("/vsizip",hw,.))
@@ -526,6 +529,8 @@ attrib_points<-function(
 
                                     return(out)
                                   })
+
+            file.remove(hw_zip)
 
             out<-list(
               attr=unlist(purrr::map(attr_out,~purrr::map(.,~.$attribute_table)),recursive=F) %>%
