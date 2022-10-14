@@ -317,6 +317,7 @@ fasttrib_points<-function(
       trg_fl<-paste0("ALL_",weighting_scheme_s,"_inv_distances.tif")
       if (all(sapply(trg_fl,function(x) any(grepl(x,fl_dw$Name))))) {
         hw_streams_lo<-map(trg_fl,~file.path("/vsizip",dw_dir,.))
+        names(hw_streams_lo)<-weighting_scheme_s
       } else {
         stop(paste0("Not all 'weighting_scheme' found in zip file"))
       }
