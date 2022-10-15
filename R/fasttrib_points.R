@@ -705,7 +705,7 @@ fasttrib_points<-function(
 
       p <- progressor(steps = nrow(us_flowpaths_out))
       lumped_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=future_pmap_dfr(#furrr::future_
+        dplyr::mutate(attr=furrr::future_pmap_dfr(#
           list(
             link_id_in=link_id,
             attr_db_loc=list(attr_db_loc),
@@ -738,6 +738,7 @@ fasttrib_points<-function(
                                  by=c("link_id",
                                       "cell_number")
                 ) %>%
+                dplyr::select(-pour_point_id) %>%
                 dplyr::compute()
 
               # out<-dplyr::left_join(
@@ -763,7 +764,8 @@ fasttrib_points<-function(
               if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
                 mean_out<-out %>%
                   dplyr::select(-link_id,-cell_number) %>%
-                  dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(.,na.rm=T)/sum(!is.na(.)))) %>%
+                  dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)/sum(!is.na(.))),
+                                   dplyr::across(tidyselect::any_of(names(loi_rasts_names$cat_rast)),~sum(.,na.rm=T)/dplyr::n())) %>%
                   dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_mean")) %>%
                   dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$cat_rast)),~paste0(.x,"_lumped_prop")) %>%
                   dplyr::collect()
@@ -892,6 +894,7 @@ fasttrib_points<-function(
                       dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
                     by="cell_number"
                   ) %>%
+                dplyr::select(-pour_point_id) %>%
                 dplyr::compute()
 
               # out<-dplyr::left_join(
@@ -1109,6 +1112,7 @@ fasttrib_points<-function(
                       dplyr::select(-catch_link_id),
                     by=c("cell_number")
                   )%>%
+                dplyr::select(-pour_point_id) %>%
                 dplyr::compute()
 
               # out<-dplyr::left_join(
