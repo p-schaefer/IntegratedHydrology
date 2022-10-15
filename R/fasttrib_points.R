@@ -725,15 +725,30 @@ fasttrib_points<-function(
 
               con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
-              out<-dplyr::left_join(
-                dplyr::tbl(con_attr,"us_flowpaths") %>%
-                  dplyr::filter(pour_point_id %in% link_id_in) %>%
-                  dplyr::rename(link_id=origin_link_id),
-                dplyr::tbl(con_attr,"attrib_tbl") %>%
-                  dplyr::rename(link_id=subb_link_id),
-                by="link_id"
-              ) %>%
+              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
+                                      dplyr::filter(pour_point_id == link_id_in) %>%
+                                      dplyr::rename(link_id=origin_link_id),
+                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                      dplyr::select(-row,-col)%>%
+                                      dplyr::rename(link_id=subb_link_id ),
+                                    by=c("link_id")) %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id",
+                                      "cell_number")
+                ) %>%
                 dplyr::compute()
+
+              # out<-dplyr::left_join(
+              #   dplyr::tbl(con_attr,"us_flowpaths") %>%
+              #     dplyr::filter(pour_point_id %in% link_id_in) %>%
+              #     dplyr::rename(link_id=origin_link_id),
+              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
+              #     dplyr::rename(link_id=subb_link_id),
+              #   by="link_id"
+              # ) %>%
+              #   dplyr::compute()
 
               attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
 
@@ -859,20 +874,40 @@ fasttrib_points<-function(
 
               names(weighting_scheme_s)<-weighting_scheme_s
 
-              out<-dplyr::left_join(
-                dplyr::tbl(con_attr,"us_flowpaths") %>%
-                  dplyr::filter(pour_point_id %in% link_id_in) %>%
-                  dplyr::rename(link_id=origin_link_id),
-                dplyr::tbl(con_attr,"attrib_tbl") %>%
-                  dplyr::rename(link_id=subb_link_id),
-                by="link_id"
-              ) %>%
-                dplyr::left_join(
-                  dplyr::tbl(con_attr,"s_target_weights") %>%
-                    dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
-                  by="cell_number"
+              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
+                                      dplyr::filter(pour_point_id == link_id_in) %>%
+                                      dplyr::rename(link_id=origin_link_id),
+                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                      dplyr::select(-row,-col)%>%
+                                      dplyr::rename(link_id=subb_link_id ),
+                                    by=c("link_id")) %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id",
+                                      "cell_number")
                 ) %>%
+                  dplyr::left_join(
+                    dplyr::tbl(con_attr,"s_target_weights") %>%
+                      dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
+                    by="cell_number"
+                  ) %>%
                 dplyr::compute()
+
+              # out<-dplyr::left_join(
+              #   dplyr::tbl(con_attr,"us_flowpaths") %>%
+              #     dplyr::filter(pour_point_id %in% link_id_in) %>%
+              #     dplyr::rename(link_id=origin_link_id),
+              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
+              #     dplyr::rename(link_id=subb_link_id),
+              #   by="link_id"
+              # ) %>%
+              #   dplyr::left_join(
+              #     dplyr::tbl(con_attr,"s_target_weights") %>%
+              #       dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
+              #     by="cell_number"
+              #   ) %>%
+              #   dplyr::compute()
 
               if ("iFLS" %in% weighting_scheme_s){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                 out<-out %>%
@@ -1054,22 +1089,44 @@ fasttrib_points<-function(
               mean_out<-NULL
               sd_out<-NULL
 
-              out<-dplyr::left_join(
-                dplyr::tbl(con_attr,"us_flowpaths") %>%
-                  dplyr::filter(pour_point_id %in% link_id_in) %>%
-                  dplyr::rename(link_id=origin_link_id),
-                dplyr::tbl(con_attr,"attrib_tbl") %>%
-                  dplyr::rename(link_id=subb_link_id),
-                by="link_id"
-              ) %>%
-                dplyr::left_join(
-                  dplyr::tbl(con_attr,"o_target_weights") %>%
-                    dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
-                    dplyr::filter(catch_link_id %in% link_id_in) %>%
-                    dplyr::select(-catch_link_id),
-                  by=c("cell_number")
-                )%>%
+              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
+                                      dplyr::filter(pour_point_id == link_id_in) %>%
+                                      dplyr::rename(link_id=origin_link_id),
+                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                      dplyr::select(-row,-col)%>%
+                                      dplyr::rename(link_id=subb_link_id ),
+                                    by=c("link_id")) %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id",
+                                      "cell_number")
+                ) %>%
+                  dplyr::left_join(
+                    dplyr::tbl(con_attr,"o_target_weights") %>%
+                      dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
+                      dplyr::filter(catch_link_id %in% link_id_in) %>%
+                      dplyr::select(-catch_link_id),
+                    by=c("cell_number")
+                  )%>%
                 dplyr::compute()
+
+              # out<-dplyr::left_join(
+              #   dplyr::tbl(con_attr,"us_flowpaths") %>%
+              #     dplyr::filter(pour_point_id %in% link_id_in) %>%
+              #     dplyr::rename(link_id=origin_link_id),
+              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
+              #     dplyr::rename(link_id=subb_link_id),
+              #   by="link_id"
+              # ) %>%
+              #   dplyr::left_join(
+              #     dplyr::tbl(con_attr,"o_target_weights") %>%
+              #       dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
+              #       dplyr::filter(catch_link_id %in% link_id_in) %>%
+              #       dplyr::select(-catch_link_id),
+              #     by=c("cell_number")
+              #   )%>%
+              #   dplyr::compute()
 
 
 
