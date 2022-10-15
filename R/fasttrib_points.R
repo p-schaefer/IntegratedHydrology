@@ -763,7 +763,7 @@ fasttrib_points<-function(
               if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
                 mean_out<-out %>%
                   dplyr::select(-link_id,-cell_number) %>%
-                  dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(.,na.rm=T)/dplyr::n())) %>%
+                  dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(.,na.rm=T)/sum(!is.na(.)))) %>%
                   dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_mean")) %>%
                   dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$cat_rast)),~paste0(.x,"_lumped_prop")) %>%
                   dplyr::collect()
