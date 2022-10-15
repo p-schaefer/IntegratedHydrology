@@ -108,13 +108,14 @@ generate_subbasins<-function(
 
       new_data<-new_data %>%
         mutate(p=rep(list(p),nrow(.))) %>%
-        mutate(new_subb=future_pmap(list(data=data,
+        mutate(new_subb=future_pmap(list(data=data, #
                                          link_id=link_id_base,
                                          subb_poly=subb_poly,
                                          temp_dir=temp_dir,
                                          p=p),
                                     .options = furrr_options(globals = FALSE),
                                     carrier::crate(function(data,link_id,subb_poly,temp_dir,target_crs,p){
+                                      #browser()
                                       options(scipen = 999)
                                       `%>%` <- magrittr::`%>%`
 
@@ -142,6 +143,8 @@ generate_subbasins<-function(
                                       t1<-terra::rast(file.path(temp_dir,"dem_d8.tif")) %>%
                                         terra::crop(y=cr,
                                                     mask=T,
+                                                    snap="in",
+                                                    touches=F,
                                                     filename=file.path(temp_dir,paste0("d8_int_",link_id,".tif")),
                                                     overwrite=T) %>%
                                         terra::writeRaster(
