@@ -388,8 +388,7 @@ fasttrib_points<-function(
                                           tbl_nm="s_target_weights",
                                           sub_nm="s_target_weights",
                                           con=con_attr,
-                                          link_id_nm="subb_link_id",
-                                          use_terra=F
+                                          link_id_nm="subb_link_id"
     )
 
 
@@ -593,7 +592,7 @@ fasttrib_points<-function(
                                                                   sub_nm="o_target_weights",
                                                                   con=con_attr_l,
                                                                   link_id_nm="catch_link_id",
-                                                                  use_terra=F
+                                                                  progress=F
                                 )
 
 
@@ -670,8 +669,7 @@ fasttrib_points<-function(
                                           tbl_nm="attrib_tbl",
                                           sub_nm="attrib_tbl",
                                           con=con_attr,
-                                          link_id_nm="subb_link_id",
-                                          use_terra=F
+                                          link_id_nm="subb_link_id"
     )
 
     attrib_tbl<-tbl(con_attr,"attrib_tbl")
@@ -1296,7 +1294,7 @@ parallel_layer_processing <- function(n_cores,
                                       sub_nm,
                                       con,
                                       link_id_nm=c("subb_link_id","catch_link_id"),
-                                      use_terra=F
+                                      progress=T
 ) {
   #browser() # Here setup readStart(), readValues(), and readStop() #https://github.com/rspatial/terra/issues/251
   options(scipen = 999)
@@ -1367,7 +1365,6 @@ parallel_layer_processing <- function(n_cores,
            temp_dir=list(temp_dir),
            link_id_nm=list(link_id_nm),
            sub_nm=list(sub_nm),
-           use_terra=list(use_terra),
            fp=list(fp),
            cell_fp=list(cell_fp)
       ),
@@ -1379,7 +1376,6 @@ parallel_layer_processing <- function(n_cores,
                  temp_dir,
                  link_id_nm,
                  sub_nm,
-                 use_terra,
                  fp,
                  cell_fp
         ){
@@ -1405,20 +1401,12 @@ parallel_layer_processing <- function(n_cores,
 
           splt<-x
 
-          # attrib_tbl<-future::future(
-          #   packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
-          #   globals = c("splt","loi_rasts_comb","temp_dir",
-          #               "link_id_nm","sub_nm","use_terra","fp","cell_tbl","cell_tbl_all"),
-          #   {
-          #     options(future.rng.onMisuse = "ignore")
-          #     options(scipen = 999)
 
           out<-purrr::pmap(list(xx=splt,
                                 loi_rasts_comb=list(loi_rasts_comb),
                                 temp_dir=list(temp_dir),
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
-                                use_terra=list(use_terra),
                                 fp=list(fp),
                                 cell_tbl=list(cell_tbl)
           ),
@@ -1428,7 +1416,6 @@ parallel_layer_processing <- function(n_cores,
                      temp_dir,
                      sub_nm,
                      link_id_nm,
-                     use_terra,
                      fp,
                      cell_tbl
             ){
@@ -1436,9 +1423,6 @@ parallel_layer_processing <- function(n_cores,
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
-              # xx<-sf::read_sf(fp) %>%
-              #   dplyr::left_join(xx) %>%
-              #   dplyr::filter(!is.na(core))
 
               cell_tbl_sub<-cell_tbl %>%
                 dplyr::filter(link_id %in% as.character(xx$link_id))
@@ -1463,16 +1447,6 @@ parallel_layer_processing <- function(n_cores,
                                   dplyr::filter(link_id %in% local(as.character(xxx))) %>%
                                   dplyr::pull(cell_number)
 
-                                # out_cell_nums<-cell_tbl_all %>%
-                                #   dplyr::filter(
-                                #     (row >= local(target_cell_range$row_start) &
-                                #        row <= local(target_cell_range$row_end) )
-                                #     &
-                                #       (col >= local(target_cell_range$col_start) &
-                                #          col <= local(target_cell_range$col_end) )
-                                #   ) %>%
-                                #   dplyr::pull(cell_number) %>%
-                                #   unique()
 
                                 out_cell_nums<-terra::cellFromRowColCombine(loi_rasts_comb,
                                                                             row=target_cell_range$row_start:target_cell_range$row_end,
@@ -1532,15 +1506,13 @@ parallel_layer_processing <- function(n_cores,
 
   total_procs<-0
 
-  with_progress(enable=T,{
+  with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
 
-    #print(sapply(out,function(x) x$state))
 
     while(!resolved(future_out)) {
       Sys.sleep(0.2)
 
-      #browser()
       fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
       fl_attr<-fl_attr[grepl(".csv",fl_attr)]
       fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
