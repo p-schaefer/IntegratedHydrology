@@ -546,6 +546,7 @@ fasttrib_points<-function(
 
             o_out<-purrr::map(target_O_subs, # I don't think this can be parallel
                               function(x){
+                                #browser()
                                 #print(x$unn_group[[1]])
                                 sub_catch<-all_catch %>%
                                   dplyr::filter(link_id %in% x$link_id)
@@ -578,14 +579,16 @@ fasttrib_points<-function(
                                   names(hw)<-sapply(hw,names)
                                 }
 
+                                temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
+                                dir.create(temp_dir_sub_sub)
 
                                 ihydro::parallel_layer_processing(n_cores=n_cores,
                                                                   attr_db_loc=attr_db_loc,
                                                                   polygons=sub_catch,
-                                                                  n_per_cycle=1000,
+                                                                  n_per_cycle=100,
                                                                   rasts=hw_o_lo,
                                                                   cols=names(hw_o_lo),
-                                                                  temp_dir=temp_dir_sub,
+                                                                  temp_dir=temp_dir_sub_sub,
                                                                   tbl_nm="o_target_weights",
                                                                   sub_nm="o_target_weights",
                                                                   con=con_attr_l,
@@ -1298,6 +1301,11 @@ parallel_layer_processing <- function(n_cores,
   #browser() # Here setup readStart(), readValues(), and readStop() #https://github.com/rspatial/terra/issues/251
   options(scipen = 999)
   options(future.rng.onMisuse = "ignore")
+
+  temp_dir_O<-temp_dir
+  temp_dir<-file.path(temp_dir,basename(tempfile()))
+  dir.create(temp_dir)
+
 
   link_id_nm<-match.arg(link_id_nm,c("subb_link_id","catch_link_id"),several.ok = F)
   con_attr<-con
