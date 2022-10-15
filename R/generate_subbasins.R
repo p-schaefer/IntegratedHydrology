@@ -242,6 +242,44 @@ generate_subbasins<-function(
             analyze=T,
             in_transaction=T)
 
+  # Write cell numbers to database ------------------------------------------
+
+  if (verbose) print("Generating cell number tables")
+
+  decimalplaces <- function(x) {
+    if (abs(x - round(x)) > .Machine$double.eps^0.5) {
+      nchar(strsplit(sub('0+$', '', as.character(x)), ".", fixed = TRUE)[[1]][[2]])
+    } else {
+      return(0)
+    }
+  }
+
+  n_dec<-max(sapply(subb$link_id,decimalplaces))
+  all_subb_rast<-terra::rasterize(subb,
+                                  terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif")),
+                                  field="link_id")
+
+  all_subb_out<-data.table::data.table(
+    subb_link_id=terra::values(all_subb_rast),
+    cell_number=1:terra::ncell(all_subb_rast)
+  ) %>%
+    setNames(c("subb_link_id","cell_number")) %>%
+    mutate(x=xFromCell(all_subb_rast,cell_number)) %>%
+    mutate(y=yFromCell(all_subb_rast,cell_number)) %>%
+    mutate(row=rowFromCell(all_subb_rast,cell_number)) %>%
+    mutate(col=colFromCell(all_subb_rast,cell_number)) %>%
+    mutate(subb_link_id=round(subb_link_id,n_dec)) %>%
+    mutate(subb_link_id=as.character(subb_link_id)) %>%
+    copy_to(df=.,
+            con,
+            "link_id_cellstats",
+            overwrite =T,
+            temporary =F,
+            indexes=c("subb_link_id","cell_number"),
+            analyze=T,
+            in_transaction=T)
+
+
   # DBI::dbExecute(con,"CREATE INDEX inx_stream_links ON stream_links (link_id,trib_id)")
 
   DBI::dbDisconnect(con)
