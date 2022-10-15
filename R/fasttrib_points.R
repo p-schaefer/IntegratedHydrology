@@ -1375,9 +1375,9 @@ parallel_layer_processing <- function(n_cores,
 
 
 
-  out<-#future::future(
-    purrr::pmap(
-    #furrr::future_pmap(
+  out<-future::future(
+    #purrr::pmap(
+    furrr::future_pmap(
       list(x=splt,
            loi_rasts_exists=list(loi_rasts_exists),
            loi_cols=list(loi_cols),
@@ -1388,7 +1388,7 @@ parallel_layer_processing <- function(n_cores,
            fp=list(fp),
            cell_fp=list(cell_fp)
       ),
-      #.options = furrr_options(globals = FALSE),
+      .options = furrr_options(globals = FALSE),
       carrier::crate(
         function(x,
                  loi_rasts_exists,
@@ -1416,11 +1416,9 @@ parallel_layer_processing <- function(n_cores,
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
-          cell_tbl_all<-data.table::fread(cell_fp)
           cell_tbl<-cell_tbl_all%>%
             dplyr::mutate(link_id=as.character(link_id)) %>%
             dplyr::filter(link_id %in% as.character(xx$link_id))
-
 
           splt<-x
 
@@ -1439,8 +1437,7 @@ parallel_layer_processing <- function(n_cores,
                                 link_id_nm=list(link_id_nm),
                                 use_terra=list(use_terra),
                                 fp=list(fp),
-                                cell_tbl=list(cell_tbl),
-                                cell_tbl_all=list(cell_tbl_all)
+                                cell_tbl=list(cell_tbl)
           ),
           carrier::crate(
             function(xx,
@@ -1450,8 +1447,7 @@ parallel_layer_processing <- function(n_cores,
                      link_id_nm,
                      use_terra,
                      fp,
-                     cell_tbl,
-                     cell_tbl_all
+                     cell_tbl
             ){
               #browser()
               options(scipen = 999)
@@ -1484,17 +1480,20 @@ parallel_layer_processing <- function(n_cores,
                                   dplyr::filter(link_id %in% local(as.character(xxx))) %>%
                                   dplyr::pull(cell_number)
 
-                                out_cell_nums<-cell_tbl_all %>%
-                                  dplyr::filter(
-                                    (row >= local(target_cell_range$row_start) &
-                                       row <= local(target_cell_range$row_end) )
-                                    &
-                                      (col >= local(target_cell_range$col_start) &
-                                         col <= local(target_cell_range$col_end) )
-                                  ) %>%
-                                  dplyr::pull(cell_number) %>%
-                                  unique()
+                                # out_cell_nums<-cell_tbl_all %>%
+                                #   dplyr::filter(
+                                #     (row >= local(target_cell_range$row_start) &
+                                #        row <= local(target_cell_range$row_end) )
+                                #     &
+                                #       (col >= local(target_cell_range$col_start) &
+                                #          col <= local(target_cell_range$col_end) )
+                                #   ) %>%
+                                #   dplyr::pull(cell_number) %>%
+                                #   unique()
 
+                                out_cell_nums<-terra::cellFromRowColCombine(loi_rasts_comb,
+                                                                            row=target_cell_range$row_start:target_cell_range$row_end,
+                                                                            col=target_cell_range$col_start:target_cell_range$col_end)
 
                                 out<-data.table::data.table(
                                   terra::readValues(loi_rasts_comb,
@@ -1505,9 +1504,9 @@ parallel_layer_processing <- function(n_cores,
                                                     dataframe=T
                                   ))
 
-                                if (nrow(out) != length(out_cell_nums)){
-                                  browser()
-                                }
+                                # if (nrow(out) != length(out_cell_nums)){
+                                #   browser()
+                                # }
 
                                 out<-out%>%
                                   dplyr::mutate(cell_number=out_cell_nums) %>%
@@ -1540,10 +1539,10 @@ parallel_layer_processing <- function(n_cores,
           terra::readStop(loi_rasts_comb)
 
 
-          return(out)
+          return(NA)
         })
 
-    )#)
+    ))
 
   #browser()
   future_out <- future::futureOf(out)
@@ -1582,7 +1581,7 @@ parallel_layer_processing <- function(n_cores,
           p()
         }
 
-        total_procs<-total_procs+sum(fr)
+        total_procs<-total_procs+length(fl_attr)
       }
     }
 
@@ -1591,8 +1590,8 @@ parallel_layer_processing <- function(n_cores,
   Sys.sleep(2)
   #browser()
 
-  if (length(out$result$conditions[[1]]$condition)>0){
-    err<-out$result$conditions[[1]]$condition
+  if (length(out$result$conditions)>0){
+    err<-out$result$conditions
     if (inherits(err,"error")){
       stop(err)
     }
@@ -1623,6 +1622,8 @@ parallel_layer_processing <- function(n_cores,
       }
 
       fr<-suppressMessages(file.remove(fl_attr))
+      total_procs<-total_procs+length(fl_attr)
+
     }
 
   }
@@ -1633,7 +1634,6 @@ parallel_layer_processing <- function(n_cores,
   if (any(grepl(paste0(sub_nm,"_s_"),fl_attr))) stop("Some intermediate files could not be read into database")
 
   if (total_procs<total_outs) {
-    browser()
     stop("An error occured, not all attributes added to database")
   }
 
