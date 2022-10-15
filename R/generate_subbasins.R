@@ -264,8 +264,6 @@ generate_subbasins<-function(
     cell_number=1:terra::ncell(all_subb_rast)
   ) %>%
     setNames(c("subb_link_id","cell_number")) %>%
-    mutate(x=xFromCell(all_subb_rast,cell_number)) %>%
-    mutate(y=yFromCell(all_subb_rast,cell_number)) %>%
     mutate(row=rowFromCell(all_subb_rast,cell_number)) %>%
     mutate(col=colFromCell(all_subb_rast,cell_number)) %>%
     mutate(subb_link_id=round(subb_link_id,n_dec)) %>%

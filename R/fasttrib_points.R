@@ -199,8 +199,6 @@ fasttrib_points<-function(
       cell_number=1:terra::ncell(all_subb_rast)
     ) %>%
       setNames(c("subb_link_id","cell_number")) %>%
-      mutate(x=xFromCell(all_subb_rast,cell_number)) %>%
-      mutate(y=yFromCell(all_subb_rast,cell_number)) %>%
       mutate(row=rowFromCell(all_subb_rast,cell_number)) %>%
       mutate(col=colFromCell(all_subb_rast,cell_number)) %>%
       mutate(subb_link_id=round(subb_link_id,n_dec)) %>%
@@ -214,29 +212,6 @@ fasttrib_points<-function(
               analyze=T,
               in_transaction=T)
 
-
-    all_subb_rast<-terra::rasterize(all_subb,
-                                    terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif")),
-                                    field="link_id")
-
-    all_subb_out<-data.table::data.table(
-      subb_link_id=terra::values(all_subb_rast),
-      cell_number=1:terra::ncell(all_subb_rast)
-    ) %>%
-      setNames(c("subb_link_id","cell_number")) %>%
-      mutate(x=xFromCell(all_subb_rast,cell_number)) %>%
-      mutate(y=yFromCell(all_subb_rast,cell_number)) %>%
-      mutate(row=rowFromCell(all_subb_rast,cell_number)) %>%
-      mutate(col=colFromCell(all_subb_rast,cell_number)) %>%
-      mutate(subb_link_id=as.character(subb_link_id)) %>%
-      copy_to(df=.,
-              con,
-              "link_id_cellstats",
-              overwrite =T,
-              temporary =F,
-              indexes=c("subb_link_id","cell_number"),
-              analyze=T,
-              in_transaction=T)
   }
 
   # Get target link_id ------------------------------------------------------
@@ -1416,7 +1391,7 @@ parallel_layer_processing <- function(n_cores,
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
-          cell_tbl<-cell_tbl_all%>%
+          cell_tbl<-data.table::fread(cell_fp) %>%
             dplyr::mutate(link_id=as.character(link_id)) %>%
             dplyr::filter(link_id %in% as.character(xx$link_id))
 
@@ -1591,7 +1566,7 @@ parallel_layer_processing <- function(n_cores,
   #browser()
 
   if (length(out$result$conditions)>0){
-    err<-out$result$conditions
+    err<-out$result$conditions[[1]]$condition
     if (inherits(err,"error")){
       stop(err)
     }
