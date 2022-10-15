@@ -1333,7 +1333,7 @@ parallel_layer_processing <- function(n_cores,
   cell_fp<-file.path(temp_dir,"cell_id.csv")
   if (link_id_nm=="subb_link_id"){
     cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
-      dplyr::select(link_id=subb_link_id,cell_number,x,y,row,col) %>%
+      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
       dplyr::collect() %>%
       data.table::fwrite(cell_fp)
   } else {
@@ -1342,7 +1342,7 @@ parallel_layer_processing <- function(n_cores,
       dplyr::tbl(con_attr,"link_id_cellstats"),
       by=c("origin_link_id"="subb_link_id")
     ) %>%
-      dplyr::select(link_id=pour_point_id,cell_number,x,y,row,col) %>%
+      dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
       dplyr::distinct() %>%
       dplyr::collect() %>%
       data.table::fwrite(cell_fp)
