@@ -291,19 +291,19 @@ attrib_points<-function(
         new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
         dir.create(new_temp_dir)
 
-        unzip(
+        utils::unzip(
           gsub(paste0("/",basename(x$loi_rasts_exists[[1]][[1]])),"",gsub("/vsizip/","",x$loi_rasts_exists[[1]][[1]])),
           files=sapply(x$loi_rasts_exists[[1]], basename),
           exdir = new_temp_dir
         )
 
-        unzip(
+        utils::unzip(
           zip_loc,
           files=c("dem_final.tif","dem_accum_d8.tif"),#"dem_streams_d8.tif"
           exdir = new_temp_dir
         )
 
-        unzip(x$stream_weights[[1]],
+        utils::unzip(x$stream_weights[[1]],
               exdir = new_temp_dir)
 
         stream_w<-file.path(new_temp_dir,unzip(list=T,x$stream_weights[[1]])$Name)

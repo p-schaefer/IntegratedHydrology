@@ -1375,9 +1375,9 @@ parallel_layer_processing <- function(n_cores,
 
 
 
-  out<-future::future(
-    #purrr::pmap(
-    furrr::future_pmap(
+  out<-#future::future(
+    purrr::pmap(
+    #furrr::future_pmap(
       list(x=splt,
            loi_rasts_exists=list(loi_rasts_exists),
            loi_cols=list(loi_cols),
@@ -1388,7 +1388,7 @@ parallel_layer_processing <- function(n_cores,
            fp=list(fp),
            cell_fp=list(cell_fp)
       ),
-      .options = furrr_options(globals = FALSE),
+      #.options = furrr_options(globals = FALSE),
       carrier::crate(
         function(x,
                  loi_rasts_exists,
@@ -1424,120 +1424,126 @@ parallel_layer_processing <- function(n_cores,
 
           splt<-x
 
-          attrib_tbl<-future::future(
-            packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
-            globals = c("splt","loi_rasts_comb","temp_dir",
-                        "link_id_nm","sub_nm","use_terra","fp","cell_tbl","cell_tbl_all"),
-            {
-              options(future.rng.onMisuse = "ignore")
+          # attrib_tbl<-future::future(
+          #   packages = c("future","furrr","purrr","terra","sf","dplyr","data.table","carrier","magrittr","stats","base","utils"),
+          #   globals = c("splt","loi_rasts_comb","temp_dir",
+          #               "link_id_nm","sub_nm","use_terra","fp","cell_tbl","cell_tbl_all"),
+          #   {
+          #     options(future.rng.onMisuse = "ignore")
+          #     options(scipen = 999)
+
+          out<-purrr::pmap(list(xx=splt,
+                                loi_rasts_comb=list(loi_rasts_comb),
+                                temp_dir=list(temp_dir),
+                                sub_nm=list(sub_nm),
+                                link_id_nm=list(link_id_nm),
+                                use_terra=list(use_terra),
+                                fp=list(fp),
+                                cell_tbl=list(cell_tbl),
+                                cell_tbl_all=list(cell_tbl_all)
+          ),
+          carrier::crate(
+            function(xx,
+                     loi_rasts_comb,
+                     temp_dir,
+                     sub_nm,
+                     link_id_nm,
+                     use_terra,
+                     fp,
+                     cell_tbl,
+                     cell_tbl_all
+            ){
+              #browser()
               options(scipen = 999)
+              `%>%` <- magrittr::`%>%`
 
-              out<-purrr::pmap(list(xx=splt,
-                                    loi_rasts_comb=list(loi_rasts_comb),
-                                    temp_dir=list(temp_dir),
-                                    sub_nm=list(sub_nm),
-                                    link_id_nm=list(link_id_nm),
-                                    use_terra=list(use_terra),
-                                    fp=list(fp),
-                                    cell_tbl=list(cell_tbl),
-                                    cell_tbl_all=list(cell_tbl_all)
-              ),
-              carrier::crate(
-                function(xx,
-                         loi_rasts_comb,
-                         temp_dir,
-                         sub_nm,
-                         link_id_nm,
-                         use_terra,
-                         fp,
-                         cell_tbl,
-                         cell_tbl_all
-                ){
-                  #browser()
-                  options(scipen = 999)
-                  `%>%` <- magrittr::`%>%`
+              # xx<-sf::read_sf(fp) %>%
+              #   dplyr::left_join(xx) %>%
+              #   dplyr::filter(!is.na(core))
 
-                  # xx<-sf::read_sf(fp) %>%
-                  #   dplyr::left_join(xx) %>%
-                  #   dplyr::filter(!is.na(core))
-
-                  cell_tbl_sub<-cell_tbl %>%
-                    dplyr::filter(link_id %in% as.character(xx$link_id))
+              cell_tbl_sub<-cell_tbl %>%
+                dplyr::filter(link_id %in% as.character(xx$link_id))
 
 
-                  out<-purrr::map(xx$link_id,
-                                  function(xxx){
-                                    #browser()
+              out<-purrr::map(xx$link_id,
+                              function(xxx){
+                                #browser()
 
-                                    target_cell_range<-cell_tbl_sub %>%
-                                      dplyr::filter(link_id %in% local(as.character(xxx))) %>%
-                                      dplyr::summarize(
-                                        row_start=min(row),
-                                        row_end=max(row),
-                                        n_row=max(row)-min(row),
-                                        col_start=min(col),
-                                        col_end=max(col),
-                                        n_col=max(col)-min(col)
-                                      )
+                                target_cell_range<-cell_tbl_sub %>%
+                                  dplyr::filter(link_id %in% local(as.character(xxx))) %>%
+                                  dplyr::summarize(
+                                    row_start=min(row),
+                                    row_end=max(row),
+                                    n_row=max(row)-min(row),
+                                    col_start=min(col),
+                                    col_end=max(col),
+                                    n_col=max(col)-min(col)
+                                  )
 
-                                    target_cell_numbs<-cell_tbl_sub %>%
-                                      dplyr::filter(link_id %in% local(as.character(xxx))) %>%
-                                      dplyr::pull(cell_number)
+                                target_cell_numbs<-cell_tbl_sub %>%
+                                  dplyr::filter(link_id %in% local(as.character(xxx))) %>%
+                                  dplyr::pull(cell_number)
 
-                                    out_cell_nums<-cell_tbl_all %>%
-                                      dplyr::filter(
-                                        (row >= local(target_cell_range$row_start) &
-                                           row <= local(target_cell_range$row_end) )
-                                        &
-                                          (col >= local(target_cell_range$col_start) &
-                                             col <= local(target_cell_range$col_end) )
-                                      ) %>%
-                                      dplyr::pull(cell_number) %>%
-                                      unique()
-
-
-                                    out<-data.table::data.table(
-                                      terra::readValues(loi_rasts_comb,
-                                                        row=target_cell_range$row_start,
-                                                        nrows=target_cell_range$n_row+1,
-                                                        col=target_cell_range$col_start,
-                                                        ncols=target_cell_range$n_col+1,
-                                                        dataframe=T
-                                      )) %>%
-                                      dplyr::mutate(cell_number=out_cell_nums) %>%
-                                      dplyr::filter(cell_number %in% target_cell_numbs) %>%
-                                      dplyr::mutate(abcdefg = xxx) %>%
-                                      dplyr::rename_with(.cols=tidyselect::any_of("abcdefg"),~paste0(link_id_nm))
-
-                                    return(out)
-                                  }) %>%
-                    dplyr::bind_rows()
-
-                  data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                out_cell_nums<-cell_tbl_all %>%
+                                  dplyr::filter(
+                                    (row >= local(target_cell_range$row_start) &
+                                       row <= local(target_cell_range$row_end) )
+                                    &
+                                      (col >= local(target_cell_range$col_start) &
+                                         col <= local(target_cell_range$col_end) )
+                                  ) %>%
+                                  dplyr::pull(cell_number) %>%
+                                  unique()
 
 
-                  if (file.exists(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))))
-                    file.remove(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv")))
+                                out<-data.table::data.table(
+                                  terra::readValues(loi_rasts_comb,
+                                                    row=target_cell_range$row_start,
+                                                    nrows=target_cell_range$n_row+1,
+                                                    col=target_cell_range$col_start,
+                                                    ncols=target_cell_range$n_col+1,
+                                                    dataframe=T
+                                  ))
 
-                  file.rename(
-                    file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
-                    file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))
-                  )
+                                if (nrow(out) != length(out_cell_nums)){
+                                  browser()
+                                }
 
-                  return(NA)
+                                out<-out%>%
+                                  dplyr::mutate(cell_number=out_cell_nums) %>%
+                                  dplyr::filter(cell_number %in% target_cell_numbs) %>%
+                                  dplyr::mutate(abcdefg = xxx) %>%
+                                  dplyr::rename_with(.cols=tidyselect::any_of("abcdefg"),~paste0(link_id_nm))
 
-                }
-              ))
-            })
+                                return(out)
+                              }) %>%
+                dplyr::bind_rows()
+
+              data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+
+              if (file.exists(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))))
+                file.remove(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv")))
+
+              file.rename(
+                file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))
+              )
+
+              return(NA)
+
+            }
+          ))
+          #})
 
 
           terra::readStop(loi_rasts_comb)
 
 
-          return(attrib_tbl)
+          return(out)
         })
 
-    ))
+    )#)
 
   #browser()
   future_out <- future::futureOf(out)
@@ -1626,9 +1632,14 @@ parallel_layer_processing <- function(n_cores,
 
   if (any(grepl(paste0(sub_nm,"_s_"),fl_attr))) stop("Some intermediate files could not be read into database")
 
-  if (total_procs<total_outs) stop("An error occured, not all attributes added to database")
+  if (total_procs<total_outs) {
+    browser()
+    stop("An error occured, not all attributes added to database")
+  }
 
   fr<-file.remove(list.files(temp_dir,paste0(gsub(".shp","",basename(fp))),full.names = T))
+
+  unlink(temp_dir,recursive = T,force=T)
 
   return(NULL)
 
