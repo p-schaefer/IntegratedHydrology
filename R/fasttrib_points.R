@@ -130,11 +130,11 @@ fasttrib_points<-function(
   # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
   # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
-  # DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+  DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
   # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
-  # DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
-  # DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
-  # DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
+  DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+  DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+  DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
