@@ -29,7 +29,7 @@ knitr::opts_chunk$set(
 ## 1 Introduction
 
 ```{r pressure, echo=FALSE, out.width = '100%', fig.align = 'center'}
-knitr::include_graphics("man/figures/README-unnamed-chunk-22-1.png")
+knitr::include_graphics("man/figures/README-unnamed-chunk-23-1.png")
 ```
 
 Aquatic environmental scientists are often interested in relating landscape features to observed responses (e.g., fish size, water temperature, invertebrate community composition, etc.) in streams, rivers and lakes. The computational workflow for conducting these investigations is complex. Simply describing how water flows and accumulates across the landscape can be a challenge itself, but for aquatic scientists it is only the first step. The stream network must then be extracted from the landscape, and reaches (a.k.a. segments; i.e., stretches of river between two confluences) identified and given unique identifiers. These reaches must then be attributed to be informative (e.g., slope, stream order, upstream channel length, etc.); and upstream-downstream connectivity between reaches established.
@@ -197,6 +197,11 @@ loi_combined<-process_loi(
   temp_dir=NULL,
   verbose=T
 )
+
+
+```
+
+```{r, fig.width = 7, fig.height = 7, message = FALSE, error = FALSE, warning = FALSE}
 
 # All layers have been transformed to rasters with 1 indicating presence, and NA for absence
 plot(rast(loi_combined$cat_inputs),type="classes",col="darkgreen")
@@ -887,7 +892,6 @@ final_attributes<-fasttrib_points(
 
 
 
-
 final_attributes
 
 ```
@@ -921,24 +925,24 @@ dw_time<-system.time(
 
 
 fasttrib_points_time_big<-system.time(
-    final_attributes_all<-fasttrib_points(
-      input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
-      loi_file=output_filename_loi,
-      sample_points=NULL, 
-      link_id=NULL,
-      target_o_type="segment_whole",
-      out_filename="all_points_wgtattr.csv",
-      weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-      loi_numeric_stats = c("mean", "sd", "max","min"),
-      inv_function = function(x) {
-        (x * 0.001 + 1)^-1
-      },
-      store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
-      #           # This adds to the size of the zip file, and increases the computation time.
-      use_exising_hw=F, #This will attempt to use existing hydroweights when available
-      temp_dir=NULL,
-      verbose=T
-    )
+  final_attributes_all<-fasttrib_points(
+    input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
+    loi_file=output_filename_loi,
+    sample_points=NULL, 
+    link_id=NULL,
+    target_o_type="segment_whole",
+    out_filename="all_points_wgtattr.csv",
+    weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
+    loi_numeric_stats = c("mean", "sd", "max","min"),
+    inv_function = function(x) {
+      (x * 0.001 + 1)^-1
+    },
+    store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
+    #           # This adds to the size of the zip file, and increases the computation time.
+    use_exising_hw=F, #This will attempt to use existing hydroweights when available
+    temp_dir=NULL,
+    verbose=T
+  )
 )
 
 attrib_points_time_big<-system.time(
