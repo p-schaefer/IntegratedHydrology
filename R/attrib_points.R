@@ -306,7 +306,7 @@ attrib_points<-function(
         utils::unzip(x$stream_weights[[1]],
               exdir = new_temp_dir)
 
-        stream_w<-file.path(new_temp_dir,unzip(list=T,x$stream_weights[[1]])$Name)
+        stream_w<-file.path(new_temp_dir,utils::unzip(list=T,x$stream_weights[[1]])$Name)
 
         return(list(stream_w=stream_w,
                     rast_load=as.list(file.path(new_temp_dir,sapply(x$loi_rasts_exists[[1]], basename))) %>%
@@ -440,7 +440,7 @@ attrib_points<-function(
                                              wrap_return_products=F,
                                              save_output=T)
 
-                hw<-purrr::map(file.path("/vsizip",hw_zip,unzip(list=T,hw_zip)$Name),terra::rast)
+                hw<-purrr::map(file.path("/vsizip",hw_zip,utils::unzip(list=T,hw_zip)$Name),terra::rast)
                 names(hw)<-sapply(hw,names)
 
                 #hw<-purrr::map(hw,terra::unwrap)
