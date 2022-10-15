@@ -1265,7 +1265,8 @@ fasttrib_points<-function(
   if (!is.null(o_targ_out)) final_out<-left_join(final_out,o_targ_out ,by="link_id")
 
   final_out<-final_out %>%
-    mutate(across(ends_with("_prop"),~ifelse(is.na(.),0,.)))
+    mutate(across(ends_with("_prop"),~ifelse(is.na(.),0,.))) %>%
+    select(-any_of("pour_point_id "))
 
   data.table::fwrite(final_out,file.path(temp_dir,out_filename))
 
