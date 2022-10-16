@@ -333,7 +333,7 @@ fasttrib_points<-function(
 
 
   # Calculate s-weighted distances -------------------------------------
-  if (!use_existing_attr & "s_target_weights" %in% attr_tbl_list){
+  if (!use_existing_attr | !"s_target_weights" %in% attr_tbl_list){
 
     if (!use_exising_hw){
       if (verbose) print("Generating Stream Targeted Weights")
@@ -409,7 +409,7 @@ fasttrib_points<-function(
 
   # Separate target_o into non-overlapping groups ---------------------------
   if (length(weighting_scheme_o)>0){
-    if (!use_existing_attr & "o_target_weights" %in% attr_tbl_list){
+    if (!use_existing_attr | !"o_target_weights" %in% attr_tbl_list){
       if (!use_exising_hw){
 
         if (verbose) print("Generating Site Targeted Weights")
