@@ -525,7 +525,7 @@ fasttrib_points<-function(
             dw_dir=rep(list(dw_dir),spltl),
             p=rep(list(p),spltl),
             attr_db_loc=rep(list(attr_db_loc),spltl),
-            catch_per_core=repl(list(catch_per_core),spltl)
+            catch_per_core=rep(list(catch_per_core),spltl)
           ),
           carrier::crate(function(target_O_subs,
                                   weighting_scheme_o,
