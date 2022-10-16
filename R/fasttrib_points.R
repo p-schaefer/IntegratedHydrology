@@ -11,6 +11,8 @@
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
 #' @param use_exising_hw logical. Should the function look for existing hydroweight layers in the zip file?
 #' @param use_existing_attr logical. Should the function look for existing attribute layers in the database file?
+#' @param subb_per_core numeric, number of subbasins to evaluate per core cycle
+#' @param catch_per_core numeric, number of catchments to evaluate per core cycle
 #' @param store_hw logical. Should hydroweight layer be stored and added to the zip file?
 #' @param out_filename Output file name.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
@@ -56,10 +58,12 @@ fasttrib_points<-function(
     use_existing_attr=F,
     store_hw=F,
     out_filename=NULL,
-    # return_products=F, # This is not possible using this faster method
+    subb_per_core=1000,
+    catch_per_core=500,
     temp_dir=NULL,
     verbose=F
 ){
+
   if (!is.logical(use_exising_hw)) stop("'use_exising_hw' must be logical")
   if (!is.logical(store_hw)) stop("'store_hw' must be logical")
   if (!is.logical(use_existing_attr)) stop("'use_existing_attr' must be logical")
@@ -93,7 +97,7 @@ fasttrib_points<-function(
   weighting_scheme_s<-weighting_scheme[grepl("FLS|iEucS",weighting_scheme)]
   weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS|iEucS",weighting_scheme)]
   lumped_scheme<-"lumped" %in% weighting_scheme
-  if (length(weighting_scheme_o)>0) warning("Calculation for iEucO, iFLO, and HAiFLO are slow")
+  if (length(weighting_scheme_o)>0) message("Calculation for iEucO, iFLO, and HAiFLO are slow")
 
   if (is.null(target_o_type)) target_o_type<-"point"
   if (length(target_o_type)>1) target_o_type<-target_o_type[[1]]
@@ -122,7 +126,8 @@ fasttrib_points<-function(
       attr_db_loc
     )
   } else {
-    if (!file.exists(attr_db_loc)) stop(paste0(attr_db_loc," must exist if use_existing_attr=TRUE"))
+
+    #if (!file.exists(attr_db_loc)) stop(paste0(attr_db_loc," must exist if use_existing_attr=TRUE"))
   }
 
 
@@ -135,6 +140,9 @@ fasttrib_points<-function(
   DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
   DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
   DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
+
+  attr_tbl_list<-DBI::dbListTables(con_attr)
+
 
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
@@ -218,7 +226,7 @@ fasttrib_points<-function(
   sample_points<-as.character(sample_points)
   link_id<-as.character(link_id)
   if (length(sample_points)==0 & length(link_id)==0) {
-    warning("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
+    message("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
     target_IDs<-all_points %>%
       as_tibble() %>%
       select(link_id,any_of(site_id_col))
@@ -325,7 +333,7 @@ fasttrib_points<-function(
 
 
   # Calculate s-weighted distances -------------------------------------
-  if (!use_existing_attr){
+  if (!use_existing_attr & "s_target_weights" %in% attr_tbl_list){
 
     if (!use_exising_hw){
       if (verbose) print("Generating Stream Targeted Weights")
@@ -381,7 +389,7 @@ fasttrib_points<-function(
     ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
                                           attr_db_loc=attr_db_loc,
                                           polygons=all_subb,
-                                          n_per_cycle=1000,
+                                          n_per_cycle=subb_per_core,
                                           rasts=hw_streams_lo,
                                           cols=names(hw_streams_lo),
                                           temp_dir=temp_dir,
@@ -401,7 +409,7 @@ fasttrib_points<-function(
 
   # Separate target_o into non-overlapping groups ---------------------------
   if (length(weighting_scheme_o)>0){
-    if (!use_existing_attr){
+    if (!use_existing_attr & "o_target_weights" %in% attr_tbl_list){
       if (!use_exising_hw){
 
         if (verbose) print("Generating Site Targeted Weights")
@@ -516,7 +524,8 @@ fasttrib_points<-function(
             zip_loc=rep(list(zip_loc),spltl),
             dw_dir=rep(list(dw_dir),spltl),
             p=rep(list(p),spltl),
-            attr_db_loc=rep(list(attr_db_loc),spltl)
+            attr_db_loc=rep(list(attr_db_loc),spltl),
+            catch_per_core=repl(list(catch_per_core),spltl)
           ),
           carrier::crate(function(target_O_subs,
                                   weighting_scheme_o,
@@ -530,7 +539,8 @@ fasttrib_points<-function(
                                   zip_loc,
                                   dw_dir,
                                   p,
-                                  attr_db_loc
+                                  attr_db_loc,
+                                  catch_per_core
           ) {
             #browser()
             options(scipen = 999)
@@ -574,8 +584,8 @@ fasttrib_points<-function(
 
                                 } else {
                                   trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,"_inv_distances.tif")
-                                  hw<-purrr::map(trg_fl,~terra::rast(file.path("/vsizip",dw_dir,.)))
-                                  names(hw)<-sapply(hw,names)
+                                  hw_o_lo<-purrr::map(trg_fl,~terra::rast(file.path("/vsizip",dw_dir,.)))
+                                  names(hw_o_lo)<-sapply(hw_o_lo,names)
                                 }
 
                                 temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
@@ -584,7 +594,7 @@ fasttrib_points<-function(
                                 ihydro::parallel_layer_processing(n_cores=n_cores,
                                                                   attr_db_loc=attr_db_loc,
                                                                   polygons=sub_catch,
-                                                                  n_per_cycle=100,
+                                                                  n_per_cycle=catch_per_core,
                                                                   rasts=hw_o_lo,
                                                                   cols=names(hw_o_lo),
                                                                   temp_dir=temp_dir_sub_sub,
@@ -643,7 +653,7 @@ fasttrib_points<-function(
 
 
   # Upload loi rasters to attributes database -------------------------------
-  if (!use_existing_attr){
+  if (!use_existing_attr & "attrib_tbl" %in% attr_tbl_list){
     if (verbose) print("Writing LOI to attributes database")
 
     #browser()
@@ -662,7 +672,7 @@ fasttrib_points<-function(
     ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
                                           attr_db_loc=attr_db_loc,
                                           polygons=all_subb,
-                                          n_per_cycle=1000,
+                                          n_per_cycle=subb_per_core,
                                           rasts=loi_rasts_exists,
                                           cols=loi_cols,
                                           temp_dir=temp_dir,
