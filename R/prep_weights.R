@@ -37,7 +37,7 @@ prep_weights<-function(
 
   weighting_scheme_s<-weighting_scheme[grepl("FLS|iEucS",weighting_scheme)]
   weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS|iEucS",weighting_scheme)]
-  if (length(weighting_scheme_o)>0) warning("Calculation for iEucO, iFLO, and HAiFLO are slow")
+  if (length(weighting_scheme_o)>0) message("Calculation for iEucO, iFLO, and HAiFLO are slow")
 
   if (is.null(target_o_type)) target_o_type<-"point"
   if (length(target_o_type)>1) target_o_type<-target_o_type[[1]]
@@ -88,7 +88,7 @@ prep_weights<-function(
   sample_points<-as.character(sample_points)
   link_id<-as.character(link_id)
   if (length(sample_points)==0 & length(link_id)==0) {
-    warning("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
+    message("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
     target_IDs<-all_points %>%
       as_tibble() %>%
       select(link_id,any_of(site_id_col))
@@ -326,20 +326,23 @@ prep_weights<-function(
         return(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",gsub(".tif","",x),"_inv_distances.tif")))
       })
 
-      zip(out_zip_loc,
-          unlist(rout),
-          flags = '-r9Xjq'
-      )
 
-      t1<-try(file.remove(unlist(rout)),silent=T)
+
+      #t1<-try(file.remove(unlist(rout)),silent=T)
       t1<-try(file.remove(hw_o),silent=T)
       t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
 
-      return(NULL)
+      return(unlist(rout))
     })
 
   })
 
+  zip(out_zip_loc,
+      unlist(hw_o_targ),
+      flags = '-r9Xjq'
+  )
+
+  t1<-try(file.remove(unlist(hw_o_targ)),silent=T)
   tt<-file.remove(list.files(temp_dir_sub,full.names = T))
 
   input$dw_dir<-out_zip_loc

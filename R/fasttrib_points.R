@@ -328,8 +328,8 @@ fasttrib_points<-function(
   all_subb<-all_subb %>%
     filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
 
-  all_subb_v<-terra::vect(all_subb)
-  all_catch_v<-terra::vect(all_catch)
+  # all_subb_v<-terra::vect(all_subb)
+  # all_catch_v<-terra::vect(all_catch)
 
 
   # Calculate s-weighted distances -------------------------------------
@@ -703,6 +703,7 @@ fasttrib_points<-function(
   DBI::dbSendStatement(con_attr,"PRAGMA vacuum")
   DBI::dbSendStatement(con_attr,"PRAGMA optimize")
 
+  DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr)
 
   # Calculate Attributes ----------------------------------------------------
@@ -1418,27 +1419,27 @@ parallel_layer_processing <- function(n_cores,
 
   total_outs<-sum(unlist(map(splt,length)))
 
-  cell_fp<-file.path(temp_dir,"cell_id.csv")
-  if (link_id_nm=="subb_link_id"){
-    cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
-      dplyr::filter(subb_link_id %in% local(all_subb$link_id)) %>%
-      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-      dplyr::compute()
-    #dplyr::collect() %>%
-    #data.table::fwrite(cell_fp)
-  } else {
-    cell_tbl<-dplyr::left_join(
-      dplyr::tbl(con_attr,"us_flowpaths") %>%
-        dplyr::filter(pour_point_id %in% local(all_subb$link_id)),
-      dplyr::tbl(con_attr,"link_id_cellstats"),
-      by=c("origin_link_id"="subb_link_id")
-    ) %>%
-      dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
-      dplyr::distinct() %>%
-      dplyr::compute()
-    # dplyr::collect() %>%
-    # data.table::fwrite(cell_fp)
-  }
+  # cell_fp<-file.path(temp_dir,"cell_id.csv")
+  # if (link_id_nm=="subb_link_id"){
+  #   cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
+  #     dplyr::filter(subb_link_id %in% local(as.character(all_subb$link_id))) %>%
+  #     dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
+  #     dplyr::compute()
+  #   #dplyr::collect() %>%
+  #   #data.table::fwrite(cell_fp)
+  # } else {
+  #   cell_tbl<-dplyr::left_join(
+  #     dplyr::tbl(con_attr,"us_flowpaths") %>%
+  #       dplyr::filter(pour_point_id %in% local(as.character(all_subb$link_id))),
+  #     dplyr::tbl(con_attr,"link_id_cellstats"),
+  #     by=c("origin_link_id"="subb_link_id")
+  #   ) %>%
+  #     dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
+  #     dplyr::distinct() %>%
+  #     dplyr::compute()
+  #   # dplyr::collect() %>%
+  #   # data.table::fwrite(cell_fp)
+  # }
 
 
 
@@ -1452,8 +1453,9 @@ parallel_layer_processing <- function(n_cores,
            link_id_nm=list(link_id_nm),
            sub_nm=list(sub_nm),
            fp=list(fp),
-           cell_fp=list(cell_fp),
-           cell_tbl=list(cell_tbl)
+           attr_db_loc=list(attr_db_loc)
+           # cell_fp=list(cell_fp),
+           # cell_tbl=list(cell_tbl)
       ),
       .options = furrr_options(globals = FALSE),
       carrier::crate(
@@ -1464,8 +1466,9 @@ parallel_layer_processing <- function(n_cores,
                  link_id_nm,
                  sub_nm,
                  fp,
-                 cell_fp,
-                 cell_tbl
+                 attr_db_loc
+                 # cell_fp,
+                 # cell_tbl
         ){
           #browser()
 
@@ -1486,9 +1489,9 @@ parallel_layer_processing <- function(n_cores,
           # cell_tbl<-data.table::fread(cell_fp) %>%
           #   dplyr::mutate(link_id=as.character(link_id)) %>%
           #   dplyr::filter(link_id %in% as.character(xx$link_id))
-          cell_tbl_sub<-cell_tbl %>%
-              dplyr::mutate(link_id=as.character(link_id)) %>%
-              dplyr::filter(link_id %in% local(as.character(xx$link_id)))
+          # cell_tbl_sub<-cell_tbl %>%
+          #     dplyr::mutate(link_id=as.character(link_id)) %>%
+          #     dplyr::filter(link_id %in% local(as.character(xx$link_id)))
 
 
           splt<-x
@@ -1501,7 +1504,8 @@ parallel_layer_processing <- function(n_cores,
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
-                                cell_tbl_sub=list(cell_tbl_sub)
+                                attr_db_loc=list(attr_db_loc)
+                                #cell_tbl_sub=list(cell_tbl_sub)
           ),
           carrier::crate(
             function(xx,
@@ -1511,17 +1515,39 @@ parallel_layer_processing <- function(n_cores,
                      sub_nm,
                      link_id_nm,
                      fp,
-                     cell_tbl_sub
+                     attr_db_loc
+                     #cell_tbl_sub
             ){
               #browser()
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
 
-              cell_tbl_sub<-cell_tbl_sub %>%
-                dplyr::filter(link_id %in% local(as.character(xx$link_id))) %>%
-                dplyr::collect()
+              # cell_tbl_sub<-cell_tbl_sub %>%
+              #   dplyr::filter(link_id %in% local(as.character(xx$link_id))) %>%
+              #   dplyr::collect()
 
+              con_attr<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+
+
+              if (link_id_nm=="subb_link_id"){
+                cell_tbl_sub<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                  dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
+                  dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
+                  dplyr::collect()
+              } else {
+                cell_tbl_sub<-dplyr::tbl(con_attr,"us_flowpaths") %>%
+                  dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
+                  dplyr::left_join(
+                    dplyr::tbl(con_attr,"link_id_cellstats"),
+                    by=c("origin_link_id"="subb_link_id")
+                  ) %>%
+                  dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
+                  dplyr::distinct() %>%
+                  dplyr::collect()
+              }
+
+              DBI::dbDisconnect(con_attr)
 
               out<-purrr::map(xx$link_id,
                               function(xxx){
