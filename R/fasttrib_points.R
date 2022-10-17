@@ -59,7 +59,7 @@ fasttrib_points<-function(
     store_hw=F,
     out_filename=NULL,
     subb_per_core=1000,
-    catch_per_core=500,
+    catch_per_core=8,
     temp_dir=NULL,
     verbose=F
 ){
@@ -525,7 +525,8 @@ fasttrib_points<-function(
             dw_dir=rep(list(dw_dir),spltl),
             p=rep(list(p),spltl),
             attr_db_loc=rep(list(attr_db_loc),spltl),
-            catch_per_core=rep(list(catch_per_core),spltl)
+            catch_per_core=rep(list(catch_per_core),spltl),
+            subb_per_core=rep(list(subb_per_core),spltl)
           ),
           carrier::crate(function(target_O_subs,
                                   weighting_scheme_o,
@@ -540,7 +541,8 @@ fasttrib_points<-function(
                                   dw_dir,
                                   p,
                                   attr_db_loc,
-                                  catch_per_core
+                                  catch_per_core,
+                                  subb_per_core
           ) {
             #browser()
             options(scipen = 999)
@@ -591,19 +593,27 @@ fasttrib_points<-function(
                                 temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
                                 dir.create(temp_dir_sub_sub)
 
-                                ihydro::parallel_layer_processing(n_cores=n_cores,
-                                                                  attr_db_loc=attr_db_loc,
-                                                                  polygons=sub_catch,
-                                                                  n_per_cycle=catch_per_core,
-                                                                  rasts=hw_o_lo,
-                                                                  cols=names(hw_o_lo),
-                                                                  temp_dir=temp_dir_sub_sub,
-                                                                  tbl_nm="o_target_weights",
-                                                                  sub_nm="o_target_weights",
-                                                                  con=con_attr_l,
-                                                                  link_id_nm="catch_link_id",
-                                                                  progress=F
-                                )
+                                sub_catch<-sub_catch %>%
+                                  mutate(split=rep(1:catch_per_core,length.out=nrow(sub_catch)))
+
+                                sub_catch_split<-split(sub_catch,sub_catch$split)
+
+                                for (i in sub_catch_split){
+                                  ihydro::parallel_layer_processing(n_cores=n_cores,
+                                                                    attr_db_loc=attr_db_loc,
+                                                                    polygons=i,
+                                                                    n_per_cycle=subb_per_core,
+                                                                    rasts=hw_o_lo,
+                                                                    cols=names(hw_o_lo),
+                                                                    temp_dir=temp_dir_sub_sub,
+                                                                    tbl_nm="o_target_weights",
+                                                                    sub_nm="o_target_weights",
+                                                                    con=con_attr_l,
+                                                                    link_id_nm="catch_link_id",
+                                                                    progress=F
+                                  )
+                                }
+
 
 
                                 file.remove(hw)
