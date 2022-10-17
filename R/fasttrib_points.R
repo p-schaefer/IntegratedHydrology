@@ -133,7 +133,7 @@ fasttrib_points<-function(
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
   # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
-  # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+  DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
   # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
   DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
   # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
@@ -663,7 +663,7 @@ fasttrib_points<-function(
 
 
   # Upload loi rasters to attributes database -------------------------------
-  if (!use_existing_attr & "attrib_tbl" %in% attr_tbl_list){
+  if (!use_existing_attr | !"attrib_tbl" %in% attr_tbl_list){
     if (verbose) print("Writing LOI to attributes database")
 
     #browser()
@@ -909,11 +909,11 @@ fasttrib_points<-function(
                                  by=c("link_id",
                                       "cell_number")
                 ) %>%
-                  dplyr::left_join(
-                    dplyr::tbl(con_attr,"s_target_weights") %>%
-                      dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
-                    by="cell_number"
-                  ) %>%
+                dplyr::left_join(
+                  dplyr::tbl(con_attr,"s_target_weights") %>%
+                    dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
+                  by="cell_number"
+                ) %>%
                 dplyr::select(-pour_point_id) %>%
                 dplyr::compute()
 
@@ -1125,13 +1125,13 @@ fasttrib_points<-function(
                                  by=c("link_id",
                                       "cell_number")
                 ) %>%
-                  dplyr::left_join(
-                    dplyr::tbl(con_attr,"o_target_weights") %>%
-                      dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
-                      dplyr::filter(catch_link_id %in% link_id_in) %>%
-                      dplyr::select(-catch_link_id),
-                    by=c("cell_number")
-                  )%>%
+                dplyr::left_join(
+                  dplyr::tbl(con_attr,"o_target_weights") %>%
+                    dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
+                    dplyr::filter(catch_link_id %in% link_id_in) %>%
+                    dplyr::select(-catch_link_id),
+                  by=c("cell_number")
+                )%>%
                 dplyr::select(-pour_point_id) %>%
                 dplyr::compute()
 
@@ -1422,18 +1422,22 @@ parallel_layer_processing <- function(n_cores,
   if (link_id_nm=="subb_link_id"){
     cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
       dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-      dplyr::collect() %>%
-      data.table::fwrite(cell_fp)
+      dplyr::filter(subb_link_id %in% all_subb$link_id) %>%
+      dplyr::compute()
+    #dplyr::collect() %>%
+    #data.table::fwrite(cell_fp)
   } else {
     cell_tbl<-dplyr::left_join(
-      dplyr::tbl(con_attr,"us_flowpaths") ,
+      dplyr::tbl(con_attr,"us_flowpaths") %>%
+        dplyr::filter(pour_point_id %in% all_subb$link_id),
       dplyr::tbl(con_attr,"link_id_cellstats"),
       by=c("origin_link_id"="subb_link_id")
     ) %>%
       dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
       dplyr::distinct() %>%
-      dplyr::collect() %>%
-      data.table::fwrite(cell_fp)
+      dplyr::compute()
+    # dplyr::collect() %>%
+    # data.table::fwrite(cell_fp)
   }
 
 
@@ -1448,7 +1452,8 @@ parallel_layer_processing <- function(n_cores,
            link_id_nm=list(link_id_nm),
            sub_nm=list(sub_nm),
            fp=list(fp),
-           cell_fp=list(cell_fp)
+           cell_fp=list(cell_fp),
+           cell_tbl=list(cell_tbl)
       ),
       .options = furrr_options(globals = FALSE),
       carrier::crate(
@@ -1459,7 +1464,8 @@ parallel_layer_processing <- function(n_cores,
                  link_id_nm,
                  sub_nm,
                  fp,
-                 cell_fp
+                 cell_fp,
+                 cell_tbl
         ){
           #browser()
 
@@ -1477,9 +1483,13 @@ parallel_layer_processing <- function(n_cores,
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
-          cell_tbl<-data.table::fread(cell_fp) %>%
-            dplyr::mutate(link_id=as.character(link_id)) %>%
-            dplyr::filter(link_id %in% as.character(xx$link_id))
+          # cell_tbl<-data.table::fread(cell_fp) %>%
+          #   dplyr::mutate(link_id=as.character(link_id)) %>%
+          #   dplyr::filter(link_id %in% as.character(xx$link_id))
+          cell_tbl_sub<-cell_tbl %>%
+              dplyr::mutate(link_id=as.character(link_id)) %>%
+              dplyr::filter(link_id %in% as.character(xx$link_id))
+
 
           splt<-x
 
@@ -1490,7 +1500,7 @@ parallel_layer_processing <- function(n_cores,
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
-                                cell_tbl=list(cell_tbl)
+                                cell_tbl_sub=list(cell_tbl_sub)
           ),
           carrier::crate(
             function(xx,
@@ -1499,15 +1509,16 @@ parallel_layer_processing <- function(n_cores,
                      sub_nm,
                      link_id_nm,
                      fp,
-                     cell_tbl
+                     cell_tbl_sub
             ){
               #browser()
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
 
-              cell_tbl_sub<-cell_tbl %>%
-                dplyr::filter(link_id %in% as.character(xx$link_id))
+              cell_tbl_sub<-cell_tbl_sub %>%
+                dplyr::filter(link_id %in% as.character(xx$link_id)) %>%
+                dplyr::collect()
 
 
               out<-purrr::map(xx$link_id,
