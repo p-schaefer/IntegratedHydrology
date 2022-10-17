@@ -1421,8 +1421,8 @@ parallel_layer_processing <- function(n_cores,
   cell_fp<-file.path(temp_dir,"cell_id.csv")
   if (link_id_nm=="subb_link_id"){
     cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
-      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
       dplyr::filter(subb_link_id %in% local(all_subb$link_id)) %>%
+      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
       dplyr::compute()
     #dplyr::collect() %>%
     #data.table::fwrite(cell_fp)
@@ -1495,6 +1495,7 @@ parallel_layer_processing <- function(n_cores,
 
 
           out<-purrr::pmap(list(xx=splt,
+                                core_numb=names(splt),
                                 loi_rasts_comb=list(loi_rasts_comb),
                                 temp_dir=list(temp_dir),
                                 sub_nm=list(sub_nm),
@@ -1504,6 +1505,7 @@ parallel_layer_processing <- function(n_cores,
           ),
           carrier::crate(
             function(xx,
+                     core_numb,
                      loi_rasts_comb,
                      temp_dir,
                      sub_nm,
