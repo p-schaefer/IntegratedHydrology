@@ -586,8 +586,8 @@ fasttrib_points<-function(
 
                                 } else {
                                   trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,"_inv_distances.tif")
-                                  hw_o_lo<-purrr::map(trg_fl,~terra::rast(file.path("/vsizip",dw_dir,.)))
-                                  names(hw_o_lo)<-sapply(hw_o_lo,names)
+                                  hw_o_lo<-purrr::map(trg_fl,~file.path("/vsizip",dw_dir,.))#terra::rast(
+                                  names(hw_o_lo)<-weighting_scheme_o
                                 }
 
                                 temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
@@ -616,7 +616,7 @@ fasttrib_points<-function(
 
 
 
-                                file.remove(hw)
+                                if (file.exists(hw)) file.remove(hw)
 
                                 p()
 
