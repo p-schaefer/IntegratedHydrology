@@ -1422,14 +1422,14 @@ parallel_layer_processing <- function(n_cores,
   if (link_id_nm=="subb_link_id"){
     cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
       dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-      dplyr::filter(subb_link_id %in% all_subb$link_id) %>%
+      dplyr::filter(subb_link_id %in% local(all_subb$link_id)) %>%
       dplyr::compute()
     #dplyr::collect() %>%
     #data.table::fwrite(cell_fp)
   } else {
     cell_tbl<-dplyr::left_join(
       dplyr::tbl(con_attr,"us_flowpaths") %>%
-        dplyr::filter(pour_point_id %in% all_subb$link_id),
+        dplyr::filter(pour_point_id %in% local(all_subb$link_id)),
       dplyr::tbl(con_attr,"link_id_cellstats"),
       by=c("origin_link_id"="subb_link_id")
     ) %>%
@@ -1488,7 +1488,7 @@ parallel_layer_processing <- function(n_cores,
           #   dplyr::filter(link_id %in% as.character(xx$link_id))
           cell_tbl_sub<-cell_tbl %>%
               dplyr::mutate(link_id=as.character(link_id)) %>%
-              dplyr::filter(link_id %in% as.character(xx$link_id))
+              dplyr::filter(link_id %in% local(as.character(xx$link_id)))
 
 
           splt<-x
@@ -1517,7 +1517,7 @@ parallel_layer_processing <- function(n_cores,
 
 
               cell_tbl_sub<-cell_tbl_sub %>%
-                dplyr::filter(link_id %in% as.character(xx$link_id)) %>%
+                dplyr::filter(link_id %in% local(as.character(xx$link_id))) %>%
                 dplyr::collect()
 
 
