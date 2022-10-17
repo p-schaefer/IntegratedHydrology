@@ -594,7 +594,7 @@ fasttrib_points<-function(
                                 dir.create(temp_dir_sub_sub)
 
                                 sub_catch<-sub_catch %>%
-                                  mutate(split=rep(1:catch_per_core,length.out=nrow(sub_catch)))
+                                  dplyr::mutate(split=rep(1:catch_per_core,length.out=nrow(sub_catch)))
 
                                 sub_catch_split<-split(sub_catch,sub_catch$split)
 
