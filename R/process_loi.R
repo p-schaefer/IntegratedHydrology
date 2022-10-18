@@ -123,102 +123,166 @@ process_loi<-function(
     return(x)
   })
 
-
   inputs_list<-list(
-    num_rast.tif=list(lyr_nms=as.list(names(num_inputs)),
-                      lyr=num_inputs,
-                      lyr_variables=variable_names[names(num_inputs)]),
-    cat_rast.tif=list(lyr_nms=names(cat_inputs),
-                      lyr=cat_inputs,
-                      lyr_variables=variable_names[names(cat_inputs)])
+    lyr_nms = as.list(c(names(num_inputs),names(cat_inputs))),
+    lyr = c(num_inputs,cat_inputs),
+    lyr_variables = c(variable_names[names(num_inputs)],variable_names[names(cat_inputs)]),
+    rln = as.list(c(rep("num_rast",length(num_inputs)), rep("cat_rast",length(cat_inputs)))),
+    temp_dir = as.list(rep(temp_dir,length(c(num_inputs,cat_inputs)))),
+    output_filename = as.list(rep(output_filename,length(c(num_inputs,cat_inputs))))
   )
 
-  inputs_list<-map2(inputs_list,names(inputs_list),~c(.x,
-                                                      list(rln=as.list(rep(.y,length(.x[[1]])))),
-                                                      list(temp_dir=as.list(rep(temp_dir,length(.x[[1]]))))
-  ))
+  inputs_list$lyr_variables[sapply(inputs_list$lyr_variables,is.null)]<-NA_character_
 
-  loi_fn<-function(lyr_nms,lyr,lyr_variables,gdal_arg,p,rln,temp_dir){
-    pmap(list(lyr_nms=lyr_nms,
-              lyr=lyr,
-              lyr_variables=lyr_variables,
-              rln=rln,
-              temp_dir=temp_dir),
-         function(lyr_nms,
-                  lyr,
-                  lyr_variables,
-                  rln,temp_dir){
-           #print(lyr)
-           #browser()
 
-           temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
-           dir.create(temp_temp_dir)
+  # inputs_list<-list(
+  #   num_rast.tif=list(lyr_nms=as.list(names(num_inputs)),
+  #                     lyr=num_inputs,
+  #                     lyr_variables=variable_names[names(num_inputs)]),
+  #   cat_rast.tif=list(lyr_nms=names(cat_inputs),
+  #                     lyr=cat_inputs,
+  #                     lyr_variables=variable_names[names(cat_inputs)])
+  # )
+  #
+  # inputs_list<-map2(inputs_list,names(inputs_list),~c(.x,
+  #                                                     list(rln=as.list(rep(.y,length(.x[[1]])))),
+  #                                                     list(temp_dir=as.list(rep(temp_dir,length(.x[[1]]))))
+  # ))
 
-           terra::terraOptions(verbose = verbose,
-                               tempdir = temp_temp_dir
-           )
 
-           resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
-           output<-hydroweight::process_input(
-             input=unlist(lyr),
-             input_name = unlist(lyr_nms),
-             variable_name=unlist(lyr_variables),
-             target=file.path(temp_dir,"dem_final.tif"),
-             clip_region = file.path(temp_dir,"clip_region.shp"),
-             resample_type = resaml,
-             working_dir=temp_temp_dir
-           )
+  #browser()
 
-           out_file<-file.path(temp_dir,rln)
-
-           if (file.exists(out_file)) {
-             output<-rast(list(rast(out_file),output))
-             out_file<-file.path(temp_dir,paste0("new_",rln))
-           }
-
-           ot<-writeRaster(output,out_file,overwrite=T,gdal="COMPRESS=NONE")
-
-           suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
-           suppressWarnings(file.remove(list.files(temp_temp_dir,full.names = T,recursive = T)))
-           suppressWarnings(unlink(temp_temp_dir,recursive = T, force = T))
-
-           if (file.exists(file.path(temp_dir,paste0("new_",rln)))){
-             suppressWarnings(file.remove(file.path(temp_dir,paste0(rln))))
-             suppressWarnings(file.rename(file.path(temp_dir,paste0("new_",rln)),
-                                          file.path(temp_dir,paste0(rln))))
-           }
-
-           p()
-
-           return(NULL)
-         })
-  }
-
-  inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
+  #inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
 
   with_progress(enable=T,{
     print("Processing loi")
     p <- progressor(steps = (length(num_inputs) + length(cat_inputs)))
 
-    ot<-future_map(inputs_list,~loi_fn(lyr_nms=.$lyr_nms,
-                                       lyr=.$lyr,
-                                       lyr_variables=.$lyr_variables,
-                                       gdal_arg=.$gdal_arg,
-                                       p=p,
-                                       rln=.$rln,
-                                       temp_dir=.$temp_dir))
+    ot<-future_pmap(c(inputs_list,list(p=list(p))),
+             .options=furrr_options(globals = F),
+             carrier::crate(
+               function(lyr_nms=lyr_nms,
+                        lyr=lyr,
+                        lyr_variables=lyr_variables,
+                        gdal_arg=gdal_arg,
+                        rln=rln,
+                        temp_dir=temp_dir,
+                        output_filename=output_filename,
+                        p=p){
+
+                 loi_fn<-function(lyr_nms,lyr,lyr_variables,gdal_arg,p,rln,temp_dir,output_filename){
+                   purrr::pmap(list(lyr_nms=lyr_nms,
+                                    lyr=lyr,
+                                    lyr_variables=lyr_variables,
+                                    rln=rln,
+                                    temp_dir=temp_dir,
+                                    output_filename=output_filename),
+                               function(lyr_nms,
+                                        lyr,
+                                        lyr_variables,
+                                        rln,
+                                        temp_dir,
+                                        output_filename){
+                                 #print(lyr)
+                                 #browser()
+
+                                 temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
+                                 dir.create(temp_temp_dir)
+
+                                 resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
+
+                                 if (all(is.na(lyr_variables))) lyr_variables<-NULL
+
+                                 output<-hydroweight::process_input(
+                                   input=unlist(lyr),
+                                   input_name = unlist(lyr_nms),
+                                   variable_name=unlist(lyr_variables),
+                                   target=file.path(temp_dir,"dem_final.tif"),
+                                   clip_region = file.path(temp_dir,"clip_region.shp"),
+                                   resample_type = resaml,
+                                   working_dir=temp_temp_dir
+                                 )
+
+                                 #browser()
+
+                                 out_files<-file.path(temp_dir,paste0(rln,"_",abbreviate(names(output),6),".tif"))
+                                 names(out_files)<-abbreviate(names(output),6)
+
+                                 output<-terra::split(output,names(output))
+                                 names(output)<-abbreviate(sapply(output,names),6)
+
+                                 for (i in names(output)){
+                                   terra::writeRaster(output[[i]],out_files[[i]],overwrite=T)
+                                 }
+
+                                 # if (file.exists(out_file)) {
+                                 #   output<-rast(list(rast(out_file),output))
+                                 #   out_file<-file.path(temp_dir,paste0("new_",rln))
+                                 # }
+                                 #
+                                 # ot<-writeRaster(output,out_file,overwrite=T,gdal="COMPRESS=NONE")
+                                 #
+                                 # suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
+                                 # suppressWarnings(file.remove(list.files(temp_temp_dir,full.names = T,recursive = T)))
+                                 # suppressWarnings(unlink(temp_temp_dir,recursive = T, force = T))
+                                 #
+                                 # if (file.exists(file.path(temp_dir,paste0("new_",rln)))){
+                                 #   suppressWarnings(file.remove(file.path(temp_dir,paste0(rln))))
+                                 #   suppressWarnings(file.rename(file.path(temp_dir,paste0("new_",rln)),
+                                 #                                file.path(temp_dir,paste0(rln))))
+                                 # }
+
+                                 p()
+
+                                 out<-list(
+                                   lyr_nms=lyr_nms,
+                                   lyr_variables=names(output),
+                                   rln=rln,
+                                   out_files=basename(out_files),
+                                   temp_filename=out_files,
+                                   output_filename=file.path("/vsizip",output_filename,basename(out_files))
+                                 )
+
+                                 return(out)
+                               })
+                 }
+
+                 loi_fn(lyr_nms=lyr_nms,
+                        lyr=lyr,
+                        lyr_variables=lyr_variables,
+                        gdal_arg=gdal_arg,
+                        p=p,
+                        rln=rln,
+                        temp_dir=temp_dir,
+                        output_filename=output_filename)
+               }))
+
   })
+
+  names(ot)<-unlist(inputs_list$lyr_nms)
+
+  ot<-lapply(ot,function(x) unlist(x,recursive=F))
+
+  #browser()
+
+
+  # Generate Meta data ------------------------------------------------------
+
+  meta<-split(ot,sapply(ot,function(x) x$rln))
+  saveRDS(meta,file.path(temp_dir,"loi_meta.rds"))
 
   # Generate Output ---------------------------------------------------------
   if (verbose) print("Generating Outputs")
 
-  dist_list_out<-list(
-    "num_rast.tif",
-    "cat_rast.tif"
-  )
+  # dist_list_out<-list(
+  #   "num_rast.tif",
+  #   "cat_rast.tif"
+  # )
 
-  dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
+  dist_list_out<-c(unlist(lapply(ot,function(x) x$temp_filename)),file.path(temp_dir,"loi_meta.rds"))
+
+  # dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
 
   dist_list_out<-dist_list_out[sapply(dist_list_out,file.exists)]
 
@@ -231,12 +295,17 @@ process_loi<-function(
 
   if (return_products){
 
-    ot<-map(dist_list_out,~wrap(rast(.)))
-    names(ot)[grepl("num_rast",unlist(dist_list_out))]<-"num_inputs"
-    names(ot)[grepl("cat_rast",unlist(dist_list_out))]<-"cat_inputs"
+    ott<-map(meta,~map(.,~rast(.$output_filename)))
+    ott2<-list(
+      num_inputs=rast(unlist(ott["num_rast"],use.names = F)),
+      cat_inputs=rast(unlist(ott["cat_rast"],use.names = F))
+    )
+    ott2<-lapply(ott2,terra::wrap)
+    # names(ott)[grepl("num_rast",unlist(dist_list_out))]<-"num_inputs"
+    # names(ott)[grepl("cat_rast",unlist(dist_list_out))]<-"cat_inputs"
 
     output<-c(
-      ot,
+      ott2,
       output
     )
   }
