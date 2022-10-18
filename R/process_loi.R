@@ -237,7 +237,7 @@ process_loi<-function(
 
                                  out<-list(
                                    lyr_nms=lyr_nms,
-                                   lyr_variables=names(output),
+                                   lyr_variables=sapply(output,names),
                                    rln=rln,
                                    out_files=basename(out_files),
                                    temp_filename=out_files,
