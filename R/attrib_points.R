@@ -115,19 +115,38 @@ attrib_points<-function(
   #browser()
 
   # Setup loi  --------------------------------------------------------------
-  loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
-  if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
-  loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
-  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
-  names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
 
-  loi_rasts<-map(loi_rasts_exists,rast)
-  loi_rasts_exists_names<-map(loi_rasts,names)
-  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
-  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~loi_numeric_stats))
+  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir)
 
-  loi_rasts_names<-map(loi_rasts,names) %>% unlist()
-  names(loi_rasts_names)<-loi_rasts_names
+  loi_meta<-readRDS(file.path(temp_dir,"loi_meta.rds"))
+
+  loi_rasts_exists<-map(loi_meta,~unlist(map(.,~.$output_filename)))
+  loi_rasts_names<-unlist(map(loi_meta,~unlist(map(.,~.$lyr_variables))))
+
+  loi_rasts<-purrr::map(loi_rasts_exists,terra::rast)
+  loi_rasts_comb<-terra::rast(loi_rasts)
+  names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
+
+  if (F){
+    # try to see if this is faster with a big dataset
+    writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
+    loi_rasts_comb<-list(file.path(temp_dir,"all_preds.tif"))
+  }
+
+
+  # loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
+  # if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
+  # loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
+  # loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
+  # names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
+  #
+  # loi_rasts<-map(loi_rasts_exists,rast)
+  # loi_rasts_exists_names<-map(loi_rasts,names)
+  # loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
+  # loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~loi_numeric_stats))
+  #
+  # loi_rasts_names<-map(loi_rasts,names) %>% unlist()
+  # names(loi_rasts_names)<-loi_rasts_names
 
   target_crs<-crs(loi_rasts[[1]])
 
@@ -166,7 +185,7 @@ attrib_points<-function(
                   select(any_of(site_id_col),link_id) %>%
                   mutate(across(c(link_id,any_of(site_id_col)),as.character)),
                 by=site_id_col
-                )
+      )
   }
 
   # loi_cols<-unlist(spec$loi,recursive=F)
@@ -263,316 +282,319 @@ attrib_points<-function(
   #browser()
   if (verbose) print("Calculating Attributes")
   with_progress(enable=T,{
-    p <- progressor(steps = nrow(out))
+  p <- progressor(steps = nrow(out))
 
-    out2<-out %>%
-      arrange(desc(st_area(clip_region))) %>%
-      mutate(t_dir=temp_dir,
-             dw_dir=ifelse(is.null(dw_dir),NA,dw_dir),
-             target_crs=target_crs,
-             loi=loi,
-             weighting_scheme=rep(list(weighting_scheme),nrow(out)),
-             OS_combine=OS_combine,
-             site_id_col=site_id_col,
-             loi_rasts_exists=rep(list(loi_rasts_exists),nrow(out)),
-             inv_fun=rep(list(inv_function),nrow(out)),
-             loi_rasts_exists_names=rep(list(loi_rasts_exists_names),nrow(out)),
-             buffer=catch_buffer,
-             return_products=return_products,
-             stream_weights=hw_streams,
-             p=rep(list(p),nrow(out))
-      ) %>%
-      mutate(core=rep(1:n_cores,length.out=nrow(.))) %>%
-      group_by(core) %>%
-      nest() %>%
-      ungroup() %>%
-      mutate(data2=map(data, function(x){
-        #browser()
-        new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
-        dir.create(new_temp_dir)
+  out2<-out %>%
+    arrange(desc(st_area(clip_region))) %>%
+    mutate(t_dir=temp_dir,
+           dw_dir=ifelse(is.null(dw_dir),NA,dw_dir),
+           target_crs=target_crs,
+           loi=loi,
+           weighting_scheme=rep(list(weighting_scheme),nrow(out)),
+           OS_combine=OS_combine,
+           site_id_col=site_id_col,
+           loi_rasts_exists=rep(list(unlist(loi_rasts_exists)),nrow(out)),
+           inv_fun=rep(list(inv_function),nrow(out)),
+           loi_rasts_exists_names=rep(list(loi_rasts_names),nrow(out)),
+           buffer=catch_buffer,
+           return_products=return_products,
+           stream_weights=hw_streams,
+           p=rep(list(p),nrow(out))
+    ) %>%
+    mutate(core=rep(1:n_cores,length.out=nrow(.))) %>%
+    group_by(core) %>%
+    nest() %>%
+    ungroup() %>%
+    mutate(data2=map(data, function(x){
+      #browser()
+      new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
+      dir.create(new_temp_dir)
 
-        utils::unzip(
-          gsub(paste0("/",basename(x$loi_rasts_exists[[1]][[1]])),"",gsub("/vsizip/","",x$loi_rasts_exists[[1]][[1]])),
-          files=sapply(x$loi_rasts_exists[[1]], basename),
-          exdir = new_temp_dir
-        )
+      utils::unzip(
+        gsub(paste0("/",basename(x$loi_rasts_exists[[1]][[1]])),"",gsub("/vsizip/","",x$loi_rasts_exists[[1]][[1]])),
+        files=sapply(x$loi_rasts_exists[[1]], basename),
+        exdir = new_temp_dir
+      )
 
-        utils::unzip(
-          zip_loc,
-          files=c("dem_final.tif","dem_accum_d8.tif"),#"dem_streams_d8.tif"
-          exdir = new_temp_dir
-        )
+      utils::unzip(
+        zip_loc,
+        files=c("dem_final.tif","dem_accum_d8.tif"),#"dem_streams_d8.tif"
+        exdir = new_temp_dir
+      )
 
-        utils::unzip(x$stream_weights[[1]],
-              exdir = new_temp_dir)
+      utils::unzip(x$stream_weights[[1]],
+                   exdir = new_temp_dir)
 
-        stream_w<-file.path(new_temp_dir,utils::unzip(list=T,x$stream_weights[[1]])$Name)
+      stream_w<-file.path(new_temp_dir,utils::unzip(list=T,x$stream_weights[[1]])$Name)
 
-        return(list(stream_w=stream_w,
-                    rast_load=as.list(file.path(new_temp_dir,sapply(x$loi_rasts_exists[[1]], basename))) %>%
-                      setNames(gsub("\\.tif$","",sapply(x$loi_rasts_exists[[1]], basename))),
-                    flow_accum=file.path(new_temp_dir,"dem_accum_d8.tif"),
-                    dem=file.path(new_temp_dir,"dem_final.tif"),
-                    ts=file.path(new_temp_dir,"dem_streams_d8.tif"),
-                    new_temp_dir=new_temp_dir
-        )
-        )
+      return(list(stream_w=stream_w,
+                  rast_load=as.list(file.path(new_temp_dir,sapply(x$loi_rasts_exists[[1]], basename))) %>%
+                    setNames(gsub("\\.tif$","",sapply(x$loi_rasts_exists[[1]], basename))),
+                  flow_accum=file.path(new_temp_dir,"dem_accum_d8.tif"),
+                  dem=file.path(new_temp_dir,"dem_final.tif"),
+                  ts=file.path(new_temp_dir,"dem_streams_d8.tif"),
+                  new_temp_dir=new_temp_dir
+      )
+      )
 
-      })) %>%
-     mutate(attrib=future_map2(data2,data,
-                               .options = furrr_options(globals = FALSE),
-                               carrier::crate(function(data2,x){
-     # mutate(attrib=map2(data2,data,carrier::crate(function(data2,x){
-        #browser()
-       options(scipen = 999)
-       `%>%` <- magrittr::`%>%`
+    }))
 
-        loi_rasts<-purrr::map(data2$rast_load,terra::rast) %>%
-          stats::setNames(names(x$loi_rasts_exists_names[[1]]))
+  out2<-out2 %>%
+    mutate(attrib=future_map2(data2,data,
+                              .options = furrr_options(globals = FALSE),
+                              carrier::crate(function(data2,x){
+                                # mutate(attrib=map2(data2,data,carrier::crate(function(data2,x){
+                                #browser()
+                                options(scipen = 999)
+                                `%>%` <- magrittr::`%>%`
 
-        dem<-terra::rast(data2$dem)
-        #ts<-terra::rast(data2$ts)
-        ts<-NA
-        flow_accum<-terra::rast(data2$flow_accum)
-        stream_weights<-purrr::map(data2$stream_w,terra::rast)
-        names(stream_weights)<-sapply(stream_weights,names)
+                                loi_rasts<-purrr::map(data2$rast_load,terra::rast) %>%
+                                  stats::setNames(names(x$loi_rasts_exists_names[[1]]))
 
-        purrr::pmap(list(UID=x$UID,
-                         tar_O=split(x$target_O,1:length(x$target_O)),
-                         ts=rep(list(ts),nrow(x)),
-                         clip_region=split(x$clip_region,1:length(x$clip_region)),
-                         t_dir=rep(data2$new_temp_dir[[1]],nrow(x)),
-                         target_crs=x$target_crs,
-                         dw_dir=x$dw_dir,
-                         loi_cols=x$loi,
-                         weighting_s=x$weighting_scheme,
-                         OS_comb=x$OS_combine,
-                         site_id_c=x$site_id_col,
-                         loi_rasts=rep(list(loi_rasts),nrow(x)),
-                         loi_rasts_exists_nm=x$loi_rasts_exists_names,
-                         buff=x$buffer,
-                         return_p=x$return_products,
-                         stream_weights=rep(list(stream_weights),nrow(x)),
-                         flow_accum=rep(list(flow_accum),nrow(x)),
-                         dem=rep(list(dem),nrow(x)),
-                         inv_fun=x$inv_fun,
-                         p=x$p
-        ),
-        function(UID,
-                 tar_O,
-                 ts,
-                 clip_region,
-                 t_dir,
-                 target_crs,
-                 loi_cols,
-                 weighting_s,
-                 OS_comb,
-                 site_id_c,
-                 loi_rasts,
-                 loi_rasts_exists_nm,
-                 buff,
-                 inv_fun,
-                 return_p,
-                 stream_weights,
-                 flow_accum,
-                 dem,
-                 dw_dir,
-                 p){
-          #browser()
-          options(scipen = 999)
+                                dem<-terra::rast(data2$dem)
+                                #ts<-terra::rast(data2$ts)
+                                ts<-NA
+                                flow_accum<-terra::rast(data2$flow_accum)
+                                stream_weights<-purrr::map(data2$stream_w,terra::rast)
+                                names(stream_weights)<-sapply(stream_weights,names)
 
-          attrib_fn<-carrier::crate(function(uid,
-                                             tar_O,
-                                             ts,
-                                             clip_region,
-                                             loi_cols,
-                                             t_dir,
-                                             tar_crs,
-                                             weighting_s,
-                                             OS_comb,
-                                             inv_fun,
-                                             site_id_c,
-                                             loi_rasts,
-                                             loi_rasts_exists_nm,
-                                             buff,
-                                             return_p,
-                                             stream_weights,
-                                             dem,
-                                             flow_accum,
-                                             dw_dir,
-                                             p) {
-            options(scipen = 999)
+                                purrr::pmap(list(UID=x$UID,
+                                                 tar_O=split(x$target_O,1:length(x$target_O)),
+                                                 ts=rep(list(ts),nrow(x)),
+                                                 clip_region=split(x$clip_region,1:length(x$clip_region)),
+                                                 t_dir=rep(data2$new_temp_dir[[1]],nrow(x)),
+                                                 target_crs=x$target_crs,
+                                                 dw_dir=x$dw_dir,
+                                                 loi_cols=x$loi,
+                                                 weighting_s=x$weighting_scheme,
+                                                 OS_comb=x$OS_combine,
+                                                 site_id_c=x$site_id_col,
+                                                 loi_rasts=rep(list(loi_rasts),nrow(x)),
+                                                 loi_rasts_exists_nm=x$loi_rasts_exists_names,
+                                                 buff=x$buffer,
+                                                 return_p=x$return_products,
+                                                 stream_weights=rep(list(stream_weights),nrow(x)),
+                                                 flow_accum=rep(list(flow_accum),nrow(x)),
+                                                 dem=rep(list(dem),nrow(x)),
+                                                 inv_fun=x$inv_fun,
+                                                 p=x$p
+                                ),
+                                function(UID,
+                                         tar_O,
+                                         ts,
+                                         clip_region,
+                                         t_dir,
+                                         target_crs,
+                                         loi_cols,
+                                         weighting_s,
+                                         OS_comb,
+                                         site_id_c,
+                                         loi_rasts,
+                                         loi_rasts_exists_nm,
+                                         buff,
+                                         inv_fun,
+                                         return_p,
+                                         stream_weights,
+                                         flow_accum,
+                                         dem,
+                                         dw_dir,
+                                         p){
+                                  #browser()
+                                  options(scipen = 999)
 
-            `%>%` <- magrittr::`%>%`
-
-            save_file<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
-
-            if (!is.null(dw_dir) && !is.na(dw_dir)){
-              dw_zip<-file.path(dw_dir,paste0(uid,"_inv_distances.zip"))
-
-              if (file.exists(file.exists(dw_zip))){
-                file.copy(
-                  dw_zip,
-                  save_file
-                )
-              }
-            } else {
-              #browser()
-              cr<-sf::st_as_sf(tibble::tibble(UID=uid,geometry=sf::st_geometry(clip_region[[1]])),crs=tar_crs)
-              to<-sf::st_as_sf(tibble::tibble(UID=uid,geometry=sf::st_geometry(tar_O[[1]])),crs=tar_crs)
-
-              if (length(weighting_s[grepl("FLO",weighting_s)])==0){
-                hw<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
-              } else {
-                #browser() #This is broken
-                hw_zip<-hydroweight::hydroweight(hydroweight_dir=t_dir,
-                                             target_O = to,
-                                             #target_S = ts,
-                                             target_uid = uid,
-                                             OS_combine = OS_comb,
-                                             clip_region = sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1),
-                                             dem=dem,
-                                             flow_accum=flow_accum,
-                                             weighting_scheme = weighting_s[grepl("FLO",weighting_s)],
-                                             inv_function = inv_fun,
-                                             clean_tempfiles=T,
-                                             return_products = F,
-                                             wrap_return_products=F,
-                                             save_output=T)
-
-                hw<-purrr::map(file.path("/vsizip",hw_zip,utils::unzip(list=T,hw_zip)$Name),terra::rast)
-                names(hw)<-sapply(hw,names)
-
-                #hw<-purrr::map(hw,terra::unwrap)
-
-                # hw_fl<-unzip(list=T,hw)
-                # hw_fl<-purrr::map(hw_fl,file.path("/vsizip",hw,.))
-              }
-
-              t_dir2<-file.path(t_dir,basename(tempfile()))
-              dc<-dir.create(t_dir2)
-
-              hw_all_strm<-stream_weights
-
-              hw_all_strm<-purrr::map(hw_all_strm,~terra::crop(.,
-                                                               terra::vect(sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1)),
-                                                               mask=T
-              ))
-
-              # hw_all_strm<-purrr::map(hw_all_strm,~terra::writeRaster(.,file.path(t_dir2,paste0(names(.),".tif")),overwrite=T,gdal="COMPRESS=NONE"))
-              # hw_all_strm<-purrr::map(hw_all_strm,~file.path(t_dir2,paste0(names(.),".tif")))
-              #
-              # utils::zip(hw,
-              #            unlist(hw_all_strm),
-              #            flags = '-r9Xjq'
-              # )
-
-              save_file<-c(hw,hw_all_strm)
-
-            }
-
-            if (return_p) {
-              distance_weights<-save_file
-              # fls<-utils::unzip(hw,list=T)
-              # fls<-file.path("/vsizip",hw,fls$Name)
-              # distance_weights<-lapply(fls,terra::rast)
-              distance_weights<-lapply(distance_weights,terra::wrap)
-            } else {
-              distance_weights<-NULL
-            }
-
-            attr_out<-purrr::pmap(list(loi_nms=as.list(names(loi_rasts)) %>% stats::setNames(names(loi_rasts)),
-                                       loi_path=loi_rasts,
-                                       loi_lyr_nms=loi_rasts_exists_nm,
-                                       loi_cols=rep(list(loi_cols),length(loi_rasts))),
-                                  function(loi_nms,loi_path,loi_lyr_nms,loi_cols){
+                                  attrib_fn<-carrier::crate(function(uid,
+                                                                     tar_O,
+                                                                     ts,
+                                                                     clip_region,
+                                                                     loi_cols,
+                                                                     t_dir,
+                                                                     tar_crs,
+                                                                     weighting_s,
+                                                                     OS_comb,
+                                                                     inv_fun,
+                                                                     site_id_c,
+                                                                     loi_rasts,
+                                                                     loi_rasts_exists_nm,
+                                                                     buff,
+                                                                     return_p,
+                                                                     stream_weights,
+                                                                     dem,
+                                                                     flow_accum,
+                                                                     dw_dir,
+                                                                     p) {
                                     #browser()
+                                    options(scipen = 999)
 
-                                    # Add another loop for each unique set of stats
+                                    `%>%` <- magrittr::`%>%`
 
-                                    loi_cols_group<-purrr::map_chr(loi_cols,~paste0(sort(.),collapse=""))
-                                    if (loi_nms=="cat_rast") loi_cols_group[]<-"mean"
-                                    loi_cols_group<-split(names(loi_cols_group),loi_cols_group)
+                                    save_file<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
 
+                                    if (!is.null(dw_dir) && !is.na(dw_dir)){
+                                      dw_zip<-file.path(dw_dir,paste0(uid,"_inv_distances.zip"))
 
-                                    out<-purrr::map(loi_cols_group,function(gp){
+                                      if (file.exists(file.exists(dw_zip))){
+                                        file.copy(
+                                          dw_zip,
+                                          save_file
+                                        )
+                                      }
+                                    } else {
+                                      #browser()
+                                      cr<-sf::st_as_sf(tibble::tibble(UID=uid,geometry=sf::st_geometry(clip_region[[1]])),crs=tar_crs)
+                                      to<-sf::st_as_sf(tibble::tibble(UID=uid,geometry=sf::st_geometry(tar_O[[1]])),crs=tar_crs)
 
-                                      if (grepl("num_rast",loi_nms)) {
-                                        loi_numeric_stats<-loi_cols[names(loi_cols) %in% gp][[1]]
+                                      if (length(weighting_s[grepl("FLO",weighting_s)])==0){
+                                        hw<-file.path(t_dir,paste0(uid,"_inv_distances.zip"))
                                       } else {
-                                        loi_numeric_stats<-NULL
+                                        #browser() #This is broken
+                                        hw_zip<-hydroweight::hydroweight(hydroweight_dir=t_dir,
+                                                                         target_O = to,
+                                                                         #target_S = ts,
+                                                                         target_uid = uid,
+                                                                         OS_combine = OS_comb,
+                                                                         clip_region = sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1),
+                                                                         dem=dem,
+                                                                         flow_accum=flow_accum,
+                                                                         weighting_scheme = weighting_s[grepl("FLO",weighting_s)],
+                                                                         inv_function = inv_fun,
+                                                                         clean_tempfiles=T,
+                                                                         return_products = F,
+                                                                         wrap_return_products=F,
+                                                                         save_output=T)
+
+                                        hw<-purrr::map(file.path("/vsizip",hw_zip,utils::unzip(list=T,hw_zip)$Name),terra::rast)
+                                        names(hw)<-sapply(hw,names)
+
+                                        #hw<-purrr::map(hw,terra::unwrap)
+
+                                        # hw_fl<-unzip(list=T,hw)
+                                        # hw_fl<-purrr::map(hw_fl,file.path("/vsizip",hw,.))
                                       }
 
-                                      #browser()
+                                      t_dir2<-file.path(t_dir,basename(tempfile()))
+                                      dc<-dir.create(t_dir2)
 
-                                      cls<-names(loi_cols)[names(loi_cols) %in% gp &
-                                                             names(loi_cols) %in% names(loi_lyr_nms)]
+                                      hw_all_strm<-stream_weights
 
-                                      if (length(cls)==0) return(NULL)
+                                      hw_all_strm<-purrr::map(hw_all_strm,~terra::crop(.,
+                                                                                       terra::vect(sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1)),
+                                                                                       mask=T
+                                      ))
 
-                                      out<-hydroweight::hydroweight_attributes(
-                                        loi=loi_path,
-                                        loi_columns = cls,
-                                        loi_numeric=grepl("num_rast",loi_nms),
-                                        loi_numeric_stats = loi_numeric_stats,
-                                        #roi=cr,
-                                        roi_uid=uid,
-                                        roi_uid_col=site_id_c,
-                                        distance_weights=save_file,
-                                        #remove_region=remove_region,
-                                        return_products = return_p
-                                      )
+                                      # hw_all_strm<-purrr::map(hw_all_strm,~terra::writeRaster(.,file.path(t_dir2,paste0(names(.),".tif")),overwrite=T,gdal="COMPRESS=NONE"))
+                                      # hw_all_strm<-purrr::map(hw_all_strm,~file.path(t_dir2,paste0(names(.),".tif")))
+                                      #
+                                      # utils::zip(hw,
+                                      #            unlist(hw_all_strm),
+                                      #            flags = '-r9Xjq'
+                                      # )
 
-                                      if (return_p) names(out$return_products)<-paste0(names(out$return_products),"_",loi_nms)
-                                      return(out)
-                                    })
+                                      save_file<-c(hw,hw_all_strm)
+
+                                    }
+
+                                    if (return_p) {
+                                      distance_weights<-save_file
+                                      # fls<-utils::unzip(hw,list=T)
+                                      # fls<-file.path("/vsizip",hw,fls$Name)
+                                      # distance_weights<-lapply(fls,terra::rast)
+                                      distance_weights<-lapply(distance_weights,terra::wrap)
+                                    } else {
+                                      distance_weights<-NULL
+                                    }
+
+                                    attr_out<-purrr::pmap(list(loi_nms=as.list(names(loi_rasts)) %>% stats::setNames(names(loi_rasts)),
+                                                               loi_path=loi_rasts,
+                                                               loi_lyr_nms=loi_rasts_exists_nm,
+                                                               loi_cols=rep(list(loi_cols),length(loi_rasts))),
+                                                          function(loi_nms,loi_path,loi_lyr_nms,loi_cols){
+                                                            #browser()
+
+                                                            # Add another loop for each unique set of stats
+
+                                                            loi_cols_group<-purrr::map_chr(loi_cols,~paste0(sort(.),collapse=""))
+                                                            if (loi_nms=="cat_rast") loi_cols_group[]<-"mean"
+                                                            loi_cols_group<-split(names(loi_cols_group),loi_cols_group)
+
+
+                                                            out<-purrr::map(loi_cols_group,function(gp){
+
+                                                              if (grepl("num_rast",loi_nms)) {
+                                                                loi_numeric_stats<-loi_cols[names(loi_cols) %in% gp][[1]]
+                                                              } else {
+                                                                loi_numeric_stats<-NULL
+                                                              }
+
+                                                              #browser()
+
+                                                              cls<-names(loi_cols)[names(loi_cols) %in% gp &
+                                                                                     names(loi_cols) %in% loi_lyr_nms]
+
+                                                              if (length(cls)==0) return(NULL)
+
+                                                              out<-hydroweight::hydroweight_attributes(
+                                                                loi=loi_path,
+                                                                loi_columns = cls,
+                                                                loi_numeric=grepl("num_rast",loi_nms),
+                                                                loi_numeric_stats = loi_numeric_stats,
+                                                                #roi=cr,
+                                                                roi_uid=uid,
+                                                                roi_uid_col=site_id_c,
+                                                                distance_weights=save_file,
+                                                                #remove_region=remove_region,
+                                                                return_products = return_p
+                                                              )
+
+                                                              if (return_p) names(out$return_products)<-paste0(names(out$return_products),"_",loi_nms)
+                                                              return(out)
+                                                            })
+
+                                                            return(out)
+                                                          })
+
+                                    file.remove(hw_zip)
+
+                                    out<-list(
+                                      attr=unlist(purrr::map(attr_out,~purrr::map(.,~.$attribute_table)),recursive=F) %>%
+                                        .[!sapply(.,is.null)] %>%
+                                        purrr::reduce(dplyr::left_join,by=site_id_c) %>%
+                                        dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),"0",.))),
+                                      distance_weights=distance_weights,
+                                      weighted_attr=unlist(unlist(purrr::map(attr_out,~unlist(purrr::map(.,~.$return_products),recursive = F)),recursive = F),recursive = F)
+                                    )
+
+                                    p()
 
                                     return(out)
                                   })
+                                  attrib_fn(uid=UID,
+                                            tar_O=tar_O,
+                                            ts=ts,
+                                            clip_region=clip_region,
+                                            loi_cols=loi_cols,
+                                            t_dir=t_dir,
+                                            tar_crs=target_crs,
+                                            weighting_s=weighting_s,
+                                            OS_comb=OS_comb,
+                                            inv_fun=inv_fun,
+                                            site_id_c=site_id_c,
+                                            loi_rasts=loi_rasts,
+                                            loi_rasts_exists_nm=loi_rasts_exists_nm,
+                                            buff=buff,
+                                            return_p=return_p,
+                                            stream_weights=stream_weights,
+                                            flow_accum=flow_accum,
+                                            dem=dem,
+                                            dw_dir=dw_dir,
+                                            p=p)
+                                })
+                              })))
 
-            file.remove(hw_zip)
-
-            out<-list(
-              attr=unlist(purrr::map(attr_out,~purrr::map(.,~.$attribute_table)),recursive=F) %>%
-                .[!sapply(.,is.null)] %>%
-                purrr::reduce(dplyr::left_join,by=site_id_c) %>%
-                dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),"0",.))),
-              distance_weights=distance_weights,
-              weighted_attr=unlist(unlist(purrr::map(attr_out,~unlist(purrr::map(.,~.$return_products),recursive = F)),recursive = F),recursive = F)
-            )
-
-            p()
-
-            return(out)
-          })
-          attrib_fn(uid=UID,
-                    tar_O=tar_O,
-                    ts=ts,
-                    clip_region=clip_region,
-                    loi_cols=loi_cols,
-                    t_dir=t_dir,
-                    tar_crs=target_crs,
-                    weighting_s=weighting_s,
-                    OS_comb=OS_comb,
-                    inv_fun=inv_fun,
-                    site_id_c=site_id_c,
-                    loi_rasts=loi_rasts,
-                    loi_rasts_exists_nm=loi_rasts_exists_nm,
-                    buff=buff,
-                    return_p=return_p,
-                    stream_weights=stream_weights,
-                    flow_accum=flow_accum,
-                    dem=dem,
-                    dw_dir=dw_dir,
-                    p=p)
-        })
-      })))
-
-    out3<-out2%>%
-      unnest(attrib) %>%
-      unnest(data) %>%
-      select(-core) %>%
-      arrange(UID)
+  out3<-out2%>%
+    unnest(attrib) %>%
+    unnest(data) %>%
+    select(-core) %>%
+    arrange(UID)
   })
 
   #browser()
@@ -590,7 +612,7 @@ attrib_points<-function(
     group_by(!!sym(site_id_col)) %>%
     summarise(across(everything(),head,1)) %>%
     ungroup()
-    #dplyr::distinct()
+  #dplyr::distinct()
 
 
   zip_loc<-input$outfile
