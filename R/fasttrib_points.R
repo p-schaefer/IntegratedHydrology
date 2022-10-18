@@ -132,17 +132,17 @@ fasttrib_points<-function(
 
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
-  # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
-  # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
-  # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
-  DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
-  # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
-  DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
-  DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
-  DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
+  # # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
+  # # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
+  # # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
+  # DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
+  # # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
+  # DBI::dbSendStatement(con_attr,"PRAGMA temp_store = MEMORY")
+  # DBI::dbSendStatement(con_attr,"PRAGMA mmap_size = 30000000000")
+  # DBI::dbSendStatement(con_attr,"PRAGMA page_size = 32768")
 
   attr_tbl_list<-DBI::dbListTables(con_attr)
-
+  DBI::dbDisconnect(con_attr)
 
   loi_loc<-loi_file
   if (is.null(loi_loc)) loi_loc<-zip_loc
@@ -185,8 +185,9 @@ fasttrib_points<-function(
 
   all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
   all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
+  #browser()
 
-  if (!"link_id_cellstats" %in% DBI::dbListTables(con_attr)){
+  if (!"link_id_cellstats" %in% attr_tbl_list){
     if (verbose) print("Generating cell number tables")
 
     decimalplaces <- function(x) {
@@ -197,6 +198,7 @@ fasttrib_points<-function(
       }
     }
 
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
     n_dec<-max(sapply(all_subb$link_id,decimalplaces))
     all_subb_rast<-terra::rasterize(all_subb,
                                     terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif")),
@@ -219,6 +221,9 @@ fasttrib_points<-function(
               indexes=c("subb_link_id","cell_number"),
               analyze=T,
               in_transaction=T)
+
+    all_subb_out<-NULL
+    DBI::dbDisconnect(con_attr)
 
   }
 
@@ -373,6 +378,8 @@ fasttrib_points<-function(
     # hw2<-map(hw_streams_lo,terra::rast)
     # names(hw2)<-sapply(hw2,names)
 
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+
     s_trg_weights<-copy_to(df=as_tibble(matrix(ncol = length(names(hw_streams_lo))+2),nrow=1,.name_repair="minimal") %>%
                              setNames(c("subb_link_id","cell_number",names(hw_streams_lo))) %>%
                              mutate(across(everything(),~1.1)) %>%
@@ -395,14 +402,15 @@ fasttrib_points<-function(
                                           temp_dir=temp_dir,
                                           tbl_nm="s_target_weights",
                                           sub_nm="s_target_weights",
-                                          con=con_attr,
                                           link_id_nm="subb_link_id"
     )
 
 
-    s_trg_weights<-tbl(con_attr,"s_target_weights")
+    s_trg_weights<-NULL
 
-    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_s_target_weights ON s_target_weights (subb_link_id, cell_number)")
+    t1<-DBI::dbExecute(con_attr,"CREATE INDEX inx_s_target_weights ON s_target_weights (subb_link_id, cell_number)")
+
+    DBI::dbDisconnect(con_attr)
 
   }
 
@@ -488,6 +496,8 @@ fasttrib_points<-function(
         p <- progressor(steps = length(target_O_sub))
 
 
+        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+
         o_trg_weights<-tibble(catch_link_id="1.1",
                               cell_number=1L,
         ) %>%
@@ -506,6 +516,10 @@ fasttrib_points<-function(
                   analyze=T,
                   in_transaction=T)
 
+        o_trg_weights<-NULL
+
+        DBI::dbDisconnect(con_attr)
+
         spltl<-1
 
         loi_dw_out<-pmap( # I don't think this can be parallel
@@ -519,7 +533,6 @@ fasttrib_points<-function(
             use_exising_hw=rep(list(use_exising_hw),spltl),
             temp_dir=rep(list(temp_dir),spltl),
             n_cores=rep(list(n_cores),spltl),
-            con_attr_l=rep(list(con_attr),spltl),
             new_tbl=rep(list(o_trg_weights),spltl),
             zip_loc=rep(list(zip_loc),spltl),
             dw_dir=rep(list(dw_dir),spltl),
@@ -535,7 +548,6 @@ fasttrib_points<-function(
                                   use_exising_hw,
                                   temp_dir,
                                   n_cores,
-                                  con_attr_l,
                                   new_tbl,
                                   zip_loc,
                                   dw_dir,
@@ -585,6 +597,7 @@ fasttrib_points<-function(
                                   })
 
                                 } else {
+                                  hw<-NULL
                                   trg_fl<-paste0("unnest_group_",x$unn_group[[1]],"_",weighting_scheme_o,"_inv_distances.tif")
                                   hw_o_lo<-purrr::map(trg_fl,~file.path("/vsizip",dw_dir,.))#terra::rast(
                                   names(hw_o_lo)<-weighting_scheme_o
@@ -608,7 +621,6 @@ fasttrib_points<-function(
                                                                     temp_dir=temp_dir_sub_sub,
                                                                     tbl_nm="o_target_weights",
                                                                     sub_nm="o_target_weights",
-                                                                    con=con_attr_l,
                                                                     link_id_nm="catch_link_id",
                                                                     progress=F
                                   )
@@ -616,7 +628,7 @@ fasttrib_points<-function(
 
 
 
-                                if (file.exists(hw)) file.remove(hw)
+                                if (!is.null(hw)) file.remove(hw)
 
                                 p()
 
@@ -625,7 +637,12 @@ fasttrib_points<-function(
 
           }))
 
-        DBI::dbSendStatement(con_attr,"CREATE INDEX idx_o_target_weights ON o_target_weights (catch_link_id, cell_number)")
+        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+
+        t1<-DBI::dbExecute(con_attr,"CREATE INDEX idx_o_target_weights ON o_target_weights (catch_link_id, cell_number)")
+
+        DBI::dbDisconnect(con_attr)
+
 
       })
 
@@ -685,6 +702,8 @@ fasttrib_points<-function(
 
     if (verbose) print("Writing LOI to attributes database")
 
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+
     attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
                           setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
                           mutate(across(everything(),~1.1)) %>%
@@ -705,20 +724,20 @@ fasttrib_points<-function(
                                           temp_dir=temp_dir,
                                           tbl_nm="attrib_tbl",
                                           sub_nm="attrib_tbl",
-                                          con=con_attr,
                                           link_id_nm="subb_link_id"
     )
 
-    attrib_tbl<-tbl(con_attr,"attrib_tbl")
+    attrib_tbl<-NULL
+    t1<-DBI::dbExecute(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
 
-
-    DBI::dbSendStatement(con_attr,"CREATE INDEX inx_attrib_tbl ON attrib_tbl (subb_link_id, cell_number)")
+    DBI::dbDisconnect(con_attr)
   }
 
+  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
 
-  DBI::dbSendStatement(con_attr,"PRAGMA analysis_limit=1000")
-  DBI::dbSendStatement(con_attr,"PRAGMA vacuum")
-  DBI::dbSendStatement(con_attr,"PRAGMA optimize")
+  t1<-DBI::dbExecute(con_attr,"PRAGMA analysis_limit=1000")
+  t1<-DBI::dbExecute(con_attr,"PRAGMA vacuum")
+  t1<-DBI::dbExecute(con_attr,"PRAGMA optimize")
 
   #DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr)
@@ -1392,7 +1411,6 @@ parallel_layer_processing <- function(n_cores,
                                       temp_dir,
                                       tbl_nm,
                                       sub_nm,
-                                      con,
                                       link_id_nm=c("subb_link_id","catch_link_id"),
                                       progress=T
 ) {
@@ -1406,7 +1424,10 @@ parallel_layer_processing <- function(n_cores,
 
 
   link_id_nm<-match.arg(link_id_nm,c("subb_link_id","catch_link_id"),several.ok = F)
-  con_attr<-con
+  con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+  DBI::dbSendStatement(con_attr_sub,"PRAGMA journal_mode = OFF")
+
+
   loi_cols<-cols
   loi_rasts_exists<-rasts
   all_subb_v<-polygons
@@ -1530,19 +1551,19 @@ parallel_layer_processing <- function(n_cores,
               #   dplyr::filter(link_id %in% local(as.character(xx$link_id))) %>%
               #   dplyr::collect()
 
-              con_attr<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+              con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
 
               if (link_id_nm=="subb_link_id"){
-                cell_tbl_sub<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                cell_tbl_sub<-dplyr::tbl(con_attr2,"link_id_cellstats") %>%
                   dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
                   dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
                   dplyr::collect()
               } else {
-                cell_tbl_sub<-dplyr::tbl(con_attr,"us_flowpaths") %>%
+                cell_tbl_sub<-dplyr::tbl(con_attr2,"us_flowpaths") %>%
                   dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
                   dplyr::left_join(
-                    dplyr::tbl(con_attr,"link_id_cellstats"),
+                    dplyr::tbl(con_attr2,"link_id_cellstats"),
                     by=c("origin_link_id"="subb_link_id")
                   ) %>%
                   dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
@@ -1550,7 +1571,7 @@ parallel_layer_processing <- function(n_cores,
                   dplyr::collect()
               }
 
-              DBI::dbDisconnect(con_attr)
+              DBI::dbDisconnect(con_attr2)
 
               out<-purrr::map(xx$link_id,
                               function(xxx){
@@ -1658,6 +1679,7 @@ parallel_layer_processing <- function(n_cores,
   # read_spike<-NA_real_
   # baseline<-NA_real_
 
+  browser()
   with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
 
@@ -1703,7 +1725,7 @@ parallel_layer_processing <- function(n_cores,
           dplyr::bind_rows()
 
         if (nrow(df)>0){
-          ot<-DBI::dbAppendTable(conn=con_attr,
+          ot<-DBI::dbAppendTable(conn=con_attr_sub,
                                  name=tbl_nm,
                                  value=df)
         }
@@ -1744,7 +1766,7 @@ parallel_layer_processing <- function(n_cores,
         dplyr::bind_rows()
 
       if (nrow(df)>0){
-        ot<-DBI::dbAppendTable(conn=con_attr,
+        ot<-DBI::dbAppendTable(conn=con_attr_sub,
                                name=tbl_nm,
                                value=df)
       }
@@ -1768,6 +1790,10 @@ parallel_layer_processing <- function(n_cores,
   fr<-file.remove(list.files(temp_dir,paste0(gsub(".shp","",basename(fp))),full.names = T))
 
   unlink(temp_dir,recursive = T,force=T)
+
+  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
+  DBI::dbDisconnect(con_attr_sub)
+
 
   return(NULL)
 
