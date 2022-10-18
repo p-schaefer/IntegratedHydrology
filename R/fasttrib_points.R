@@ -133,7 +133,7 @@ fasttrib_points<-function(
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
   # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
-  DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
+  # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
   # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
   DBI::dbSendStatement(con_attr,"PRAGMA cache_size = 1000000")
   # # DBI::dbSendStatement(con_attr,"PRAGMA locking_mode = EXCLUSIVE")
@@ -634,42 +634,59 @@ fasttrib_points<-function(
     target_O_sub<-NULL
   }
 
-  # Setup loi  --------------------------------------------------------------
-  if (verbose) print("Reading in LOI")
+  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir)
 
-  loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
-  if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
-  loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
-  loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
-  names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
+  loi_meta<-readRDS(file.path(temp_dir,"loi_meta.rds"))
 
-  loi_rasts<-map(loi_rasts_exists,rast)
-
-  loi_rasts_comb<-rast(loi_rasts)
-
-  names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
-  if (is.null(loi_cols)) loi_cols<-names(loi_rasts_comb)
-
-  if (any(!loi_cols %in% names(loi_rasts_comb))) stop(paste0("The following `loi_cols` are not present in the `loi`:",
-                                                             paste0(loi_cols[!loi_cols %in% names(loi_rasts_comb)],collapse = ", ")
-  ))
-
-  loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
-  loi_rasts_names<-map(loi_rasts,names)
-  loi_rasts_names<-loi_rasts_names[loi_rasts_names %in% loi_cols]
-  loi_rasts_names<-map(loi_rasts_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
-  loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
-  loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
-
+  loi_rasts_exists<-map(loi_meta,~unlist(map(.,~.$output_filename)))
+  loi_rasts_names<-map(loi_meta,~unlist(map(.,~.$lyr_variables)))
+  loi_rasts_names<-map(loi_rasts_names,~setNames(.,.))
 
   # Upload loi rasters to attributes database -------------------------------
   if (!use_existing_attr | !"attrib_tbl" %in% attr_tbl_list){
-    if (verbose) print("Writing LOI to attributes database")
-
     #browser()
 
-    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(names(loi_rasts_comb))+2,nrow=1),.name_repair="minimal") %>%
-                          setNames(c("subb_link_id","cell_number",names(loi_rasts_comb))) %>%
+
+    if (F){
+      loi_rasts<-purrr::map(loi_rasts_exists,terra::rast)
+      loi_rasts_comb<-terra::rast(loi_rasts)
+      names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
+
+      # try to see if this is faster with a big dataset
+      writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
+      loi_rasts_comb<-list(file.path(temp_dir,"all_preds.tif"))
+    }
+
+    # loi_rasts_exists<-c("num_rast.tif","cat_rast.tif")
+    # if (!any(loi_rasts_exists %in% fl_loi$Name)) stop("No 'loi' present in input, please run 'process_loi()' first, or specify location of process_loi() ouput")
+    # loi_rasts_exists<-fl_loi$Name[grepl("num_rast|cat_rast",fl_loi$Name)]
+    # loi_rasts_exists<-map(loi_rasts_exists,~file.path("/vsizip",loi_loc,.))
+    # names(loi_rasts_exists)<-gsub("\\.tif","",sapply(loi_rasts_exists,basename))
+    #
+    # loi_rasts<-map(loi_rasts_exists,rast)
+    #
+    # loi_rasts_comb<-rast(loi_rasts)
+    #
+    # names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
+    # if (is.null(loi_cols)) loi_cols<-names(loi_rasts_comb)
+    #
+    # if (any(!loi_cols %in% names(loi_rasts_comb))) stop(paste0("The following `loi_cols` are not present in the `loi`:",
+    #                                                            paste0(loi_cols[!loi_cols %in% names(loi_rasts_comb)],collapse = ", ")
+    # ))
+    #
+    # loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
+    # loi_rasts_names<-map(loi_rasts,names)
+    # loi_rasts_names<-loi_rasts_names[loi_rasts_names %in% loi_cols]
+    # loi_rasts_names<-map(loi_rasts_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
+    # loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
+    # loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
+
+    # Upload loi rasters to attributes database -------------------------------
+
+    if (verbose) print("Writing LOI to attributes database")
+
+    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
+                          setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
                           mutate(across(everything(),~1.1)) %>%
                           .[F,],
                         con_attr,
@@ -684,7 +701,7 @@ fasttrib_points<-function(
                                           polygons=all_subb,
                                           n_per_cycle=subb_per_core,
                                           rasts=loi_rasts_exists,
-                                          cols=loi_cols,
+                                          cols=unlist(loi_rasts_names),
                                           temp_dir=temp_dir,
                                           tbl_nm="attrib_tbl",
                                           sub_nm="attrib_tbl",
@@ -703,7 +720,7 @@ fasttrib_points<-function(
   DBI::dbSendStatement(con_attr,"PRAGMA vacuum")
   DBI::dbSendStatement(con_attr,"PRAGMA optimize")
 
-  DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
+  #DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr)
 
   # Calculate Attributes ----------------------------------------------------
@@ -1419,34 +1436,11 @@ parallel_layer_processing <- function(n_cores,
 
   total_outs<-sum(unlist(map(splt,length)))
 
-  # cell_fp<-file.path(temp_dir,"cell_id.csv")
-  # if (link_id_nm=="subb_link_id"){
-  #   cell_tbl<-dplyr::tbl(con_attr,"link_id_cellstats") %>%
-  #     dplyr::filter(subb_link_id %in% local(as.character(all_subb$link_id))) %>%
-  #     dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-  #     dplyr::compute()
-  #   #dplyr::collect() %>%
-  #   #data.table::fwrite(cell_fp)
-  # } else {
-  #   cell_tbl<-dplyr::left_join(
-  #     dplyr::tbl(con_attr,"us_flowpaths") %>%
-  #       dplyr::filter(pour_point_id %in% local(as.character(all_subb$link_id))),
-  #     dplyr::tbl(con_attr,"link_id_cellstats"),
-  #     by=c("origin_link_id"="subb_link_id")
-  #   ) %>%
-  #     dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
-  #     dplyr::distinct() %>%
-  #     dplyr::compute()
-  #   # dplyr::collect() %>%
-  #   # data.table::fwrite(cell_fp)
-  # }
-
-
-
   out<-future::future(
     #purrr::pmap(
     furrr::future_pmap(
       list(x=splt,
+           core_numb=names(splt),
            loi_rasts_exists=list(loi_rasts_exists),
            loi_cols=list(loi_cols),
            temp_dir=list(temp_dir),
@@ -1460,6 +1454,7 @@ parallel_layer_processing <- function(n_cores,
       .options = furrr_options(globals = FALSE),
       carrier::crate(
         function(x,
+                 core_numb,
                  loi_rasts_exists,
                  loi_cols,
                  temp_dir,
@@ -1471,6 +1466,14 @@ parallel_layer_processing <- function(n_cores,
                  # cell_tbl
         ){
           #browser()
+
+          # while(!file.exists(file.path(temp_dir,paste0(core_numb,"_start")))){
+          #   Sys.sleep(1)
+          #   if (file.exists(file.path(temp_dir,paste0(core_numb,"_abort")))){
+          #     return(NA)
+          #   }
+          # }
+
 
           options(scipen = 999)
           `%>%` <- magrittr::`%>%`
@@ -1627,12 +1630,65 @@ parallel_layer_processing <- function(n_cores,
 
   total_procs<-0
 
+  # This gets the starting abount of free memory
+  # .ram_av<-function() {
+  #   out<-sapply(unlist(memuse::Sys.meminfo()),as.numeric)/1024
+  #   dif_o<-out[1]-out[2]
+  #   names(dif_o)<-"usedram"
+  #   dif_o[1]<-dif_o*0.8
+  #   out<-c(out,dif_o)
+  #   return(out)
+  # }
+  #
+  # .ram_av2<-function(rep=10,slp=1){
+  #   out<-list()
+  #   for (i in 1:rep){
+  #     Sys.sleep(slp)
+  #     out[[length(out)+1]]<-.ram_av()
+  #   }
+  #
+  #   sapply(dplyr::bind_rows(out),mean)
+  # }
+  #
+  # mem_prof<-list()
+  # mem_prof[[1]]<-.ram_av2()
+  #
+  # write.csv(data.frame(),file.path(temp_dir,paste0(1,"_start")))
+  # cores_started<-1
+  # read_spike<-NA_real_
+  # baseline<-NA_real_
+
   with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
 
 
     while(!resolved(future_out)) {
-      Sys.sleep(0.2)
+      Sys.sleep(1)
+
+      # if (n_cores_2>1 & cores_started==1) {
+      #   mem_prof[[length(mem_prof)+1]]<-.ram_av2()
+      # }
+      #
+      # if (file.exists(file.path(temp_dir,paste0(sub_nm,"_1_1.csv")))){
+      #   Sys.sleep(5)
+      #   mem_prof[[length(mem_prof)+1]]<-.ram_av2()
+      #
+      #   mem_prof_out<-dplyr::bind_rows(mem_prof)
+      #   read_spike<-max(mem_prof_out$usedram)-mem_prof_out$usedram[1]
+      #   baseline<-tail(mem_prof_out$usedram,1)-mem_prof_out$usedram[1]
+      # }
+      #
+      # current_mem<-.ram_av2(3,1)
+      #
+      # if (cores_started < n_cores_2){
+      #   if (!is.na(read_spike)){
+      #     if (current_mem[1]-current_mem[[3]]< read_spike){
+      #
+      #     }
+      #
+      #   }
+      # }
+
 
       fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
       fl_attr<-fl_attr[grepl(".csv",fl_attr)]
@@ -1663,7 +1719,7 @@ parallel_layer_processing <- function(n_cores,
 
   })
 
-  Sys.sleep(2)
+  Sys.sleep(3)
   #browser()
 
   if (length(out$result$conditions)>0){
@@ -1677,11 +1733,7 @@ parallel_layer_processing <- function(n_cores,
   fl_attr<-fl_attr[grepl(".csv",fl_attr)]
   fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
 
-  while(length(fl_attr)>0){
-    Sys.sleep(0.2)
-
-    fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
-    fl_attr<-fl_attr[grepl(".csv",fl_attr)]
+  if (length(fl_attr)>0) {
 
     if (length(fl_attr)>0) {
       df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
