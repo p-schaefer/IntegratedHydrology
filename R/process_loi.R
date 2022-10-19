@@ -206,16 +206,17 @@ process_loi<-function(
 
                                  #browser()
 
-                                 out_files<-file.path(temp_dir,paste0(rln,"_",abbreviate(names(output),6),".tif"))
-                                 names(out_files)<-abbreviate(names(output),6)
+                                 out_files<-file.path(temp_dir,paste0(rln,"_",names(output),".tif"))
+                                 names(out_files)<-names(output)
 
                                  output<-terra::split(output,names(output))
-                                 names(output)<-abbreviate(sapply(output,names),6)
+                                 names(output)<-sapply(output,names)
 
                                  for (i in names(output)){
                                    terra::writeRaster(output[[i]],out_files[[i]],overwrite=T)
                                  }
 
+                                 unlink(temp_temp_dir,recursive=T,force=T)
                                  # if (file.exists(out_file)) {
                                  #   output<-rast(list(rast(out_file),output))
                                  #   out_file<-file.path(temp_dir,paste0("new_",rln))
