@@ -782,10 +782,11 @@ fasttrib_points<-function(
 
               con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
-              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
-                                      dplyr::filter(pour_point_id == link_id_in) %>%
-                                      dplyr::rename(link_id=origin_link_id),
-                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
+              out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
+                dplyr::filter(pour_point_id == link_id_in) %>%
+                dplyr::rename(link_id=origin_link_id) %>%
+                dplyr::compute() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
                                       dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
                                       dplyr::select(-row,-col)%>%
                                       dplyr::rename(link_id=subb_link_id ),
@@ -933,14 +934,15 @@ fasttrib_points<-function(
 
               names(weighting_scheme_s)<-weighting_scheme_s
 
-              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
-                                      dplyr::filter(pour_point_id == link_id_in) %>%
-                                      dplyr::rename(link_id=origin_link_id),
-                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                      dplyr::select(-row,-col)%>%
-                                      dplyr::rename(link_id=subb_link_id ),
-                                    by=c("link_id")) %>%
+              out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
+                dplyr::filter(pour_point_id == link_id_in) %>%
+                dplyr::rename(link_id=origin_link_id) %>%
+                dplyr::compute() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                   dplyr::select(-row,-col)%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id")) %>%
                 dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
                                    dplyr::rename(link_id=subb_link_id ),
                                  by=c("link_id",
@@ -1149,14 +1151,15 @@ fasttrib_points<-function(
               mean_out<-NULL
               sd_out<-NULL
 
-              out<-dplyr::left_join(dplyr::tbl(con_attr,"us_flowpaths") %>%
-                                      dplyr::filter(pour_point_id == link_id_in) %>%
-                                      dplyr::rename(link_id=origin_link_id),
-                                    dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                      dplyr::select(-row,-col)%>%
-                                      dplyr::rename(link_id=subb_link_id ),
-                                    by=c("link_id")) %>%
+              out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
+                dplyr::filter(pour_point_id == link_id_in) %>%
+                dplyr::rename(link_id=origin_link_id) %>%
+                dplyr::compute() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
+                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                   dplyr::select(-row,-col)%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id")) %>%
                 dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
                                    dplyr::rename(link_id=subb_link_id ),
                                  by=c("link_id",
@@ -1425,7 +1428,7 @@ parallel_layer_processing <- function(n_cores,
 
   link_id_nm<-match.arg(link_id_nm,c("subb_link_id","catch_link_id"),several.ok = F)
   con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
-  DBI::dbSendStatement(con_attr_sub,"PRAGMA journal_mode = OFF")
+  #DBI::dbSendStatement(con_attr_sub,"PRAGMA journal_mode = OFF")
 
 
   loi_cols<-cols
@@ -1679,7 +1682,7 @@ parallel_layer_processing <- function(n_cores,
   # read_spike<-NA_real_
   # baseline<-NA_real_
 
-  browser()
+  #browser()
   with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
 
@@ -1791,7 +1794,7 @@ parallel_layer_processing <- function(n_cores,
 
   unlink(temp_dir,recursive = T,force=T)
 
-  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
+  #t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr_sub)
 
 
