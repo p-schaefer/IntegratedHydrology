@@ -1430,9 +1430,9 @@ parallel_layer_processing <- function(n_cores,
 
 
   link_id_nm<-match.arg(link_id_nm,c("subb_link_id","catch_link_id"),several.ok = F)
-  con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
-  #DBI::dbSendStatement(con_attr_sub,"PRAGMA journal_mode = OFF")
 
+  con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = WAL")
 
   loi_cols<-cols
   loi_rasts_exists<-rasts
@@ -1686,6 +1686,8 @@ parallel_layer_processing <- function(n_cores,
   # baseline<-NA_real_
 
   #browser()
+
+
   with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
 
@@ -1797,7 +1799,7 @@ parallel_layer_processing <- function(n_cores,
 
   unlink(temp_dir,recursive = T,force=T)
 
-  #t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
+  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr_sub)
 
 
