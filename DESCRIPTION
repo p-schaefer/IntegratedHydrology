@@ -27,6 +27,7 @@ Imports:
     DBI,
     dbplyr,
     exactextractr,
+    memuse,
     nngeo,
     parallel,
     promises,

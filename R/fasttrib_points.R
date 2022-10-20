@@ -16,6 +16,7 @@
 #' @param store_hw logical. Should hydroweight layer be stored and added to the zip file?
 #' @param out_filename Output file name.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
+#' @param unzip_arg character. Arguments passed to unzip. In Unix systems, may need to set to unzip_arg = "/usr/bin/unzip" to avoid warning about corrupted zip file.
 #' @param verbose logical.
 #'
 #' @return A data.frame of weighted attributes for the requested areas
@@ -61,6 +62,7 @@ fasttrib_points<-function(
     subb_per_core=1000,
     catch_per_core=8,
     temp_dir=NULL,
+    unzip_arg="internal",
     verbose=F
 ){
 
@@ -430,7 +432,8 @@ fasttrib_points<-function(
               c("dem_d8.tif"),
               exdir=temp_dir_sub,
               overwrite=T,
-              junkpaths=T)
+              junkpaths=T,
+              unzip=unzip_arg)
         write_sf(all_points %>% select(link_id),
                  file.path(temp_dir_sub,"pour_points.shp"),
                  overwrite=T)
@@ -651,7 +654,7 @@ fasttrib_points<-function(
     target_O_sub<-NULL
   }
 
-  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir)
+  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir,unzip=unzip_arg)
 
   loi_meta<-readRDS(file.path(temp_dir,"loi_meta.rds"))
 

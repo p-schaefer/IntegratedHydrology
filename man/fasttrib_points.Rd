@@ -20,7 +20,10 @@ fasttrib_points(
   use_existing_attr = F,
   store_hw = F,
   out_filename = NULL,
+  subb_per_core = 1000,
+  catch_per_core = 8,
   temp_dir = NULL,
+  unzip_arg = "internal",
   verbose = F
 )
 }
@@ -51,7 +54,13 @@ fasttrib_points(
 
 \item{out_filename}{Output file name.}
 
+\item{subb_per_core}{numeric, number of subbasins to evaluate per core cycle}
+
+\item{catch_per_core}{numeric, number of catchments to evaluate per core cycle}
+
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
+
+\item{unzip_arg}{character. Arguments passed to unzip. In Unix systems, may need to set to unzip_arg = "/usr/bin/unzip" to avoid warning about corrupted zip file.}
 
 \item{verbose}{logical.}
 }
