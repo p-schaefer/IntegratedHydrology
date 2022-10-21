@@ -790,10 +790,10 @@ fasttrib_points<-function(
                 dplyr::rename(link_id=origin_link_id) %>%
                 dplyr::compute() %>%
                 dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                      dplyr::select(-row,-col)%>%
-                                      dplyr::rename(link_id=subb_link_id ),
-                                    by=c("link_id")) %>%
+                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+                                   dplyr::select(-row,-col)%>%
+                                   dplyr::rename(link_id=subb_link_id ),
+                                 by=c("link_id")) %>%
                 dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
                                    dplyr::rename(link_id=subb_link_id ),
                                  by=c("link_id",
@@ -1431,9 +1431,6 @@ parallel_layer_processing <- function(n_cores,
 
   link_id_nm<-match.arg(link_id_nm,c("subb_link_id","catch_link_id"),several.ok = F)
 
-  con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
-  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = WAL")
-
   loi_cols<-cols
   loi_rasts_exists<-rasts
   all_subb_v<-polygons
@@ -1559,23 +1556,32 @@ parallel_layer_processing <- function(n_cores,
 
               con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
+              cell_tbl_sub<-try(stop(""),silent=T)
 
-              if (link_id_nm=="subb_link_id"){
-                cell_tbl_sub<-dplyr::tbl(con_attr2,"link_id_cellstats") %>%
-                  dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
-                  dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-                  dplyr::collect()
-              } else {
-                cell_tbl_sub<-dplyr::tbl(con_attr2,"us_flowpaths") %>%
-                  dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
-                  dplyr::left_join(
-                    dplyr::tbl(con_attr2,"link_id_cellstats"),
-                    by=c("origin_link_id"="subb_link_id")
-                  ) %>%
-                  dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
-                  dplyr::distinct() %>%
-                  dplyr::collect()
+              while(inherits(cell_tbl_sub,'try-error')){
+                Sys.sleep(1)
+
+                cell_tbl_sub<-try({
+                  if (link_id_nm=="subb_link_id"){
+                    dplyr::tbl(con_attr2,"link_id_cellstats") %>%
+                      dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
+                      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
+                      dplyr::collect()
+                  } else {
+                    dplyr::tbl(con_attr2,"us_flowpaths") %>%
+                      dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
+                      dplyr::left_join(
+                        dplyr::tbl(con_attr2,"link_id_cellstats"),
+                        by=c("origin_link_id"="subb_link_id")
+                      ) %>%
+                      dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
+                      dplyr::distinct() %>%
+                      dplyr::collect()
+                  }
+                },silent=T)
+
               }
+
 
               DBI::dbDisconnect(con_attr2)
 
@@ -1733,9 +1739,20 @@ parallel_layer_processing <- function(n_cores,
           dplyr::bind_rows()
 
         if (nrow(df)>0){
-          ot<-DBI::dbAppendTable(conn=con_attr_sub,
+          con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+
+          ot<-try(stop(""),silent=T)
+
+          while(inherits(ot,"try-error")){
+            Sys.sleep(1)
+            ot<-try({
+              DBI::dbAppendTable(conn=con_attr_sub,
                                  name=tbl_nm,
                                  value=df)
+            },silent=T)
+          }
+
+          DBI::dbDisconnect(con_attr_sub)
         }
 
         fr<-suppressMessages(file.remove(fl_attr))
@@ -1774,9 +1791,20 @@ parallel_layer_processing <- function(n_cores,
         dplyr::bind_rows()
 
       if (nrow(df)>0){
-        ot<-DBI::dbAppendTable(conn=con_attr_sub,
+        con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+
+        ot<-try(stop(""),silent=T)
+
+        while(inherits(ot,"try-error")){
+          Sys.sleep(1)
+          ot<-try({
+            DBI::dbAppendTable(conn=con_attr_sub,
                                name=tbl_nm,
                                value=df)
+          },silent=T)
+        }
+
+        DBI::dbDisconnect(con_attr_sub)
       }
 
       fr<-suppressMessages(file.remove(fl_attr))
@@ -1799,8 +1827,8 @@ parallel_layer_processing <- function(n_cores,
 
   unlink(temp_dir,recursive = T,force=T)
 
-  t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
-  DBI::dbDisconnect(con_attr_sub)
+  #t1<-DBI::dbExecute(con_attr_sub,"PRAGMA journal_mode = OFF")
+  #DBI::dbDisconnect(con_attr_sub)
 
 
   return(NULL)
