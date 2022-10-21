@@ -1486,18 +1486,8 @@ parallel_layer_processing <- function(n_cores,
                  sub_nm,
                  fp,
                  attr_db_loc
-                 # cell_fp,
-                 # cell_tbl
         ){
           #browser()
-
-          # while(!file.exists(file.path(temp_dir,paste0(core_numb,"_start")))){
-          #   Sys.sleep(1)
-          #   if (file.exists(file.path(temp_dir,paste0(core_numb,"_abort")))){
-          #     return(NA)
-          #   }
-          # }
-
 
           options(scipen = 999)
           `%>%` <- magrittr::`%>%`
@@ -1513,16 +1503,7 @@ parallel_layer_processing <- function(n_cores,
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
-          # cell_tbl<-data.table::fread(cell_fp) %>%
-          #   dplyr::mutate(link_id=as.character(link_id)) %>%
-          #   dplyr::filter(link_id %in% as.character(xx$link_id))
-          # cell_tbl_sub<-cell_tbl %>%
-          #     dplyr::mutate(link_id=as.character(link_id)) %>%
-          #     dplyr::filter(link_id %in% local(as.character(xx$link_id)))
-
-
           splt<-x
-
 
           out<-purrr::pmap(list(xx=splt,
                                 core_numb=names(splt),
@@ -1532,7 +1513,6 @@ parallel_layer_processing <- function(n_cores,
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
                                 attr_db_loc=list(attr_db_loc)
-                                #cell_tbl_sub=list(cell_tbl_sub)
           ),
           carrier::crate(
             function(xx,
@@ -1549,91 +1529,105 @@ parallel_layer_processing <- function(n_cores,
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
+              poly<-sf::read_sf(fp) %>%
+                dplyr::filter(link_id %in% xx$link_id)
 
-              # cell_tbl_sub<-cell_tbl_sub %>%
-              #   dplyr::filter(link_id %in% local(as.character(xx$link_id))) %>%
-              #   dplyr::collect()
+              out<-exactextractr::exact_extract(
+                loi_rasts_comb,
+                poly,
+                weights=NULL,
+                include_cell=T,
+                fun=NULL,
+                include_cols="link_id",
+                progress=F
+              ) %>%
+                dplyr::bind_rows() %>%
+                dplyr::select(-coverage_fraction) %>%
+                stats::setNames(c(link_id_nm,names(loi_rasts_comb),"cell_number")) %>%
+                data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
-              con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+              if (F) {
+                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
-              cell_tbl_sub<-try(stop(""),silent=T)
+                cell_tbl_sub<-try(stop(""),silent=T)
 
-              while(inherits(cell_tbl_sub,'try-error')){
-                Sys.sleep(1)
+                while(inherits(cell_tbl_sub,'try-error')){
+                  Sys.sleep(1)
 
-                cell_tbl_sub<-try({
-                  if (link_id_nm=="subb_link_id"){
-                    dplyr::tbl(con_attr2,"link_id_cellstats") %>%
-                      dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
-                      dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
-                      dplyr::collect()
-                  } else {
-                    dplyr::tbl(con_attr2,"us_flowpaths") %>%
-                      dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
-                      dplyr::left_join(
-                        dplyr::tbl(con_attr2,"link_id_cellstats"),
-                        by=c("origin_link_id"="subb_link_id")
-                      ) %>%
-                      dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
-                      dplyr::distinct() %>%
-                      dplyr::collect()
-                  }
-                },silent=T)
+                  cell_tbl_sub<-try({
+                    if (link_id_nm=="subb_link_id"){
+                      dplyr::tbl(con_attr2,"link_id_cellstats") %>%
+                        dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
+                        dplyr::select(link_id=subb_link_id,cell_number,row,col) %>%
+                        dplyr::collect()
+                    } else {
+                      dplyr::tbl(con_attr2,"us_flowpaths") %>%
+                        dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
+                        dplyr::left_join(
+                          dplyr::tbl(con_attr2,"link_id_cellstats"),
+                          by=c("origin_link_id"="subb_link_id")
+                        ) %>%
+                        dplyr::select(link_id=pour_point_id,cell_number,row,col) %>%
+                        dplyr::distinct() %>%
+                        dplyr::collect()
+                    }
+                  },silent=T)
+
+                }
+
+
+                DBI::dbDisconnect(con_attr2)
+
+                out<-purrr::map(xx$link_id,
+                                function(xxx){
+                                  #browser()
+
+                                  target_cell_range<-cell_tbl_sub %>%
+                                    dplyr::filter(link_id %in% local(as.character(xxx))) %>%
+                                    dplyr::summarize(
+                                      row_start=min(row),
+                                      row_end=max(row),
+                                      n_row=max(row)-min(row),
+                                      col_start=min(col),
+                                      col_end=max(col),
+                                      n_col=max(col)-min(col)
+                                    )
+
+                                  target_cell_numbs<-cell_tbl_sub %>%
+                                    dplyr::filter(link_id %in% local(as.character(xxx))) %>%
+                                    dplyr::pull(cell_number)
+
+
+                                  out_cell_nums<-terra::cellFromRowColCombine(loi_rasts_comb,
+                                                                              row=target_cell_range$row_start:target_cell_range$row_end,
+                                                                              col=target_cell_range$col_start:target_cell_range$col_end)
+
+                                  out<-data.table::data.table(
+                                    terra::readValues(loi_rasts_comb,
+                                                      row=target_cell_range$row_start,
+                                                      nrows=target_cell_range$n_row+1,
+                                                      col=target_cell_range$col_start,
+                                                      ncols=target_cell_range$n_col+1,
+                                                      dataframe=T
+                                    ))
+
+                                  # if (nrow(out) != length(out_cell_nums)){
+                                  #   browser()
+                                  # }
+
+                                  out<-out%>%
+                                    dplyr::mutate(cell_number=out_cell_nums) %>%
+                                    dplyr::filter(cell_number %in% target_cell_numbs) %>%
+                                    dplyr::mutate(abcdefg = xxx) %>%
+                                    dplyr::rename_with(.cols=tidyselect::any_of("abcdefg"),~paste0(link_id_nm))
+
+                                  return(out)
+                                }) %>%
+                  dplyr::bind_rows()
+
+                data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
               }
-
-
-              DBI::dbDisconnect(con_attr2)
-
-              out<-purrr::map(xx$link_id,
-                              function(xxx){
-                                #browser()
-
-                                target_cell_range<-cell_tbl_sub %>%
-                                  dplyr::filter(link_id %in% local(as.character(xxx))) %>%
-                                  dplyr::summarize(
-                                    row_start=min(row),
-                                    row_end=max(row),
-                                    n_row=max(row)-min(row),
-                                    col_start=min(col),
-                                    col_end=max(col),
-                                    n_col=max(col)-min(col)
-                                  )
-
-                                target_cell_numbs<-cell_tbl_sub %>%
-                                  dplyr::filter(link_id %in% local(as.character(xxx))) %>%
-                                  dplyr::pull(cell_number)
-
-
-                                out_cell_nums<-terra::cellFromRowColCombine(loi_rasts_comb,
-                                                                            row=target_cell_range$row_start:target_cell_range$row_end,
-                                                                            col=target_cell_range$col_start:target_cell_range$col_end)
-
-                                out<-data.table::data.table(
-                                  terra::readValues(loi_rasts_comb,
-                                                    row=target_cell_range$row_start,
-                                                    nrows=target_cell_range$n_row+1,
-                                                    col=target_cell_range$col_start,
-                                                    ncols=target_cell_range$n_col+1,
-                                                    dataframe=T
-                                  ))
-
-                                # if (nrow(out) != length(out_cell_nums)){
-                                #   browser()
-                                # }
-
-                                out<-out%>%
-                                  dplyr::mutate(cell_number=out_cell_nums) %>%
-                                  dplyr::filter(cell_number %in% target_cell_numbs) %>%
-                                  dplyr::mutate(abcdefg = xxx) %>%
-                                  dplyr::rename_with(.cols=tidyselect::any_of("abcdefg"),~paste0(link_id_nm))
-
-                                return(out)
-                              }) %>%
-                dplyr::bind_rows()
-
-              data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-
 
               if (file.exists(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))))
                 file.remove(file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv")))
@@ -1663,36 +1657,6 @@ parallel_layer_processing <- function(n_cores,
 
   total_procs<-0
 
-  # This gets the starting abount of free memory
-  # .ram_av<-function() {
-  #   out<-sapply(unlist(memuse::Sys.meminfo()),as.numeric)/1024
-  #   dif_o<-out[1]-out[2]
-  #   names(dif_o)<-"usedram"
-  #   dif_o[1]<-dif_o*0.8
-  #   out<-c(out,dif_o)
-  #   return(out)
-  # }
-  #
-  # .ram_av2<-function(rep=10,slp=1){
-  #   out<-list()
-  #   for (i in 1:rep){
-  #     Sys.sleep(slp)
-  #     out[[length(out)+1]]<-.ram_av()
-  #   }
-  #
-  #   sapply(dplyr::bind_rows(out),mean)
-  # }
-  #
-  # mem_prof<-list()
-  # mem_prof[[1]]<-.ram_av2()
-  #
-  # write.csv(data.frame(),file.path(temp_dir,paste0(1,"_start")))
-  # cores_started<-1
-  # read_spike<-NA_real_
-  # baseline<-NA_real_
-
-  #browser()
-
 
   with_progress(enable=progress,{
     p <- progressor(steps = total_outs)
@@ -1700,31 +1664,6 @@ parallel_layer_processing <- function(n_cores,
 
     while(!resolved(future_out)) {
       Sys.sleep(1)
-
-      # if (n_cores_2>1 & cores_started==1) {
-      #   mem_prof[[length(mem_prof)+1]]<-.ram_av2()
-      # }
-      #
-      # if (file.exists(file.path(temp_dir,paste0(sub_nm,"_1_1.csv")))){
-      #   Sys.sleep(5)
-      #   mem_prof[[length(mem_prof)+1]]<-.ram_av2()
-      #
-      #   mem_prof_out<-dplyr::bind_rows(mem_prof)
-      #   read_spike<-max(mem_prof_out$usedram)-mem_prof_out$usedram[1]
-      #   baseline<-tail(mem_prof_out$usedram,1)-mem_prof_out$usedram[1]
-      # }
-      #
-      # current_mem<-.ram_av2(3,1)
-      #
-      # if (cores_started < n_cores_2){
-      #   if (!is.na(read_spike)){
-      #     if (current_mem[1]-current_mem[[3]]< read_spike){
-      #
-      #     }
-      #
-      #   }
-      # }
-
 
       fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
       fl_attr<-fl_attr[grepl(".csv",fl_attr)]
