@@ -1530,7 +1530,7 @@ parallel_layer_processing <- function(n_cores,
               `%>%` <- magrittr::`%>%`
 
 
-              if (T){
+              if (F){
                 poly<-sf::read_sf(fp) %>%
                   dplyr::filter(link_id %in% xx$link_id)
 
@@ -1549,7 +1549,7 @@ parallel_layer_processing <- function(n_cores,
                   data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
               }
 
-              if (F) {
+              if (T) {
                 con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
                 cell_tbl_sub<-try(stop(""),silent=T)
