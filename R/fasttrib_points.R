@@ -701,7 +701,6 @@ fasttrib_points<-function(
     # loi_rasts_names<-map(loi_rasts_names,~map(.,~loi_numeric_stats))
     # loi_rasts_names$cat_rast<-as.list(setNames(rep(NA,length(names(loi_rasts$cat_rast))),names(loi_rasts$cat_rast)))
 
-    # Upload loi rasters to attributes database -------------------------------
 
     if (verbose) print("Writing LOI to attributes database")
 
@@ -1673,7 +1672,8 @@ parallel_layer_processing <- function(n_cores,
       fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
 
       if (length(fl_attr)>0) {
-        df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
+        #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
+        df<-purrr::map(fl_attr,~try(read.csv(.),silent = T))
         fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
         df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
@@ -1725,7 +1725,8 @@ parallel_layer_processing <- function(n_cores,
   if (length(fl_attr)>0) {
 
     if (length(fl_attr)>0) {
-      df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
+      #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
+      df<-purrr::map(fl_attr,~try(read.csv(.),silent = T))
       fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
       df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
