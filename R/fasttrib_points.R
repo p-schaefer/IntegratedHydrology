@@ -1545,8 +1545,11 @@ parallel_layer_processing <- function(n_cores,
                   dplyr::bind_rows() %>%
                   dplyr::select(-coverage_fraction) %>%
                   stats::setNames(c(link_id_nm,names(loi_rasts_comb),"cell_number")) %>%
-                  utils::write.csv(file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
-                  #data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                  data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                     buffMB = 128L,
+                                     nThread = 1,
+                                     showProgress = F
+                  )
               }
 
               if (F) {
@@ -1628,7 +1631,13 @@ parallel_layer_processing <- function(n_cores,
                                 }) %>%
                   dplyr::bind_rows()
 
-                data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                data.table::fwrite(out,
+                                   file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                   buffMB = 128L,
+                                   nThread = 1,
+                                   showProgress = F
+                )
+                #data.table::fwrite(out,file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
 
               }
 
@@ -1640,6 +1649,7 @@ parallel_layer_processing <- function(n_cores,
                 file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))
               )
 
+              gg<-gc()
               return(NA)
 
             }
@@ -1673,8 +1683,17 @@ parallel_layer_processing <- function(n_cores,
       fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
 
       if (length(fl_attr)>0) {
-        #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
-        df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
+        con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+
+        template<-tbl(con_attr_sub,tbl_nm) %>%
+          collect(n=1) %>%
+          sapply(class)
+
+        df<-purrr::map(fl_attr,~try(data.table::fread(.,
+                                                      select=template,
+                                                      nThread=1,
+                                                      showProgress=F,),silent = T))
+        #df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
         fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
         df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
@@ -1682,7 +1701,6 @@ parallel_layer_processing <- function(n_cores,
           dplyr::bind_rows()
 
         if (nrow(df)>0){
-          con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
 
           ot<-try(stop(""),silent=T)
 
@@ -1695,8 +1713,9 @@ parallel_layer_processing <- function(n_cores,
             },silent=T)
           }
 
-          DBI::dbDisconnect(con_attr_sub)
         }
+
+        DBI::dbDisconnect(con_attr_sub)
 
         fr<-suppressMessages(file.remove(fl_attr))
         for (i in seq_along(fr)){
@@ -1726,8 +1745,17 @@ parallel_layer_processing <- function(n_cores,
   if (length(fl_attr)>0) {
 
     if (length(fl_attr)>0) {
-      #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
-      df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
+      con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+
+      template<-tbl(con_attr_sub,tbl_nm) %>%
+        collect(n=1) %>%
+        sapply(class)
+
+      df<-purrr::map(fl_attr,~try(data.table::fread(.,
+                                                    select=template,
+                                                    nThread=1,
+                                                    showProgress=F,),silent = T))
+      #df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
       fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
       df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
@@ -1735,7 +1763,6 @@ parallel_layer_processing <- function(n_cores,
         dplyr::bind_rows()
 
       if (nrow(df)>0){
-        con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
 
         ot<-try(stop(""),silent=T)
 
@@ -1748,8 +1775,9 @@ parallel_layer_processing <- function(n_cores,
           },silent=T)
         }
 
-        DBI::dbDisconnect(con_attr_sub)
       }
+
+      DBI::dbDisconnect(con_attr_sub)
 
       fr<-suppressMessages(file.remove(fl_attr))
       total_procs<-total_procs+length(fl_attr)
