@@ -1545,7 +1545,7 @@ parallel_layer_processing <- function(n_cores,
                   dplyr::bind_rows() %>%
                   dplyr::select(-coverage_fraction) %>%
                   stats::setNames(c(link_id_nm,names(loi_rasts_comb),"cell_number")) %>%
-                  write.csv(file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
+                  utils::write.csv(file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
                   #data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")))
               }
 
@@ -1674,7 +1674,7 @@ parallel_layer_processing <- function(n_cores,
 
       if (length(fl_attr)>0) {
         #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
-        df<-purrr::map(fl_attr,~try(read.csv(.),silent = T))
+        df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
         fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
         df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
@@ -1727,7 +1727,7 @@ parallel_layer_processing <- function(n_cores,
 
     if (length(fl_attr)>0) {
       #df<-purrr::map(fl_attr,~try(data.table::fread(.),silent = T))
-      df<-purrr::map(fl_attr,~try(read.csv(.),silent = T))
+      df<-purrr::map(fl_attr,~try(utils::read.csv(.),silent = T))
       fl_attr<-fl_attr[!sapply(df,function(x) inherits(x,"try-error"))]
       df<-df[!sapply(df,function(x) inherits(x,"try-error"))]
 
