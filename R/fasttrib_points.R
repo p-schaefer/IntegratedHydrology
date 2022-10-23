@@ -1649,6 +1649,7 @@ parallel_layer_processing <- function(n_cores,
                 file.path(temp_dir,paste0(sub_nm,xx$core[[1]],"_",xx$split[[1]],".csv"))
               )
 
+              try(rm(out),silent=T)
               gg<-gc()
               return(NA)
 
