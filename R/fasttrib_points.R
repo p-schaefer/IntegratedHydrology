@@ -1496,11 +1496,14 @@ parallel_layer_processing <- function(n_cores,
           names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
           loi_rasts_comb<-terra::subset(loi_rasts_comb,loi_cols)
 
-          terra::readStart(loi_rasts_comb)
-
+          # terra::readStart(loi_rasts_comb)
+          #
           xx<-dplyr::bind_rows(x) %>%
             dplyr::select(link_id) %>%
             dplyr::distinct()
+
+          poly<-sf::read_sf(fp) %>%
+            dplyr::filter(link_id %in% xx$link_id)
 
           splt<-x
 
@@ -1511,6 +1514,7 @@ parallel_layer_processing <- function(n_cores,
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
+                                poly=list(poly),
                                 attr_db_loc=list(attr_db_loc)
           ),
           carrier::crate(
@@ -1521,6 +1525,7 @@ parallel_layer_processing <- function(n_cores,
                      sub_nm,
                      link_id_nm,
                      fp,
+                     poly,
                      attr_db_loc
                      #cell_tbl_sub
             ){
@@ -1530,8 +1535,8 @@ parallel_layer_processing <- function(n_cores,
 
 
               if (T){
-                poly<-sf::read_sf(fp) %>%
-                  dplyr::filter(link_id %in% xx$link_id)
+                # poly<-sf::read_sf(fp) %>%
+                #   dplyr::filter(link_id %in% xx$link_id)
 
                 out<-exactextractr::exact_extract(
                   loi_rasts_comb,
