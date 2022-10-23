@@ -356,11 +356,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-10-15 17:02:00
-#> 2           dem_d8.tif  454212 2022-10-15 17:02:00
-#> 3     dem_accum_d8.tif  904212 2022-10-15 17:02:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-10-15 17:02:00
-#> 5   dem_streams_d8.tif  904212 2022-10-15 17:02:00
+#> 1        dem_final.tif 1804210 2022-10-23 11:55:00
+#> 2           dem_d8.tif  454212 2022-10-23 11:55:00
+#> 3     dem_accum_d8.tif  904212 2022-10-23 11:55:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-10-23 11:55:00
+#> 5   dem_streams_d8.tif  904212 2022-10-23 11:55:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -368,7 +368,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpyI5DRI\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpSoNnc7\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -916,32 +916,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-10-15 17:04:00
-#> 2            dem_d8.tif  454212 2022-10-15 17:04:00
-#> 3      dem_accum_d8.tif  904212 2022-10-15 17:04:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-10-15 17:04:00
-#> 5    dem_streams_d8.tif  904212 2022-10-15 17:04:00
-#> 6       site_id_col.csv      22 2022-10-15 17:04:00
-#> 7      stream_links.dbf   18372 2022-10-15 17:04:00
-#> 8      stream_links.prj     503 2022-10-15 17:04:00
-#> 9      stream_links.shp    6428 2022-10-15 17:04:00
-#> 10     stream_links.shx    1908 2022-10-15 17:04:00
-#> 11     stream_lines.dbf    5691 2022-10-15 17:04:00
-#> 12     stream_lines.prj     503 2022-10-15 17:04:00
-#> 13     stream_lines.shp   70924 2022-10-15 17:04:00
-#> 14     stream_lines.shx    1900 2022-10-15 17:04:00
-#> 15    stream_points.dbf  145016 2022-10-15 17:04:00
-#> 16    stream_points.prj     503 2022-10-15 17:04:00
-#> 17    stream_points.shp  162444 2022-10-15 17:04:00
-#> 18    stream_points.shx   46484 2022-10-15 17:04:00
-#> 19   Subbasins_poly.dbf    7782 2022-10-15 17:04:00
-#> 20   Subbasins_poly.prj     503 2022-10-15 17:04:00
-#> 21   Subbasins_poly.shp  380032 2022-10-15 17:04:00
-#> 22   Subbasins_poly.shx    1908 2022-10-15 17:04:00
-#> 23   Catchment_poly.dbf   18372 2022-10-15 17:04:00
-#> 24   Catchment_poly.prj     503 2022-10-15 17:04:00
-#> 25   Catchment_poly.shp  997812 2022-10-15 17:04:00
-#> 26   Catchment_poly.shx    1908 2022-10-15 17:04:00
+#> 1         dem_final.tif 1804210 2022-10-23 11:57:00
+#> 2            dem_d8.tif  454212 2022-10-23 11:57:00
+#> 3      dem_accum_d8.tif  904212 2022-10-23 11:57:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-10-23 11:57:00
+#> 5    dem_streams_d8.tif  904212 2022-10-23 11:57:00
+#> 6       site_id_col.csv      22 2022-10-23 11:58:00
+#> 7      stream_links.dbf   18372 2022-10-23 11:58:00
+#> 8      stream_links.prj     503 2022-10-23 11:58:00
+#> 9      stream_links.shp    6428 2022-10-23 11:58:00
+#> 10     stream_links.shx    1908 2022-10-23 11:58:00
+#> 11     stream_lines.dbf    5691 2022-10-23 11:58:00
+#> 12     stream_lines.prj     503 2022-10-23 11:58:00
+#> 13     stream_lines.shp   70924 2022-10-23 11:58:00
+#> 14     stream_lines.shx    1900 2022-10-23 11:58:00
+#> 15    stream_points.dbf  145016 2022-10-23 11:58:00
+#> 16    stream_points.prj     503 2022-10-23 11:58:00
+#> 17    stream_points.shp  162444 2022-10-23 11:58:00
+#> 18    stream_points.shx   46484 2022-10-23 11:58:00
+#> 19   Subbasins_poly.dbf    7782 2022-10-23 11:58:00
+#> 20   Subbasins_poly.prj     503 2022-10-23 11:58:00
+#> 21   Subbasins_poly.shp  380032 2022-10-23 11:58:00
+#> 22   Subbasins_poly.shx    1908 2022-10-23 11:58:00
+#> 23   Catchment_poly.dbf   18372 2022-10-23 11:58:00
+#> 24   Catchment_poly.prj     503 2022-10-23 11:58:00
+#> 25   Catchment_poly.shp  997812 2022-10-23 11:58:00
+#> 26   Catchment_poly.shx    1908 2022-10-23 11:58:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1091,10 +1091,10 @@ plot(
         setNames("iFLS Weighting"),
       log10(rast(final_attributes_sub_slow$distance_weights[[2]]$HAiFLO))%>%
         setNames("log10-HAiFLO Weighting"),
-      rast(final_attributes_sub_slow$weighted_attr[[2]]$num_rast.distwtd_meanmean.iFLS_num_rast.loi_dist_rast) %>%
+      rast(final_attributes_sub_slow$weighted_attr[[2]][[8]]) %>%
         project(rast(final_attributes_sub_slow$distance_weights[[2]][[1]])) %>%
         setNames("iFLS Weighted Slope"),
-      log10(rast(final_attributes_sub_slow$weighted_attr[[2]]$cat_rast.mean.HAiFLO_cat_rast.loi_dist_rast)) %>%
+      log10(rast(final_attributes_sub_slow$weighted_attr[[2]][[2]])) %>%
         project(rast(final_attributes_sub_slow$distance_weights[[2]][[1]])) %>%
         setNames("log10-HAiFLO Weighted Landcover Class 1")
     )
@@ -1229,9 +1229,15 @@ fasttrib_points_time_big<-system.time(
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
+    use_existing_attr =F, # Setting this to TRUE will attempt to use previous distance weights
+    #                     # and attributes to recalculate summaries
     store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
     #           # This adds to the size of the zip file, and increases the computation time.
-    use_exising_hw=F, #This will attempt to use existing hydroweights when available
+    use_exising_hw=F, # This will attempt to use existing hydroweights when available, 
+    #                 # we'll keep it FALSE to make a fair comparison with attrib_points()
+    subb_per_core=10000, # we don't need to worry about running out of memory with this dataset
+    #                    # but if it were an issue, this allows you to lower the amount of data held in memory
+    catch_per_core=2000,
     temp_dir=NULL,
     verbose=T
   )
@@ -1243,7 +1249,6 @@ fasttrib_points_time_big<-system.time(
 #> [1] "Generating Site Targeted Weights"
 #> [1] "Unnesting Basins"
 #> [1] "Writing O-targeted weights to attributes database"
-#> [1] "Reading in LOI"
 #> [1] "Writing LOI to attributes database"
 #> [1] "Calculating Lumped Attributes"
 #> [1] "Calculating s-targeted Attributes"
@@ -1317,23 +1322,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.19 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.29 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 1.04 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 0.98 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 35.94 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 44.72 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 29.12 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 23.93 min to calculate for 1206 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "1.53 min to calculate distance weights for 1206 reaches using 8 cores."
+#> [1] "1.52 min to calculate distance weights for 1206 reaches using 8 cores."
 
 
 # Plot some attributes along their respective stream lines for visualization:

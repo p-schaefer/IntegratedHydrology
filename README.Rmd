@@ -937,9 +937,11 @@ fasttrib_points_time_big<-system.time(
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
+    use_existing_attr =F, # Setting this to TRUE will attempt to use previous distance weights
+    #                     # and attributes to recalculate summaries
     store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
     #           # This adds to the size of the zip file, and increases the computation time.
-    use_exising_hw=T, # This will attempt to use existing hydroweights when available, 
+    use_exising_hw=F, # This will attempt to use existing hydroweights when available, 
     #                 # we'll keep it FALSE to make a fair comparison with attrib_points()
     subb_per_core=10000, # we don't need to worry about running out of memory with this dataset
     #                    # but if it were an issue, this allows you to lower the amount of data held in memory
