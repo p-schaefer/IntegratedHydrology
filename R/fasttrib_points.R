@@ -1722,6 +1722,8 @@ parallel_layer_processing <- function(n_cores,
           p()
         }
 
+        try(rm(df),silent=T)
+        gg<-gc()
         total_procs<-total_procs+length(fl_attr)
       }
     }
@@ -1780,6 +1782,8 @@ parallel_layer_processing <- function(n_cores,
       DBI::dbDisconnect(con_attr_sub)
 
       fr<-suppressMessages(file.remove(fl_attr))
+      try(rm(df),silent=T)
+      gg<-gc()
       total_procs<-total_procs+length(fl_attr)
 
     }
