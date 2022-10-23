@@ -769,6 +769,7 @@ fasttrib_points<-function(
             link_id_in=link_id,
             attr_db_loc=list(attr_db_loc),
             loi_rasts_names=list(loi_rasts_names),
+            loi_numeric_stats=list(loi_numeric_stats),
             p=list(p)
           ),
           .options = furrr_options(globals = FALSE),
@@ -776,6 +777,7 @@ fasttrib_points<-function(
             function(link_id_in,
                      attr_db_loc,
                      loi_rasts_names,
+                     loi_numeric_stats,
                      p
             ){
               #browser()
@@ -811,7 +813,8 @@ fasttrib_points<-function(
               # ) %>%
               #   dplyr::compute()
 
-              attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              #attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              attrs<-loi_numeric_stats
 
               mean_out<-NULL
               sd_out<-NULL
@@ -915,6 +918,7 @@ fasttrib_points<-function(
             attr_db_loc=list(attr_db_loc),
             loi_rasts_names=list(loi_rasts_names),
             weighting_scheme_s=list(weighting_scheme_s),
+            loi_numeric_stats=list(loi_numeric_stats),
             p=list(p)
           ),
           .options = furrr_options(globals = FALSE),
@@ -923,6 +927,7 @@ fasttrib_points<-function(
                      attr_db_loc,
                      loi_rasts_names,
                      weighting_scheme_s,
+                     loi_numeric_stats,
                      p
             ){
               options(scipen = 999)
@@ -997,7 +1002,9 @@ fasttrib_points<-function(
               }
 
 
-              attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              #attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              attrs<-loi_numeric_stats
+
               mean_out<-NULL
               sd_out<-NULL
 
@@ -1129,6 +1136,7 @@ fasttrib_points<-function(
             attr_db_loc=list(attr_db_loc),
             loi_rasts_names=list(loi_rasts_names),
             weighting_scheme_o=list(weighting_scheme_o),
+            loi_numeric_stats=list(loi_numeric_stats),
             p=list(p)
           ),
           .options = furrr_options(globals = FALSE),
@@ -1137,6 +1145,7 @@ fasttrib_points<-function(
                      attr_db_loc,
                      loi_rasts_names,
                      weighting_scheme_o,
+                     loi_numeric_stats,
                      p
             ){
               options(scipen = 999)
@@ -1149,7 +1158,8 @@ fasttrib_points<-function(
 
               names(weighting_scheme_o)<-weighting_scheme_o
 
-              attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              #attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              attrs<-loi_numeric_stats
               mean_out<-NULL
               sd_out<-NULL
 

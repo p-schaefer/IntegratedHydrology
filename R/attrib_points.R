@@ -127,6 +127,10 @@ attrib_points<-function(
   loi_rasts_comb<-terra::rast(loi_rasts)
   names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
 
+  loi_rasts_exists_names<-loi_rasts_names
+  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
+  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~loi_numeric_stats))
+
   if (F){
     # try to see if this is faster with a big dataset
     writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
