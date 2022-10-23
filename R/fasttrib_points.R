@@ -737,9 +737,10 @@ fasttrib_points<-function(
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
 
-  t1<-DBI::dbExecute(con_attr,"PRAGMA analysis_limit=1000")
-  t1<-DBI::dbExecute(con_attr,"PRAGMA vacuum")
-  t1<-DBI::dbExecute(con_attr,"PRAGMA optimize")
+  #browser()
+  #t1<-DBI::dbExecute(con_attr,"PRAGMA analysis_limit=1000")
+  t1<-DBI::dbExecute(con_attr,"VACUUM")
+  #t1<-DBI::dbExecute(con_attr,"OPTIMIZE")
 
   #DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
   DBI::dbDisconnect(con_attr)
