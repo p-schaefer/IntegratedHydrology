@@ -1498,14 +1498,14 @@ parallel_layer_processing <- function(n_cores,
 
           # terra::readStart(loi_rasts_comb)
           #
+          splt<-x
+
           xx<-dplyr::bind_rows(x) %>%
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
           poly<-sf::read_sf(fp) %>%
             dplyr::filter(link_id %in% xx$link_id)
-
-          splt<-x
 
           out<-purrr::pmap(list(xx=splt,
                                 core_numb=names(splt),
