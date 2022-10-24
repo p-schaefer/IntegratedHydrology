@@ -1515,8 +1515,10 @@ parallel_layer_processing <- function(n_cores,
             dplyr::select(link_id) %>%
             dplyr::distinct()
 
-          poly<-sf::read_sf(fp) %>%
-            dplyr::filter(link_id %in% xx$link_id)
+          if (F){
+            poly<-sf::read_sf(fp) %>%
+              dplyr::filter(link_id %in% xx$link_id)
+          }
 
           out<-purrr::pmap(list(xx=splt,
                                 core_numb=names(splt),
@@ -1525,7 +1527,7 @@ parallel_layer_processing <- function(n_cores,
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
-                                poly=list(poly),
+                                #poly=list(poly),
                                 attr_db_loc=list(attr_db_loc)
           ),
           carrier::crate(
@@ -1536,7 +1538,7 @@ parallel_layer_processing <- function(n_cores,
                      sub_nm,
                      link_id_nm,
                      fp,
-                     poly,
+                     #poly,
                      attr_db_loc
                      #cell_tbl_sub
             ){
@@ -1544,10 +1546,52 @@ parallel_layer_processing <- function(n_cores,
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
 
+              if (T){ #this is using exact() with cell numbers
+                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
-              if (T){
-                # poly<-sf::read_sf(fp) %>%
-                #   dplyr::filter(link_id %in% xx$link_id)
+                cell_tbl_sub<-try(stop(""),silent=T)
+
+                while(inherits(cell_tbl_sub,'try-error')){
+                  Sys.sleep(1)
+
+                  cell_tbl_sub<-try({
+                    if (link_id_nm=="subb_link_id"){
+                      dplyr::tbl(con_attr2,"link_id_cellstats") %>%
+                        dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
+                        dplyr::select(link_id=subb_link_id,cell_number) %>%
+                        dplyr::collect()
+                    } else {
+                      dplyr::tbl(con_attr2,"us_flowpaths") %>%
+                        dplyr::filter(pour_point_id %in% local(as.character(xx$link_id))) %>%
+                        dplyr::left_join(
+                          dplyr::tbl(con_attr2,"link_id_cellstats"),
+                          by=c("origin_link_id"="subb_link_id")
+                        ) %>%
+                        dplyr::select(link_id=pour_point_id,cell_number) %>%
+                        dplyr::distinct() %>%
+                        dplyr::collect()
+                    }
+                  },silent=T)
+
+                }
+
+                DBI::dbDisconnect(con_attr2)
+
+                out<-cell_tbl_sub %>%
+                  dplyr::bind_cols(
+                    terra::extract(
+                      loi_rasts_comb,
+                      cell_tbl_sub$cell_number
+                    )
+                  ) %>%
+                  data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
+                                     buffMB = 128L,
+                                     nThread = 1,
+                                     showProgress = F
+                  )
+              }
+
+              if (F){ #this is using exact_extract() with a polygon
 
                 out<-exactextractr::exact_extract(
                   loi_rasts_comb,
@@ -1568,7 +1612,7 @@ parallel_layer_processing <- function(n_cores,
                   )
               }
 
-              if (F) {
+              if (F) { #this is using readValues() per subbasin
                 con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
 
                 cell_tbl_sub<-try(stop(""),silent=T)

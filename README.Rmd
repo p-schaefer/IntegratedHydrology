@@ -404,7 +404,7 @@ us_790<-hydro_out$us_flowpaths %>%
   filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
 ds_145.1<-hydro_out$ds_flowpaths %>%
   filter(origin_link_id == "145.1") # get all downstream link_ids from 
-#                              # link_id 145.1 (this corresponds with site_id = 29)
+#                                   # link_id 145.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
   filter(link_id %in% us_790$origin_link_id | 
