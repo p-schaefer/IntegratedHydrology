@@ -481,6 +481,7 @@ attrib_points<-function(
                                       hw_all_strm<-stream_weights
 
                                       hw_all_strm<-purrr::map(hw_all_strm,~terra::crop(.,
+                                                                                       snap="in",
                                                                                        terra::vect(sf::st_buffer(cr,units::set_units(buff,"m"),nQuadSegs = 1)),
                                                                                        mask=T
                                       ))

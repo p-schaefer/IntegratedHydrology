@@ -662,6 +662,8 @@ fasttrib_points<-function(
   loi_rasts_names<-map(loi_meta,~unlist(map(.,~.$lyr_variables)))
   loi_rasts_names<-map(loi_rasts_names,~setNames(.,.))
 
+  if (is.null(loi_cols)) loi_cols<-unlist(loi_rasts_names,use.names=F)
+
   # Upload loi rasters to attributes database -------------------------------
   if (!use_existing_attr | !"attrib_tbl" %in% attr_tbl_list){
     #browser()
@@ -758,29 +760,49 @@ fasttrib_points<-function(
   # Lumped Attributes -------------------------------------------------------
 
   #browser() # here make calculations work with more than 1 link_id at a time
+
+  us_flowpaths_out_o<-us_flowpaths_out
+  us_flowpaths_out_o<-us_flowpaths_out_o %>%
+    arrange(desc(map_dbl(us_flowpaths,nrow))) %>%
+    mutate(splt=rep(1:n_cores,length.out=n())) %>%
+    group_by(splt) %>%
+    nest() %>%
+    ungroup() %>%
+    mutate(
+      attr_db_loc=list(attr_db_loc),
+      loi_rasts_names=list(loi_rasts_names),
+      loi_numeric_stats=list(loi_numeric_stats),
+      loi_cols=list(loi_cols)
+    )
+
   if (lumped_scheme) {
     if (verbose) print("Calculating Lumped Attributes")
 
     with_progress(enable=T,{
-
-      p <- progressor(steps = nrow(us_flowpaths_out))
-      lumped_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=furrr::future_pmap_dfr(#
+      p <- progressor(steps = n_cores)
+      lumped_out<-us_flowpaths_out_o %>%
+        mutate(p=list(p)) %>%
+        dplyr::mutate(attr=furrr::future_pmap(#
           list(
-            link_id_in=link_id,
-            attr_db_loc=list(attr_db_loc),
-            loi_rasts_names=list(loi_rasts_names),
-            loi_numeric_stats=list(loi_numeric_stats),
-            p=list(p)
+            x=data,
+            attr_db_loc=attr_db_loc,
+            loi_rasts_names=loi_rasts_names,
+            loi_numeric_stats=loi_numeric_stats,
+            loi_cols=loi_cols,
+            p=p
           ),
           .options = furrr_options(globals = FALSE),
           carrier::crate(
-            function(link_id_in,
+            function(x,
                      attr_db_loc,
                      loi_rasts_names,
                      loi_numeric_stats,
+                     loi_cols,
                      p
             ){
+
+              link_id_in<-x$link_id
+
               #browser()
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
@@ -788,20 +810,17 @@ fasttrib_points<-function(
               con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
               out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
-                dplyr::filter(pour_point_id == link_id_in) %>%
                 dplyr::rename(link_id=origin_link_id) %>%
-                dplyr::compute() %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                   dplyr::select(-row,-col)%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id")) %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id",
-                                      "cell_number")
+                dplyr::filter(link_id %in% local(link_id_in)) %>%
+                dplyr::collapse() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
+                                   dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
+                                   dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
+                                   dplyr::rename(link_id=subb_link_id )%>%
+                                   dplyr::collapse(),
+                                 by=c("link_id")
                 ) %>%
-                dplyr::select(-pour_point_id) %>%
+                dplyr::group_by(pour_point_id) %>%
                 dplyr::compute()
 
               # out<-dplyr::left_join(
@@ -877,17 +896,26 @@ fasttrib_points<-function(
                   dplyr::collect()
               }
 
-              final_out<-dplyr::bind_cols(
-                list(
-                  mean_out,
-                  sd_out,
-                  min_out,
-                  max_out,
-                  count_out,
-                  median_out,
-                  sum_out
-                )
+              final_list<-list(
+                mean_out,
+                sd_out,
+                min_out,
+                max_out,
+                count_out,
+                median_out,
+                sum_out
               )
+              final_list<-final_list[!sapply(final_list,is.null)]
+
+              final_out<-purrr::reduce(
+                final_list,
+                dplyr::left_join,
+                by="pour_point_id"
+              )
+
+              final_out <- x %>%
+                dplyr::select(-us_flowpaths) %>%
+                dplyr::left_join(final_out,by=c("link_id"="pour_point_id"))
 
 
               DBI::dbDisconnect(con_attr)
@@ -898,8 +926,8 @@ fasttrib_points<-function(
 
             })
         )) %>%
-        select(everything(),-us_flowpaths) %>%
-        unnest(cols=attr)
+        select(attr) %>%
+        unnest(cols = c(attr))
 
     })
   }
@@ -911,26 +939,32 @@ fasttrib_points<-function(
 
     with_progress(enable=T,{
 
-      p <- progressor(steps = nrow(us_flowpaths_out))
-      s_targ_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=future_pmap(
+      p <- progressor(steps = n_cores)
+      s_targ_out<-us_flowpaths_out_o %>%
+        mutate(p=list(p),
+               weighting_scheme_s=list(weighting_scheme_s)) %>%
+        dplyr::mutate(attr=furrr::future_pmap(#
           list(
-            link_id_in=link_id,
-            attr_db_loc=list(attr_db_loc),
-            loi_rasts_names=list(loi_rasts_names),
-            weighting_scheme_s=list(weighting_scheme_s),
-            loi_numeric_stats=list(loi_numeric_stats),
-            p=list(p)
+            x=data,
+            attr_db_loc=attr_db_loc,
+            loi_rasts_names=loi_rasts_names,
+            loi_numeric_stats=loi_numeric_stats,
+            loi_cols=loi_cols,
+            weighting_scheme_s=weighting_scheme_s,
+            p=p
           ),
           .options = furrr_options(globals = FALSE),
           carrier::crate(
-            function(link_id_in,
+            function(x,
                      attr_db_loc,
                      loi_rasts_names,
                      weighting_scheme_s,
                      loi_numeric_stats,
+                     loi_cols,
                      p
             ){
+              link_id_in<-x$link_id
+
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
               #browser()
@@ -943,50 +977,37 @@ fasttrib_points<-function(
               names(weighting_scheme_s)<-weighting_scheme_s
 
               out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
-                dplyr::filter(pour_point_id == link_id_in) %>%
                 dplyr::rename(link_id=origin_link_id) %>%
-                dplyr::compute() %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                   dplyr::select(-row,-col)%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id")) %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id",
-                                      "cell_number")
+                dplyr::filter(link_id %in% local(link_id_in)) %>%
+                dplyr::collapse() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
+                                   dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
+                                   dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
+                                   dplyr::rename(link_id=subb_link_id ) %>%
+                                   dplyr::collapse(),
+                                 by=c("link_id")
                 ) %>%
+                dplyr::group_by(pour_point_id) %>%
+                dplyr::compute() %>%
                 dplyr::left_join(
                   dplyr::tbl(con_attr,"s_target_weights") %>%
-                    dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
-                  by="cell_number"
+                    dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
+                    dplyr::select(subb_link_id,cell_number,tidyselect::any_of(weighting_scheme_s)) %>%
+                    dplyr::rename(link_id=subb_link_id ) %>%
+                    dplyr::collapse(),
+                  by=c("link_id","cell_number")
                 ) %>%
-                dplyr::select(-pour_point_id) %>%
+                dplyr::group_by(pour_point_id) %>%
                 dplyr::compute()
-
-              # out<-dplyr::left_join(
-              #   dplyr::tbl(con_attr,"us_flowpaths") %>%
-              #     dplyr::filter(pour_point_id %in% link_id_in) %>%
-              #     dplyr::rename(link_id=origin_link_id),
-              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
-              #     dplyr::rename(link_id=subb_link_id),
-              #   by="link_id"
-              # ) %>%
-              #   dplyr::left_join(
-              #     dplyr::tbl(con_attr,"s_target_weights") %>%
-              #       dplyr::select(cell_number,tidyselect::any_of(weighting_scheme_s)),
-              #     by="cell_number"
-              #   ) %>%
-              #   dplyr::compute()
 
               if ("iFLS" %in% weighting_scheme_s){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                 out<-out %>%
                   dplyr::left_join(
                     out %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("iFLS")),.names="{.col}_iFLS" )) %>%
-                      dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","iFLS"))),
+                      dplyr::select(pour_point_id,cell_number,link_id,tidyselect::ends_with(paste0("_","iFLS"))),
 
-                    by = c("cell_number", "link_id")
+                    by = c("cell_number", "link_id","pour_point_id")
                   )%>%
                   dplyr::compute()
               }
@@ -996,8 +1017,8 @@ fasttrib_points<-function(
                   dplyr::left_join(
                     out %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLS")),.names="{.col}_HAiFLS" )) %>%
-                      dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLS"))),
-                    by = c("cell_number", "link_id")
+                      dplyr::select(pour_point_id,cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLS"))),
+                    by = c("cell_number", "link_id","pour_point_id")
                   )%>%
                   dplyr::compute()
               }
@@ -1011,13 +1032,10 @@ fasttrib_points<-function(
 
               if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
 
-
-                mean_out<-purrr::map_dfc(weighting_scheme_s,function(x){
-                  out_iFLS<-NULL
-                  out_HAiFLS<-NULL
+                mean_out<-purrr::map(weighting_scheme_s,function(x){
 
                   if ("iFLS" %in% x){
-                    out_iFLS<-out %>%
+                    out2<-out %>%
                       dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","iFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T) ))  %>%
                       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
                       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
@@ -1025,28 +1043,26 @@ fasttrib_points<-function(
                   }
 
                   if ("HAiFLS" %in% x){
-                    out_iFLS<-out %>%
+                    out2<-out %>%
                       dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","HAiFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T) ))  %>%
                       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
                       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
                       dplyr::collect()
                   }
 
-                  dplyr::bind_cols(out_iFLS,out_HAiFLS)
+                  return(out2)
 
-                }) %>%
-                  dplyr::mutate(link_id=link_id_in) %>%
-                  dplyr::select(link_id,tidyselect::everything())
+                })
+                mean_out<-purrr::reduce(mean_out,dplyr::left_join,by="pour_point_id")
               }
 
               if (any(attrs %in% c("sd","stdev"))) {
-                sd_out<-purrr::map_dfc(weighting_scheme_s,function(x){
-                  out_iFLS<-NULL
-                  out_HAiFLS<-NULL
+                sd_out<-purrr::map(weighting_scheme_s,function(x){
 
                   if ("iFLS" %in% x){
-                    out_iFLS<-out %>%
-                      dplyr::select(tidyselect::any_of(names(loi_rasts_names$num_rast)),
+                    out2<-out %>%
+                      dplyr::select(pour_point_id,
+                                    tidyselect::any_of(names(loi_rasts_names$num_rast)),
                                     tidyselect::any_of("iFLS")
                       ) %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
@@ -1063,8 +1079,9 @@ fasttrib_points<-function(
                   }
 
                   if ("HAiFLS" %in% x){
-                    out_HAiFLS<-out %>%
-                      dplyr::select(tidyselect::any_of(names(loi_rasts_names$num_rast)),
+                    out2<-out %>%
+                      dplyr::select(pour_point_id,
+                                    tidyselect::any_of(names(loi_rasts_names$num_rast)),
                                     tidyselect::any_of("HAiFLS")
                       ) %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
@@ -1080,35 +1097,41 @@ fasttrib_points<-function(
                       dplyr::collect()
                   }
 
-
-                  out_final<-dplyr::bind_cols(out_iFLS,out_HAiFLS)
-
-                  out_final %>%
-                    tidyr::pivot_longer(tidyselect::everything()) %>%
+                  out2 %>%
+                    tidyr::pivot_longer(cols=c(tidyselect::everything(),-pour_point_id)) %>%
                     dplyr::mutate(attr=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_",2)[,1],
                                   term=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_",2)[,2]) %>%
                     dplyr::rowwise() %>%
                     dplyr::mutate(hw=gsub(paste0(attr,"_","|","_",term,""),"",name)) %>%
                     dplyr::ungroup() %>%
                     dplyr::mutate(name=paste0(attr,"_",hw,"_sd")) %>%
-                    dplyr::group_by(name) %>%
+                    dplyr::group_by(name,pour_point_id) %>%
                     dplyr::summarize(sd=sqrt(value[term=="term1"]/value[term=="term2"])) %>%
                     dplyr::ungroup() %>%
                     tidyr::pivot_wider(names_from = name,values_from=sd)
 
-
-
                 })
+
+                sd_out<-purrr::reduce(sd_out,dplyr::left_join,by="pour_point_id")
+
 
               }
 
-              final_out<-dplyr::bind_cols(
-                list(
-                  mean_out,
-                  sd_out
-                )
-              ) %>%
-                dplyr::select(-tidyselect::any_of("link_id"))
+              final_list<-list(
+                mean_out,
+                sd_out
+              )
+              final_list<-final_list[!sapply(final_list,is.null)]
+
+              final_out<-purrr::reduce(
+                final_list,
+                dplyr::left_join,
+                by="pour_point_id"
+              )
+
+              final_out <- x %>%
+                dplyr::select(-us_flowpaths) %>%
+                dplyr::left_join(final_out,by=c("link_id"="pour_point_id"))
 
               p()
 
@@ -1117,8 +1140,8 @@ fasttrib_points<-function(
 
             })
         )) %>%
-        select(everything(),-us_flowpaths) %>%
-        unnest(cols=attr)
+        select(attr) %>%
+        unnest(cols = c(attr))
     })
   }
 
@@ -1128,29 +1151,35 @@ fasttrib_points<-function(
     if (verbose) print("Calculating o-targeted Attributes")
 
     with_progress(enable=T,{
-
-      p <- progressor(steps = nrow(us_flowpaths_out))
-      o_targ_out<-us_flowpaths_out %>%
-        dplyr::mutate(attr=furrr::future_pmap_dfr(
+      p <- progressor(steps = n_cores)
+      o_targ_out<-us_flowpaths_out_o %>%
+        mutate(p=list(p),
+               weighting_scheme_o=list(weighting_scheme_o)) %>%
+        dplyr::mutate(attr=furrr::future_pmap(#
           list(
-            link_id_in=link_id,
-            attr_db_loc=list(attr_db_loc),
-            loi_rasts_names=list(loi_rasts_names),
-            weighting_scheme_o=list(weighting_scheme_o),
-            loi_numeric_stats=list(loi_numeric_stats),
-            p=list(p)
+            x=data,
+            attr_db_loc=attr_db_loc,
+            loi_rasts_names=loi_rasts_names,
+            loi_numeric_stats=loi_numeric_stats,
+            loi_cols=loi_cols,
+            weighting_scheme_o=weighting_scheme_o,
+            p=p
           ),
           .options = furrr_options(globals = FALSE),
           carrier::crate(
-            function(link_id_in,
+            function(x,
                      attr_db_loc,
                      loi_rasts_names,
                      weighting_scheme_o,
+                     loi_cols,
                      loi_numeric_stats,
                      p
             ){
+              link_id_in<-x$link_id
+
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
+              #browser()
 
               con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
@@ -1159,62 +1188,38 @@ fasttrib_points<-function(
 
               names(weighting_scheme_o)<-weighting_scheme_o
 
-              #attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
-              attrs<-loi_numeric_stats
-              mean_out<-NULL
-              sd_out<-NULL
-
               out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
-                dplyr::filter(pour_point_id == link_id_in) %>%
                 dplyr::rename(link_id=origin_link_id) %>%
-                dplyr::compute() %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"link_id_cellstats") %>%
-                                   dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
-                                   dplyr::select(-row,-col)%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id")) %>%
-                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl")%>%
-                                   dplyr::rename(link_id=subb_link_id ),
-                                 by=c("link_id",
-                                      "cell_number")
+                dplyr::filter(link_id %in% local(link_id_in)) %>%
+                dplyr::collapse() %>%
+                dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
+                                   dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
+                                   dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
+                                   dplyr::rename(link_id=subb_link_id ) %>%
+                                   dplyr::collapse(),
+                                 by=c("link_id")
                 ) %>%
+                dplyr::group_by(pour_point_id) %>%
+                dplyr::compute() %>%
                 dplyr::left_join(
                   dplyr::tbl(con_attr,"o_target_weights") %>%
-                    dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
-                    dplyr::filter(catch_link_id %in% link_id_in) %>%
-                    dplyr::select(-catch_link_id),
-                  by=c("cell_number")
-                )%>%
-                dplyr::select(-pour_point_id) %>%
+                    dplyr::filter(catch_link_id %in% local(link_id_in)) %>%
+                    dplyr::select(catch_link_id,cell_number,tidyselect::any_of(weighting_scheme_o)) %>%
+                    dplyr::rename(link_id=catch_link_id ) %>%
+                    dplyr::collapse(),
+                  by=c("link_id","cell_number")
+                ) %>%
+                dplyr::group_by(pour_point_id) %>%
                 dplyr::compute()
-
-              # out<-dplyr::left_join(
-              #   dplyr::tbl(con_attr,"us_flowpaths") %>%
-              #     dplyr::filter(pour_point_id %in% link_id_in) %>%
-              #     dplyr::rename(link_id=origin_link_id),
-              #   dplyr::tbl(con_attr,"attrib_tbl") %>%
-              #     dplyr::rename(link_id=subb_link_id),
-              #   by="link_id"
-              # ) %>%
-              #   dplyr::left_join(
-              #     dplyr::tbl(con_attr,"o_target_weights") %>%
-              #       dplyr::select(cell_number,catch_link_id ,tidyselect::any_of(weighting_scheme_o)) %>%
-              #       dplyr::filter(catch_link_id %in% link_id_in) %>%
-              #       dplyr::select(-catch_link_id),
-              #     by=c("cell_number")
-              #   )%>%
-              #   dplyr::compute()
-
-
 
               if ("iFLO" %in% weighting_scheme_o){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                 out<-out %>%
                   dplyr::left_join(
                     out %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("iFLO")),.names="{.col}_iFLO" )) %>%
-                      dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","iFLO"))),
+                      dplyr::select(pour_point_id,cell_number,link_id,tidyselect::ends_with(paste0("_","iFLO"))),
 
-                    by = c("cell_number", "link_id")
+                    by = c("cell_number", "link_id","pour_point_id")
                   )%>%
                   dplyr::compute()
               }
@@ -1224,70 +1229,52 @@ fasttrib_points<-function(
                   dplyr::left_join(
                     out %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLO")),.names="{.col}_HAiFLO" )) %>%
-                      dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLO"))),
-                    by = c("cell_number", "link_id")
+                      dplyr::select(pour_point_id,cell_number,link_id,tidyselect::ends_with(paste0("_","HAiFLO"))),
+                    by = c("cell_number", "link_id","pour_point_id")
                   )%>%
                   dplyr::compute()
               }
 
-              # out<-out %>%
-              #   dplyr::left_join(
-              #     purrr::map(weighting_scheme_o,function(x){
-              #       out %>%
-              #         dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms),~.*!!rlang::sym(x),.names="{.col}_{x}" )) %>%
-              #         dplyr::select(cell_number,link_id,tidyselect::ends_with(paste0("_",x)))
-              #     }) %>%
-              #       purrr::reduce(dplyr::left_join,by=c("cell_number","link_id")),
-              #     by = c("cell_number", "link_id")
-              #   )
 
-              mean_out<-purrr::map_dfc(weighting_scheme_o,function(x){
-                out_iFLO<-NULL
-                out_HAiFLO<-NULL
+              #attrs<-sapply(sapply(loi_rasts_names$num_rast,unique),unique)
+              attrs<-loi_numeric_stats
 
-                if ("iFLO" %in% x){
-                  out_iFLO<-out %>%
-                    dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T) ))  %>%
-                    dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
-                    dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
-                    dplyr::collect()
-                }
+              mean_out<-NULL
+              sd_out<-NULL
 
-                if ("HAiFLO" %in% x){
-                  out_HAiFLO<-out %>%
-                    dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T) ))  %>%
-                    dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
-                    dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
-                    dplyr::collect()
-                }
+              if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
 
-                dplyr::bind_cols(out_iFLO,out_HAiFLO)
-
-              }) %>%
-                dplyr::mutate(link_id=link_id_in) %>%
-                dplyr::select(link_id,tidyselect::everything())
-
-              # if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
-              #
-              #   mean_out<-purrr::map_dfc(weighting_scheme_o,function(x){
-              #     out %>%
-              #       dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_",x)),~sum(.,na.rm=T)/sum(!!rlang::sym(x),na.rm=T) ))  %>%
-              #       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
-              #       dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
-              #       dplyr::collect()
-              #   }) %>%
-              #     dplyr::mutate(link_id=link_id_in) %>%
-              #     dplyr::select(link_id,tidyselect::everything())
-              # }
-
-              if (any(attrs %in% c("sd","stdev"))) {
-                sd_out<-purrr::map_dfc(weighting_scheme_o,function(x){
-                  out_iFLO<-NULL
-                  out_HAiFLO<-NULL
+                mean_out<-purrr::map(weighting_scheme_o,function(x){
 
                   if ("iFLO" %in% x){
-                    out_iFLO<-out %>%
-                      dplyr::select(tidyselect::any_of(names(loi_rasts_names$num_rast)),
+                    out2<-out %>%
+                      dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T) ))  %>%
+                      dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
+                      dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
+                      dplyr::collect()
+                  }
+
+                  if ("HAiFLO" %in% x){
+                    out2<-out %>%
+                      dplyr::summarize(dplyr::across(tidyselect::ends_with(paste0("_","HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T) ))  %>%
+                      dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(.x,"_mean")) %>%
+                      dplyr::rename_with(.cols=tidyselect::contains(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(.x,"_prop")) %>%
+                      dplyr::collect()
+                  }
+
+                  return(out2)
+
+                })
+                mean_out<-purrr::reduce(mean_out,dplyr::left_join,by="pour_point_id")
+              }
+
+              if (any(attrs %in% c("sd","stdev"))) {
+                sd_out<-purrr::map(weighting_scheme_o,function(x){
+
+                  if ("iFLO" %in% x){
+                    out2<-out %>%
+                      dplyr::select(pour_point_id,
+                                    tidyselect::any_of(names(loi_rasts_names$num_rast)),
                                     tidyselect::any_of("iFLO")
                       ) %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
@@ -1304,8 +1291,9 @@ fasttrib_points<-function(
                   }
 
                   if ("HAiFLO" %in% x){
-                    out_HAiFLO<-out %>%
-                      dplyr::select(tidyselect::any_of(names(loi_rasts_names$num_rast)),
+                    out2<-out %>%
+                      dplyr::select(pour_point_id,
+                                    tidyselect::any_of(names(loi_rasts_names$num_rast)),
                                     tidyselect::any_of("HAiFLO")
                       ) %>%
                       dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
@@ -1321,61 +1309,41 @@ fasttrib_points<-function(
                       dplyr::collect()
                   }
 
-
-                  out_final<-dplyr::bind_cols(out_iFLO,out_HAiFLO)
-
-                  out_final %>%
-                    tidyr::pivot_longer(tidyselect::everything()) %>%
+                  out2 %>%
+                    tidyr::pivot_longer(cols=c(tidyselect::everything(),-pour_point_id)) %>%
                     dplyr::mutate(attr=stringr::str_split_fixed(name,"_iFLO_|_HAiFLO_",2)[,1],
                                   term=stringr::str_split_fixed(name,"_iFLO_|_HAiFLO_",2)[,2]) %>%
                     dplyr::rowwise() %>%
                     dplyr::mutate(hw=gsub(paste0(attr,"_","|","_",term,""),"",name)) %>%
                     dplyr::ungroup() %>%
                     dplyr::mutate(name=paste0(attr,"_",hw,"_sd")) %>%
-                    dplyr::group_by(name) %>%
+                    dplyr::group_by(name,pour_point_id) %>%
                     dplyr::summarize(sd=sqrt(value[term=="term1"]/value[term=="term2"])) %>%
                     dplyr::ungroup() %>%
                     tidyr::pivot_wider(names_from = name,values_from=sd)
 
                 })
 
-              }
-              # if (any(attrs %in% c("sd","stdev"))) {
-              #   sd_out<-purrr::map_dfc(weighting_scheme_o,function(x){
-              #     out_t<-out %>%
-              #       dplyr::select(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-              #                     tidyselect::any_of(x)
-              #       ) %>%
-              #       dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-              #                                   ~(!!rlang::sym(x) * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym(x),na.rm=T)))^2)),
-              #                                   .names="{.col}_{x}_term1"),
-              #                     dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-              #                                   ~ ((sum(!!rlang::sym(x)!=0,na.rm=T)-1)/sum(!!rlang::sym(x)!=0,na.rm=T)) * sum(!!rlang::sym(x),na.rm=T),
-              #                                   .names="{.col}_{x}_term2"
-              #                     ))%>%
-              #       dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),sum,na.rm=T),
-              #                        dplyr::across(tidyselect::ends_with("_term2"),~.[1])
-              #       ) %>%
-              #       dplyr::collect()
-              #
-              #     purrr::map_dfc(names(loi_rasts_names$num_rast),function(y){
-              #       out_t %>%
-              #         dplyr::select(tidyselect::contains(y)) %>%
-              #         dplyr::mutate(a= sqrt( !!sym(paste0(y,"_",x,"_term1")) / !!sym(paste0(y,"_",x,"_term2")) )) %>%
-              #         dplyr::select(a) %>%
-              #         dplyr::rename_with(~paste0(y,"_",x,"_sd"))
-              #     })
-              #   })
-              #
-              # }
+                sd_out<-purrr::reduce(sd_out,dplyr::left_join,by="pour_point_id")
 
-              final_out<-dplyr::bind_cols(
-                list(
-                  mean_out,
-                  sd_out
-                )
-              ) %>%
-                dplyr::select(-tidyselect::any_of("link_id"))
+
+              }
+
+              final_list<-list(
+                mean_out,
+                sd_out
+              )
+              final_list<-final_list[!sapply(final_list,is.null)]
+
+              final_out<-purrr::reduce(
+                final_list,
+                dplyr::left_join,
+                by="pour_point_id"
+              )
+
+              final_out <- x %>%
+                dplyr::select(-us_flowpaths) %>%
+                dplyr::left_join(final_out,by=c("link_id"="pour_point_id"))
 
               p()
 
@@ -1384,8 +1352,8 @@ fasttrib_points<-function(
 
             })
         )) %>%
-        select(everything(),-us_flowpaths) %>%
-        unnest(cols=attr)
+        select(attr) %>%
+        unnest(cols = c(attr))
     })
   }
 
@@ -1558,7 +1526,7 @@ parallel_layer_processing <- function(n_cores,
                     if (link_id_nm=="subb_link_id"){
                       dplyr::tbl(con_attr2,"link_id_cellstats") %>%
                         dplyr::filter(subb_link_id %in% local(as.character(xx$link_id))) %>%
-                        dplyr::select(link_id=subb_link_id,cell_number) %>%
+                        dplyr::select(subb_link_id,cell_number) %>%
                         dplyr::collect()
                     } else {
                       dplyr::tbl(con_attr2,"us_flowpaths") %>%
@@ -1567,7 +1535,7 @@ parallel_layer_processing <- function(n_cores,
                           dplyr::tbl(con_attr2,"link_id_cellstats"),
                           by=c("origin_link_id"="subb_link_id")
                         ) %>%
-                        dplyr::select(link_id=pour_point_id,cell_number) %>%
+                        dplyr::select(catch_link_id=pour_point_id,cell_number) %>%
                         dplyr::distinct() %>%
                         dplyr::collect()
                     }

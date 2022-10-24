@@ -99,13 +99,7 @@ library(terra)
 library(sf)
 library(dplyr)
 
-# Many function in 'ihydro' can be run in parallel internally. However it’s 
-# important to remember that data has to be passed back and forth between the 
-# workers. This means that whatever performance gain you might have gotten from
-# your parallelization can be crushed by moving large amounts of data around.
-# Not returning products directly will speed up function processing time 
-# dramatically. Products can always be retrieved/read in directly from the
-# output .zip file.
+# Many function in 'ihydro' can be run in parallel internally. 
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
@@ -173,10 +167,7 @@ wbt_slope(
 # Combine loi layers
 output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
 
-# This function sequentially combines numeric and categorical loi layers,
-# it can be run with at most 2 processes (1 numeric and 1 categorical).
-# Most operations occur out of memory, but the sequential nature means 
-# temporary files won't eat valuable hardrive space.
+# This function standardizes numeric and categorical loi layers.
 
 loi_combined<-process_loi(
   dem=toy_dem,
@@ -189,7 +180,7 @@ loi_combined<-process_loi(
     pointsources=pointsources_path
   ),
   variable_names=list( # any unlisted inputs will be used in their entirety
-    geology="GEO_NAME",
+    geology="GEO_NAME", # names listed here will subset those attributes or layers from the inputs
     pointsources="pontsrc"
   ),
   output_filename=output_filename_loi,
@@ -315,7 +306,7 @@ hydro_out<-generate_vectors(
 # If 'points' are provided, this function modifies the vector outputs by inserting
 # links, and splitting lines/subbasins at `points`. Inserted points are given "link_id'
 # values that increment with decimal places from downstream to upstream directions 
-# (i.e., 10.0 remains the pout point for the segment, and 10.1, 10.2,... identify
+# (i.e., 10.0 remains the pour point for the segment, and 10.1, 10.2,... identify
 # sample points in an upstream direction). 
 
 # New layers added by `generate_vectors()`
@@ -861,6 +852,50 @@ fasttrib_points_time_small<-system.time(
     verbose=F
   )
 )
+
+# Verify database
+
+trg_id<-"1118.1" #this correponds to sample point 1
+
+con_attr<-DBI::dbConnect(RSQLite::SQLite(),
+                         gsub(basename(hydro_out$db_loc),gsub(".db","_Attr.db",basename(hydro_out$db_loc)),hydro_out$db_loc))
+
+DBI::dbListTables(con_attr)
+
+# This creates a table of all raster values from the database
+dd<-tbl(con_attr,"us_flowpaths") %>% 
+  filter(pour_point_id  %in% local(trg_id)) %>% 
+  rename(subb_link_id=origin_link_id ) %>% 
+  left_join(tbl(con_attr,"link_id_cellstats"),
+            by=c("subb_link_id")) %>% 
+  left_join(tbl(con_attr,"attrib_tbl"),
+            by=c("subb_link_id","cell_number")) %>% 
+  left_join(tbl(con_attr,"s_target_weights"),
+            by=c("subb_link_id","cell_number")) %>% 
+  left_join(tbl(con_attr,"o_target_weights") %>% 
+              filter(catch_link_id %in% local(trg_id)),
+            by=c("pour_point_id"="catch_link_id","cell_number")) %>% 
+  collect()
+
+DBI::dbDisconnect(con_attr)
+
+outline<-hydro_out$catchments %>% 
+  filter(link_id %in% trg_id) %>% 
+  vect()
+
+r1<-dd %>% 
+  select(row,col,attr=iFLO) %>% 
+  pivot_wider(id_cols=row,names_from=col,values_from=attr) %>%
+  arrange(row) %>% 
+  data.frame(check.names = F) %>% 
+  tibble::column_to_rownames("row") %>% 
+  .[order(as.numeric(rownames(.))),order(as.numeric(colnames(.)))] %>% 
+  as.matrix() %>% 
+  rast(crs=crs(toy_dem),extent=ext(outline))
+
+plot(r1)
+plot(outline,add=T)
+
 
 
 ```
