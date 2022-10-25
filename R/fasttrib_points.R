@@ -1486,6 +1486,8 @@ parallel_layer_processing <- function(n_cores,
           if (F){
             poly<-sf::read_sf(fp) %>%
               dplyr::filter(link_id %in% xx$link_id)
+          } else {
+            poly<-NULL
           }
 
           out<-purrr::pmap(list(xx=splt,
@@ -1495,7 +1497,7 @@ parallel_layer_processing <- function(n_cores,
                                 sub_nm=list(sub_nm),
                                 link_id_nm=list(link_id_nm),
                                 fp=list(fp),
-                                #poly=list(poly),
+                                poly=list(poly),
                                 attr_db_loc=list(attr_db_loc)
           ),
           carrier::crate(
@@ -1506,7 +1508,7 @@ parallel_layer_processing <- function(n_cores,
                      sub_nm,
                      link_id_nm,
                      fp,
-                     #poly,
+                     poly,
                      attr_db_loc
                      #cell_tbl_sub
             ){
@@ -1567,10 +1569,11 @@ parallel_layer_processing <- function(n_cores,
                   weights=NULL,
                   include_cell=T,
                   fun=NULL,
-                  include_cols="link_id",
+                  #include_cols="link_id",
                   progress=F
                 ) %>%
-                  dplyr::bind_rows() %>%
+                  purrr::map2(split(poly$link_id,poly$link_id),~dplyr::mutate(.x,link_id=.y)) %>%
+                  data.table::rbindlist() %>%
                   dplyr::select(-coverage_fraction) %>%
                   stats::setNames(c(link_id_nm,names(loi_rasts_comb),"cell_number")) %>%
                   data.table::fwrite(file=file.path(temp_dir,paste0(sub_nm,"_s_",xx$core[[1]],"_",xx$split[[1]],".csv")),
