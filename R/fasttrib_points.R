@@ -741,7 +741,7 @@ fasttrib_points<-function(
 
   #browser()
   #t1<-DBI::dbExecute(con_attr,"PRAGMA analysis_limit=1000")
-  t1<-DBI::dbExecute(con_attr,"VACUUM")
+  #t1<-DBI::dbExecute(con_attr,"VACUUM")
   #t1<-DBI::dbExecute(con_attr,"OPTIMIZE")
 
   #DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = OFF")
