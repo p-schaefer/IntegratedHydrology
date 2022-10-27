@@ -947,6 +947,8 @@ fasttrib_points<-function(
 
                     p()
 
+                    gg<-gc()
+
                     return(final_out)
 
                   })
@@ -1179,6 +1181,8 @@ fasttrib_points<-function(
 
                     p()
 
+                    gg<-gc()
+
                     DBI::dbDisconnect(con_attr)
                     return(final_out)
 
@@ -1410,6 +1414,8 @@ fasttrib_points<-function(
                       dplyr::left_join(final_out,by=c("link_id"="pour_point_id"))
 
                     p()
+
+                    gg<-gc()
 
                     DBI::dbDisconnect(con_attr)
                     return(final_out)
