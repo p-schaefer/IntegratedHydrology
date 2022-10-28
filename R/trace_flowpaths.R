@@ -147,6 +147,8 @@ trace_flowpaths<-function(
 #' @importFrom tidyr pivot_longer pivot_wider unnest nest
 #' @importFrom tidyselect starts_with
 #' @importFrom utils tail
+#' @keywords internal
+#' @noRd
 trace_flowpath_fn<-function(
     input,
     db_loc,

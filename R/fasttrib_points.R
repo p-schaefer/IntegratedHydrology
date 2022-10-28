@@ -1458,7 +1458,7 @@ fasttrib_points<-function(
 
 }
 
-
+#' @export
 #' @importFrom carrier crate
 #' @importFrom data.table fwrite rbindlist data.table fread
 #' @importFrom DBI dbConnect dbDisconnect dbAppendTable
