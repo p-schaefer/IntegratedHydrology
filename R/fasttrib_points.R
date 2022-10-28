@@ -1809,7 +1809,7 @@ parallel_layer_processing <- function(n_cores,
   total_procs<-0
 
 
-  progressr::with_progress(enable=progressr::progress,{
+  progressr::with_progress(enable=T,{
     p <- progressr::progressor(steps = total_outs)
 
 
