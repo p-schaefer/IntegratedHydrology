@@ -14,6 +14,23 @@
 #' @export
 #'
 
+#' @importFrom data.table fread
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom dplyr collect tbl mutate across na_if left_join select filter bind_rows distinct rename group_by ungroup summarize
+#' @importFrom furrr future_map
+#' @importFrom future nbrOfWorkers availableCores future futureOf resolved
+#' @importFrom hydroweight hydroweight
+#' @importFrom purrr map map2
+#' @importFrom rlang sym
+#' @importFrom RSQLite SQLite
+#' @importFrom sf read_sf st_union write_sf
+#' @importFrom terra terraOptions rast unique sources split
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr nest
+#' @importFrom tidyselect any_of
+#' @importFrom utils unzip zip
+#' @importFrom whitebox wbt_options wbt_exe_path wbt_unnest_basins
+
 prep_weights<-function(
     input,
     sample_points=NULL,
@@ -27,8 +44,8 @@ prep_weights<-function(
     verbose=F
 ){
 
-  n_cores<-nbrOfWorkers()
-  if (is.infinite(n_cores)) n_cores<-availableCores(logical = F)
+  n_cores<-future::nbrOfWorkers()
+  if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
   if (n_cores==0) n_cores<-1
 
   options(scipen = 999)
@@ -56,7 +73,7 @@ prep_weights<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
-  wbt_options(exe_path=wbt_exe_path(),
+  whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
               verbose=verbose,
               wd=temp_dir)
 
@@ -64,7 +81,7 @@ prep_weights<-function(
                       tempdir = temp_dir
   )
 
-  fl<-unzip(list=T,zip_loc)
+  fl<-utils::unzip(list=T,zip_loc)
 
   if (verbose) print("Reading in data")
 
@@ -72,17 +89,17 @@ prep_weights<-function(
 
   db_loc<-input$db_loc
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-  stream_links<-collect(tbl(con,"stream_links")) %>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-    mutate(across(any_of(site_id_col),na_if,""))
+  stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
   DBI::dbDisconnect(con)
 
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
-    left_join(stream_links, by = c("link_id"))
+  all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>% #stream_links.shp
+    dplyr::left_join(stream_links, by = c("link_id"))
 
-  all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
+  all_subb<-sf::read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
+  all_catch<-sf::read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 
   # Get target link_id ------------------------------------------------------
   sample_points<-as.character(sample_points)
@@ -90,48 +107,48 @@ prep_weights<-function(
   if (length(sample_points)==0 & length(link_id)==0) {
     message("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
     target_IDs<-all_points %>%
-      as_tibble() %>%
-      select(link_id,any_of(site_id_col))
+      tibble::as_tibble() %>%
+      dplyr::select(link_id,tidyselect::any_of(site_id_col))
   } else {
     if (site_id_col!="link_id" & length(sample_points)>0){
       target_IDs<-all_points %>%
-        as_tibble() %>%
-        select(link_id,any_of(site_id_col)) %>%
-        filter(!!sym(site_id_col) %in% sample_points)
+        tibble::as_tibble() %>%
+        dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
+        dplyr::filter(!!rlang::sym(site_id_col) %in% sample_points)
     } else {
       target_IDs<-NULL
     }
 
     if (length(link_id)>0){
-      target_IDs<-bind_rows(
+      target_IDs<-dplyr::bind_rows(
         target_IDs,
         all_points %>%
-          as_tibble() %>%
-          select(link_id,any_of(site_id_col)) %>%
-          filter(link_id %in% link_id)
+          tibble::as_tibble() %>%
+          dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
+          dplyr::filter(link_id %in% link_id)
       )
     }
   }
 
   if (target_o_type=="segment_whole") {
     target_IDs<-target_IDs %>%
-      select(link_id) %>%
-      mutate(link_id=as.character(floor(as.numeric(link_id))))
+      dplyr::select(link_id) %>%
+      dplyr::mutate(link_id=as.character(floor(as.numeric(link_id))))
   }
 
-  target_IDs<-distinct(target_IDs)
+  target_IDs<-dplyr::distinct(target_IDs)
 
   # Get Upstream flowpaths --------------------------------------------------
 
   us_fp_fun<-function(link_id_in,db_loc=db_loc){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    out<-tbl(con,"us_flowpaths") %>%
-      filter(pour_point_id %in% link_id_in) %>%
-      rename(link_id=origin_link_id) %>%
-      collect() %>%
-      group_by(pour_point_id) %>%
-      nest() %>%
-      ungroup()
+    out<-dplyr::tbl(con,"us_flowpaths") %>%
+      dplyr::filter(pour_point_id %in% link_id_in) %>%
+      dplyr::rename(link_id=origin_link_id) %>%
+      dplyr::collect() %>%
+      dplyr::group_by(pour_point_id) %>%
+      tidyr::nest() %>%
+      dplyr::ungroup()
 
     out2<-out$data
     names(out2)<-out$pour_point_id
@@ -146,23 +163,23 @@ prep_weights<-function(
 
   # browser()
   us_flowpaths_out<-target_IDs %>%
-    select(link_id) %>%
-    mutate(link_id=as.character(link_id)) %>%
-    mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
+    dplyr::select(link_id) %>%
+    dplyr::mutate(link_id=as.character(link_id)) %>%
+    dplyr::mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
 
   # Select correct target for O -------------------------------------
   if (target_o_type=="point"){
     target_O<-all_points
   } else {
     if (target_o_type=="segment_point"){
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
     } else {
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
-        select(link_id) %>%
-        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        group_by(link_id) %>%
-        summarize(geometry=st_union(geometry)) %>%
-        ungroup()
+      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+        dplyr::select(link_id) %>%
+        dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        dplyr::group_by(link_id) %>%
+        dplyr::summarize(geometry=sf::st_union(geometry)) %>%
+        dplyr::ungroup()
 
 
     }
@@ -186,7 +203,7 @@ prep_weights<-function(
   us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
 
   all_subb<-all_subb %>%
-    filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
+    dplyr::filter(link_id %in% unlist(purrr::map(us_flowpaths_out$us_flowpaths,~.$link_id)))
 
 
   # Calculate weighted S-target distances -------------------------------------
@@ -209,8 +226,8 @@ prep_weights<-function(
                                        wrap_return_products=F,
                                        save_output=T)
 
-  uz_fls<-unzip(list=T,hw_streams)$Name
-  unzip(hw_streams,exdir =temp_dir_sub)
+  uz_fls<-utils::unzip(list=T,hw_streams)$Name
+  utils::unzip(hw_streams,exdir =temp_dir_sub)
 
   rout<-sapply(uz_fls,function(x) {
     file.rename(
@@ -220,7 +237,7 @@ prep_weights<-function(
     return(file.path(temp_dir_sub,paste0("ALL_",gsub(".tif","",x),"_inv_distances.tif")))
   })
 
-  zip(out_zip_loc,
+  utils::zip(out_zip_loc,
       unlist(rout),
       flags = '-r9Xjq'
   )
@@ -230,12 +247,12 @@ prep_weights<-function(
 
   # Calculate weighted O-target distances -------------------------------------
 
-  unzip(zip_loc,
+  utils::unzip(zip_loc,
         c("dem_d8.tif"),
         exdir=temp_dir_sub,
         overwrite=T,
         junkpaths=T)
-  write_sf(all_points %>% select(link_id),
+  sf::write_sf(all_points %>% dplyr::select(link_id),
            file.path(temp_dir_sub,"pour_points.shp"),
            overwrite=T)
 
@@ -243,7 +260,7 @@ prep_weights<-function(
   # Use asynchronous evaluation (if parallel backend registered)
   # to clear up rasters as they are made
   future_unnest<-future::future({
-    wbt_unnest_basins(
+    whitebox::wbt_unnest_basins(
       wd=temp_dir_sub,
       d8_pntr="dem_d8.tif",
       pour_pts="pour_points.shp",
@@ -260,38 +277,38 @@ prep_weights<-function(
 
     if (length(fl_un)==0) next
 
-    rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
+    rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
     rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
 
     if (length(rast_all)>0){
-      rast_out<-c(rast_out,map(rast_all,terra::unique))
-      suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
+      rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+      suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
     }
   }
 
   fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
   fl_un<-fl_un[grepl(".tif",fl_un)]
-  rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
+  rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
   rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
   if (length(rast_all)>0){
-    rast_out<-c(rast_out,map(rast_all,terra::unique))
-    suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
+    rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+    suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
   }
 
-  target_O_sub<-map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% select(link_id) %>% mutate(unn_group=.y))
-  splt_lst<-suppressWarnings(split(target_O_sub,1:n_cores))
+  target_O_sub<-purrr::map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% dplyr::select(link_id) %>% dplyr::mutate(unn_group=.y))
+  splt_lst<-suppressWarnings(terra::split(target_O_sub,1:n_cores))
   splt_lst<-splt_lst[!sapply(splt_lst,is.null)]
 
   #browser()
 
-  write_sf(bind_rows(target_O_sub),file.path(temp_dir_sub,"unnest_group_target_O.shp"))
+  sf::write_sf(dplyr::bind_rows(target_O_sub),file.path(temp_dir_sub,"unnest_group_target_O.shp"))
 
-  zip(out_zip_loc,
+  utils::zip(out_zip_loc,
       list.files(temp_dir_sub,"unnest_group_target_O",full.names = T),
       flags = '-r9Xjq'
   )
 
-  hw_o_targ<-future_map(splt_lst,function(x){
+  hw_o_targ<-furrr::future_map(splt_lst,function(x){
     target_S <- terra::rast(file.path("/vsizip",zip_loc,"dem_streams_d8.tif"))
     dem <- terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif"))
     flow_accum <- terra::rast(file.path("/vsizip",zip_loc,"dem_accum_d8.tif"))
@@ -315,8 +332,8 @@ prep_weights<-function(
 
 
 
-      uz_fls<-unzip(list=T,hw_o)$Name
-      unzip(hw_o,exdir =temp_dir_sub_sub)
+      uz_fls<-utils::unzip(list=T,hw_o)$Name
+      utils::unzip(hw_o,exdir =temp_dir_sub_sub)
 
       rout<-sapply(uz_fls,function(x) {
         file.copy(
@@ -337,7 +354,7 @@ prep_weights<-function(
 
   })
 
-  zip(out_zip_loc,
+  utils::zip(out_zip_loc,
       unlist(hw_o_targ),
       flags = '-r9Xjq'
   )

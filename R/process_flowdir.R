@@ -23,6 +23,13 @@
 #' @export
 #'
 
+#' @importFrom hydroweight process_input
+#' @importFrom sf st_as_sf st_buffer
+#' @importFrom stats setNames
+#' @importFrom terra terraOptions crs writeRaster res as.lines vect as.polygons ext writeVector mask wrap rast
+#' @importFrom utils zip
+#' @importFrom whitebox wbt_options wbt_exe_path wbt_feature_preserving_smoothing wbt_fill_depressions wbt_breach_depressions wbt_d8_pointer wbt_d8_flow_accumulation wbt_extract_streams wbt_remove_short_streams
+
 process_flowdir<-function(
     dem,
     threshold,
@@ -58,7 +65,7 @@ process_flowdir<-function(
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
-  wbt_options(exe_path=wbt_exe_path(),
+  whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
               verbose=verbose,
               wd=temp_dir,
               compress_rasters =compress)
@@ -74,22 +81,22 @@ process_flowdir<-function(
 
   dem<-hydroweight::process_input(dem,input_name="dem",working_dir=temp_dir)
   if (!inherits(dem,"SpatRaster")) stop("dem must be a class 'SpatRaster'")
-  target_crs<-crs(dem)
+  target_crs<-terra::crs(dem)
 
-  writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
+  terra::writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
 
   if (!is.null(burn_streams)){
 
     resol<-terra::res(dem)[1]
 
     burn_streams<-hydroweight::process_input(burn_streams,
-                                             target=as.lines(terra::vect("POLYGON ((0 -5, 10 0, 10 -10, 0 -5))",
+                                             target=terra::as.lines(terra::vect("POLYGON ((0 -5, 10 0, 10 -10, 0 -5))",
                                                                          crs = target_crs)),
-                                             clip_region = as.polygons(ext(dem),crs = target_crs), #+c(-resol*1.5,-resol*1.5,-resol*1.5,-resol*1.5)
+                                             clip_region = terra::as.polygons(terra::ext(dem),crs = target_crs), #+c(-resol*1.5,-resol*1.5,-resol*1.5,-resol*1.5)
                                              input_name="burn_streams",
                                              working_dir=temp_dir)
 
-    writeVector(burn_streams,file.path(temp_dir,"stream_final.shp"),overwrite=T)
+    terra::writeVector(burn_streams,file.path(temp_dir,"stream_final.shp"),overwrite=T)
     # Fillburn is a bit too aggressive in its burning (burns too deep)
     # wbt_fill_burn(
     #   dem="dem_final.tif",
@@ -99,15 +106,15 @@ process_flowdir<-function(
 
     r1<-dem
 
-    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*3) %>% vect())
+    sr1<-terra::mask(r1,burn_streams %>% sf::st_as_sf() %>% sf::st_buffer(resol*3) %>% terra::vect())
     r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
-    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*2) %>% vect())
+    sr1<-terra::mask(r1,burn_streams %>% sf::st_as_sf() %>% sf::st_buffer(resol*2) %>% terra::vect())
     r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
-    sr1<-mask(r1,burn_streams %>% st_as_sf() %>% st_buffer(resol*1) %>% vect())
+    sr1<-terra::mask(r1,burn_streams %>% sf::st_as_sf() %>% sf::st_buffer(resol*1) %>% terra::vect())
     r1[!is.na(sr1)]<-sr1-ceiling(burn_depth/3)
-    writeRaster(r1,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
+    terra::writeRaster(r1,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal=gdal_arg)
 
-    wbt_feature_preserving_smoothing(
+    whitebox::wbt_feature_preserving_smoothing(
       dem="dem_final.tif",
       output="dem_final.tif"
     )
@@ -115,14 +122,14 @@ process_flowdir<-function(
 
   if (!is.null(depression_corr)){
     if (depression_corr=="fill") {
-      wbt_fill_depressions(
+      whitebox::wbt_fill_depressions(
         dem="dem_final.tif",
         output="dem_final.tif"
       )
     }
 
     if (depression_corr=="breach") {
-      wbt_breach_depressions(
+      whitebox::wbt_breach_depressions(
         dem="dem_final.tif",
         output="dem_final.tif",
         fill_pits=T
@@ -134,20 +141,20 @@ process_flowdir<-function(
   # Process flow dirrection -------------------------------------------------
   ## Generate d8 pointer
   if (verbose) print("Generating d8 pointer")
-  wbt_d8_pointer(
+  whitebox::wbt_d8_pointer(
     dem="dem_final.tif",
     output="dem_d8.tif"
   )
 
   ## Generate d8 flow accumulation in units of cells
   if (verbose) print("Generating d8 flow accumulation")
-  wbt_d8_flow_accumulation(
+  whitebox::wbt_d8_flow_accumulation(
     input = "dem_d8.tif",
     output = "dem_accum_d8.tif",
     out_type = "cells",
     pntr=T
   )
-  wbt_d8_flow_accumulation(
+  whitebox::wbt_d8_flow_accumulation(
     input = "dem_d8.tif",
     output = "dem_accum_d8_sca.tif",
     out_type = "sca",
@@ -157,7 +164,7 @@ process_flowdir<-function(
 
   ## Generate streams with a stream initiation threshold
   if (verbose) print("Extracting Streams")
-  wbt_extract_streams(
+  whitebox::wbt_extract_streams(
     flow_accum = "dem_accum_d8.tif",
     output = "dem_streams_d8.tif",
     threshold = threshold
@@ -165,7 +172,7 @@ process_flowdir<-function(
 
   if (!is.null(min_length)){
     if (verbose) print("Trimming Streams")
-    wbt_remove_short_streams(
+    whitebox::wbt_remove_short_streams(
       d8_pntr="dem_d8.tif",
       streams="dem_streams_d8.tif",
       output="dem_streams_d8.tif",
@@ -196,7 +203,7 @@ process_flowdir<-function(
 
   if (verbose) print("Generating Output")
 
-  zip(out_file,
+  utils::zip(out_file,
       unlist(dist_list_out),
       flags = '-r9Xjq'
   )
@@ -207,7 +214,7 @@ process_flowdir<-function(
 
   if (return_products){
     output<-c(
-      lapply(setNames(dist_list_out,basename(unlist(dist_list_out))),function(x) wrap(rast(x))),
+      lapply(stats::setNames(dist_list_out,basename(unlist(dist_list_out))),function(x) terra::wrap(terra::rast(x))),
       output
     )
   }

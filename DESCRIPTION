@@ -27,26 +27,28 @@ Imports:
     DBI,
     dbplyr,
     exactextractr,
-    memuse,
     nngeo,
     parallel,
     promises,
     units,
     rlang,
     RSQLite,
-Depends:
-    R (>= 4.0),
     dplyr,
     furrr,
     future,
+    hydroweight,
+    magrittr,
     progressr,
     purrr,
     sf,
     stringr,
     tidyr,
     tidyselect,
+    tibble,
     terra,
     whitebox,
+Depends:
+    R (>= 4.0)
 Suggests: 
     knitr, 
     rmarkdown

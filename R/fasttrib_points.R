@@ -22,26 +22,26 @@
 #' @return A data.frame of weighted attributes for the requested areas
 #' @export
 #'
-
-
-# t1<-final_attributes_slow %>%
-#   arrange(site_id) %>%
-#   select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")) %>%
-#   dplyr::rename_with(~gsub("distwtd_","",.x))
-# t2<-final_attributes%>%
-#   arrange(as.numeric(site_id)) %>%
-#   select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
-#
-# t1<-t1[,colnames(t2)]
-#
-# (t1)[,grepl("slope",colnames(t2))]
-# (t2)[,grepl("slope",colnames(t2))]
-#
-# all_equal(
-#   t1
-#   ,
-#   t2
-# )
+#' @importFrom carrier crate
+#' @importFrom data.table fread data.table fwrite
+#' @importFrom DBI dbConnect dbListTables dbDisconnect dbExecute
+#' @importFrom dplyr collect tbl mutate across na_if left_join copy_to select filter bind_rows distinct rename group_by ungroup summarize bind_cols arrange desc n collapse compute summarise rename_with rowwise
+#' @importFrom furrr future_pmap furrr_options
+#' @importFrom future nbrOfWorkers availableCores future futureOf resolved
+#' @importFrom hydroweight hydroweight
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map map2 pmap map_dbl pmap_dfr reduce
+#' @importFrom rlang sym
+#' @importFrom RSQLite SQLite
+#' @importFrom sf read_sf st_union write_sf
+#' @importFrom stats setNames sd median
+#' @importFrom stringr str_split_fixed
+#' @importFrom terra terraOptions rasterize rast values ncell rowFromCell colFromCell crs vect unique sources writeRaster
+#' @importFrom tibble as_tibble tibble
+#' @importFrom tidyr nest unnest pivot_longer pivot_wider
+#' @importFrom tidyselect any_of everything ends_with contains
+#' @importFrom utils unzip zip
+#' @importFrom whitebox wbt_options wbt_exe_path wbt_unnest_basins
 
 fasttrib_points<-function(
     input,
@@ -75,7 +75,7 @@ fasttrib_points<-function(
   if (store_hw){
     use_exising_hw<-T
 
-    input<-prep_weights(
+    input<-ihydro::prep_weights(
       input=input,
       sample_points=sample_points,
       link_id=link_id,
@@ -88,8 +88,8 @@ fasttrib_points<-function(
   }
 
 
-  n_cores<-nbrOfWorkers()
-  if (is.infinite(n_cores)) n_cores<-availableCores(logical = F)
+  n_cores<-future::nbrOfWorkers()
+  if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
   if (n_cores==0) n_cores<-1
 
   options(scipen = 999)
@@ -111,7 +111,7 @@ fasttrib_points<-function(
   if (length(out_filename)>1) out_filename<-out_filename[[1]]
   if (!grepl("\\.csv$",out_filename)) stop("'out_filename' must be a .csv file")
 
-  loi_numeric_stats<-setNames(loi_numeric_stats,loi_numeric_stats)
+  loi_numeric_stats<-stats::setNames(loi_numeric_stats,loi_numeric_stats)
 
   zip_loc<-input$outfile
   dw_dir<-input$dw_dir
@@ -153,19 +153,19 @@ fasttrib_points<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
-  wbt_options(exe_path=wbt_exe_path(),
-              verbose=verbose,
-              wd=temp_dir)
+  whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
+                        verbose=verbose,
+                        wd=temp_dir)
 
   terra::terraOptions(verbose = verbose,
                       tempdir = temp_dir
   )
 
-  fl<-unzip(list=T,zip_loc)
-  fl_loi<-unzip(list=T,loi_loc)
+  fl<-utils::unzip(list=T,zip_loc)
+  fl_loi<-utils::unzip(list=T,loi_loc)
 
   if (!is.null(dw_dir)){
-    fl_dw<-unzip(list=T,dw_dir)
+    fl_dw<-utils::unzip(list=T,dw_dir)
   } else {
     fl_dw<-NULL
   }
@@ -176,17 +176,17 @@ fasttrib_points<-function(
 
   db_loc<-input$db_loc
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-  stream_links<-collect(tbl(con,"stream_links")) %>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-    mutate(across(any_of(site_id_col),na_if,""))
+  stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
   DBI::dbDisconnect(con)
 
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
-    left_join(stream_links, by = c("link_id"))
+  all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>% #stream_links.shp
+    dplyr::left_join(stream_links, by = c("link_id"))
 
-  all_subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
+  all_subb<-sf::read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
+  all_catch<-sf::read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
   #browser()
 
   if (!"link_id_cellstats" %in% attr_tbl_list){
@@ -210,19 +210,19 @@ fasttrib_points<-function(
       subb_link_id=terra::values(all_subb_rast),
       cell_number=1:terra::ncell(all_subb_rast)
     ) %>%
-      setNames(c("subb_link_id","cell_number")) %>%
-      mutate(row=rowFromCell(all_subb_rast,cell_number)) %>%
-      mutate(col=colFromCell(all_subb_rast,cell_number)) %>%
-      mutate(subb_link_id=round(subb_link_id,n_dec)) %>%
-      mutate(subb_link_id=as.character(subb_link_id)) %>%
-      copy_to(df=.,
-              con_attr,
-              "link_id_cellstats",
-              overwrite =T,
-              temporary =F,
-              indexes=c("subb_link_id","cell_number"),
-              analyze=T,
-              in_transaction=T)
+      stats::setNames(c("subb_link_id","cell_number")) %>%
+      dplyr::mutate(row=terra::rowFromCell(all_subb_rast,cell_number)) %>%
+      dplyr::mutate(col=terra::colFromCell(all_subb_rast,cell_number)) %>%
+      dplyr::mutate(subb_link_id=round(subb_link_id,n_dec)) %>%
+      dplyr::mutate(subb_link_id=as.character(subb_link_id)) %>%
+      dplyr::copy_to(df=.,
+                     con_attr,
+                     "link_id_cellstats",
+                     overwrite =T,
+                     temporary =F,
+                     indexes=c("subb_link_id","cell_number"),
+                     analyze=T,
+                     in_transaction=T)
 
     all_subb_out<-NULL
     DBI::dbDisconnect(con_attr)
@@ -235,51 +235,51 @@ fasttrib_points<-function(
   if (length(sample_points)==0 & length(link_id)==0) {
     message("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
     target_IDs<-all_points %>%
-      as_tibble() %>%
-      select(link_id,any_of(site_id_col))
+      tibble::as_tibble() %>%
+      dplyr::select(link_id,tidyselect::any_of(site_id_col))
   } else {
     if (site_id_col!="link_id" & length(sample_points)>0){
       target_IDs<-all_points %>%
-        as_tibble() %>%
-        select(link_id,any_of(site_id_col)) %>%
-        filter(!!sym(site_id_col) %in% sample_points)
+        tibble::as_tibble() %>%
+        dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
+        dplyr::filter(!!rlang::sym(site_id_col) %in% sample_points)
     } else {
       target_IDs<-NULL
     }
 
     if (length(link_id)>0){
-      target_IDs<-bind_rows(
+      target_IDs<-dplyr::bind_rows(
         target_IDs,
         all_points %>%
-          as_tibble() %>%
-          select(link_id,any_of(site_id_col)) %>%
-          filter(link_id %in% link_id)
+          tibble::as_tibble() %>%
+          dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
+          dplyr::filter(link_id %in% link_id)
       )
     }
   }
 
   if (target_o_type=="segment_whole") {
     target_IDs<-target_IDs %>%
-      select(link_id) %>%
-      mutate(link_id=as.character(floor(as.numeric(link_id))))
+      dplyr::select(link_id) %>%
+      dplyr::mutate(link_id=as.character(floor(as.numeric(link_id))))
   }
 
-  target_IDs<-distinct(target_IDs)
+  target_IDs<-dplyr::distinct(target_IDs)
 
 
-  target_crs<-crs(vect(all_subb[1,]))
+  target_crs<-terra::crs(terra::vect(all_subb[1,]))
 
   # Get Upstream flowpaths --------------------------------------------------
 
   us_fp_fun<-function(link_id_in,db_loc=db_loc){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    out<-tbl(con,"us_flowpaths") %>%
-      filter(pour_point_id %in% link_id_in) %>%
-      rename(link_id=origin_link_id) %>%
-      collect() %>%
-      group_by(pour_point_id) %>%
-      nest() %>%
-      ungroup()
+    out<-dplyr::tbl(con,"us_flowpaths") %>%
+      dplyr::filter(pour_point_id %in% link_id_in) %>%
+      dplyr::rename(link_id=origin_link_id) %>%
+      dplyr::collect() %>%
+      dplyr::group_by(pour_point_id) %>%
+      tidyr::nest() %>%
+      dplyr::ungroup()
 
     out2<-out$data
     names(out2)<-out$pour_point_id
@@ -292,25 +292,25 @@ fasttrib_points<-function(
 
   # browser()
   us_flowpaths_out<-target_IDs %>%
-    select(link_id) %>%
-    mutate(link_id=as.character(link_id)) %>%
-    mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
+    dplyr::select(link_id) %>%
+    dplyr::mutate(link_id=as.character(link_id)) %>%
+    dplyr::mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
 
   # Select correct target for O -------------------------------------
   if (target_o_type=="point"){
     target_O<-all_points
   } else {
     if (target_o_type=="segment_point"){
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
+      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
     } else {
       if (verbose) print("Merging stream segments")
 
-      target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
-        select(link_id) %>%
-        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        group_by(link_id) %>%
-        summarize(geometry=st_union(geometry)) %>%
-        ungroup()
+      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+        dplyr::select(link_id) %>%
+        dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        dplyr::group_by(link_id) %>%
+        dplyr::summarize(geometry=sf::st_union(geometry)) %>%
+        dplyr::ungroup()
 
     }
   }
@@ -333,7 +333,7 @@ fasttrib_points<-function(
   us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
 
   all_subb<-all_subb %>%
-    filter(link_id %in% unlist(map(us_flowpaths_out$us_flowpaths,~.$link_id)))
+    dplyr::filter(link_id %in% unlist(purrr::map(us_flowpaths_out$us_flowpaths,~.$link_id)))
 
   # all_subb_v<-terra::vect(all_subb)
   # all_catch_v<-terra::vect(all_catch)
@@ -358,17 +358,17 @@ fasttrib_points<-function(
                                            wrap_return_products=F,
                                            save_output=T)
 
-      hw_streams_nm<-unzip(list=T,hw_streams)$Name
+      hw_streams_nm<-utils::unzip(list=T,hw_streams)$Name
       names(hw_streams_nm)<-gsub(".tif","",hw_streams_nm)
 
-      hw_streams_lo<-map(hw_streams_nm,function(x){
+      hw_streams_lo<-purrr::map(hw_streams_nm,function(x){
         file.path("/vsizip",hw_streams,x)
       })
     } else {
       #browser()
       trg_fl<-paste0("ALL_",weighting_scheme_s,"_inv_distances.tif")
       if (all(sapply(trg_fl,function(x) any(grepl(x,fl_dw$Name))))) {
-        hw_streams_lo<-map(trg_fl,~file.path("/vsizip",dw_dir,.))
+        hw_streams_lo<-purrr::map(trg_fl,~file.path("/vsizip",dw_dir,.))
         names(hw_streams_lo)<-weighting_scheme_s
       } else {
         stop(paste0("Not all 'weighting_scheme' found in zip file"))
@@ -382,29 +382,29 @@ fasttrib_points<-function(
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
-    s_trg_weights<-copy_to(df=as_tibble(matrix(ncol = length(names(hw_streams_lo))+2),nrow=1,.name_repair="minimal") %>%
-                             setNames(c("subb_link_id","cell_number",names(hw_streams_lo))) %>%
-                             mutate(across(everything(),~1.1)) %>%
-                             .[F,],
-                           con_attr,
-                           "s_target_weights",
-                           overwrite =T,
-                           temporary =F,
-                           #indexes=c("subb_link_id","cell_number"),
-                           analyze=T,
-                           in_transaction=T)
+    s_trg_weights<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(names(hw_streams_lo))+2),nrow=1,.name_repair="minimal") %>%
+                                    stats::setNames(c("subb_link_id","cell_number",names(hw_streams_lo))) %>%
+                                    dplyr::mutate(dplyr::across(tidyselect::everything(),~1.1)) %>%
+                                    .[F,],
+                                  con_attr,
+                                  "s_target_weights",
+                                  overwrite =T,
+                                  temporary =F,
+                                  #indexes=c("subb_link_id","cell_number"),
+                                  analyze=T,
+                                  in_transaction=T)
 
 
-    ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
-                                          attr_db_loc=attr_db_loc,
-                                          polygons=all_subb,
-                                          n_per_cycle=subb_per_core,
-                                          rasts=hw_streams_lo,
-                                          cols=names(hw_streams_lo),
-                                          temp_dir=temp_dir,
-                                          tbl_nm="s_target_weights",
-                                          sub_nm="s_target_weights",
-                                          link_id_nm="subb_link_id"
+    ot<-parallel_layer_processing(n_cores=n_cores,
+                                  attr_db_loc=attr_db_loc,
+                                  polygons=all_subb,
+                                  n_per_cycle=subb_per_core,
+                                  rasts=hw_streams_lo,
+                                  cols=names(hw_streams_lo),
+                                  temp_dir=temp_dir,
+                                  tbl_nm="s_target_weights",
+                                  sub_nm="s_target_weights",
+                                  link_id_nm="subb_link_id"
     )
 
 
@@ -428,20 +428,20 @@ fasttrib_points<-function(
         temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
         dir.create(temp_dir_sub)
 
-        unzip(zip_loc,
-              c("dem_d8.tif"),
-              exdir=temp_dir_sub,
-              overwrite=T,
-              junkpaths=T,
-              unzip=unzip_arg)
-        write_sf(all_points %>% select(link_id),
-                 file.path(temp_dir_sub,"pour_points.shp"),
-                 overwrite=T)
+        utils::unzip(zip_loc,
+                     c("dem_d8.tif"),
+                     exdir=temp_dir_sub,
+                     overwrite=T,
+                     junkpaths=T,
+                     unzip=unzip_arg)
+        sf::write_sf(all_points %>% dplyr::select(link_id),
+                     file.path(temp_dir_sub,"pour_points.shp"),
+                     overwrite=T)
 
         #browser()
 
         future_unnest<-future::future({
-          wbt_unnest_basins(
+          whitebox::wbt_unnest_basins(
             wd=temp_dir_sub,
             d8_pntr="dem_d8.tif",
             pour_pts="pour_points.shp",
@@ -458,29 +458,29 @@ fasttrib_points<-function(
 
           if (length(fl_un)==0) next
 
-          rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
+          rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
           rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
 
           if (length(rast_all)>0){
-            rast_out<-c(rast_out,map(rast_all,terra::unique))
-            suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
+            rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+            suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
           }
         }
 
         fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-        rast_all<-map(fl_un,function(x) try(rast(x),silent=T))
+        rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
         rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
         if (length(rast_all)>0){
-          rast_out<-c(rast_out,map(rast_all,terra::unique))
-          suppressWarnings(file.remove(unlist(map(rast_all,terra::sources))))
+          rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+          suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
         }
 
         #browser()
-        target_O_sub<-map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% select(link_id) %>% mutate(unn_group=.y))
+        target_O_sub<-purrr::map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% dplyr::select(link_id) %>% dplyr::mutate(unn_group=.y))
       } else {
 
         #browser()
-        target_O_sub<-read_sf(file.path("/vsizip",dw_dir,"unnest_group_target_O.shp")) %>%
+        target_O_sub<-sf::read_sf(file.path("/vsizip",dw_dir,"unnest_group_target_O.shp")) %>%
           split(.,paste0("unnest_group_",.$unn_group))
 
 
@@ -494,30 +494,30 @@ fasttrib_points<-function(
       # extract O target weights
       if (verbose) print("Writing O-targeted weights to attributes database")
 
-      with_progress(enable=T,{
+      progressr::with_progress(enable=T,{
 
-        p <- progressor(steps = length(target_O_sub))
+        p <- progressr::progressor(steps = length(target_O_sub))
 
 
         con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
-        o_trg_weights<-tibble(catch_link_id="1.1",
-                              cell_number=1L,
+        o_trg_weights<-tibble::tibble(catch_link_id="1.1",
+                                      cell_number=1L,
         ) %>%
-          bind_cols(
+          dplyr::bind_cols(
             data.frame(matrix(ncol=length(weighting_scheme_o),nrow=1)) %>%
-              setNames(weighting_scheme_o)
+              stats::setNames(weighting_scheme_o)
           ) %>%
-          mutate(across(any_of(weighting_scheme_o),~1.1)) %>%
+          dplyr::mutate(dplyr::across(tidyselect::any_of(weighting_scheme_o),~1.1)) %>%
           .[F,]%>%
-          copy_to(df=.,
-                  con_attr,
-                  "o_target_weights",
-                  overwrite =T,
-                  temporary =F,
-                  #indexes=c("catch_link_id","cell_number"),
-                  analyze=T,
-                  in_transaction=T)
+          dplyr::copy_to(df=.,
+                         con_attr,
+                         "o_target_weights",
+                         overwrite =T,
+                         temporary =F,
+                         #indexes=c("catch_link_id","cell_number"),
+                         analyze=T,
+                         in_transaction=T)
 
         o_trg_weights<-NULL
 
@@ -525,7 +525,7 @@ fasttrib_points<-function(
 
         spltl<-1
 
-        loi_dw_out<-pmap( # I don't think this can be parallel
+        loi_dw_out<-purrr::pmap( # I don't think this can be parallel
           #loi_dw_out<-future_pmap_dfr(
           #  .options = furrr_options(globals = FALSE),
           list(
@@ -615,17 +615,17 @@ fasttrib_points<-function(
                                 sub_catch_split<-split(sub_catch,sub_catch$split)
 
                                 for (i in sub_catch_split){
-                                  ihydro::parallel_layer_processing(n_cores=n_cores,
-                                                                    attr_db_loc=attr_db_loc,
-                                                                    polygons=i,
-                                                                    n_per_cycle=subb_per_core,
-                                                                    rasts=hw_o_lo,
-                                                                    cols=names(hw_o_lo),
-                                                                    temp_dir=temp_dir_sub_sub,
-                                                                    tbl_nm="o_target_weights",
-                                                                    sub_nm="o_target_weights",
-                                                                    link_id_nm="catch_link_id",
-                                                                    progress=F
+                                  parallel_layer_processing(n_cores=n_cores,
+                                                            attr_db_loc=attr_db_loc,
+                                                            polygons=i,
+                                                            n_per_cycle=subb_per_core,
+                                                            rasts=hw_o_lo,
+                                                            cols=names(hw_o_lo),
+                                                            temp_dir=temp_dir_sub_sub,
+                                                            tbl_nm="o_target_weights",
+                                                            sub_nm="o_target_weights",
+                                                            link_id_nm="catch_link_id",
+                                                            progress=F
                                   )
                                 }
 
@@ -654,13 +654,13 @@ fasttrib_points<-function(
     target_O_sub<-NULL
   }
 
-  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir,unzip=unzip_arg)
+  utils::unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir,unzip=unzip_arg)
 
   loi_meta<-readRDS(file.path(temp_dir,"loi_meta.rds"))
 
-  loi_rasts_exists<-map(loi_meta,~unlist(map(.,~.$output_filename)))
-  loi_rasts_names<-map(loi_meta,~unlist(map(.,~.$lyr_variables)))
-  loi_rasts_names<-map(loi_rasts_names,~setNames(.,.))
+  loi_rasts_exists<-purrr::map(loi_meta,~unlist(purrr::map(.,~.$output_filename)))
+  loi_rasts_names<-purrr::map(loi_meta,~unlist(purrr::map(.,~.$lyr_variables)))
+  loi_rasts_names<-purrr::map(loi_rasts_names,~stats::setNames(.,.))
 
   if (is.null(loi_cols)) loi_cols<-unlist(loi_rasts_names,use.names=F)
 
@@ -675,7 +675,7 @@ fasttrib_points<-function(
       names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
 
       # try to see if this is faster with a big dataset
-      writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
+      terra::writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
       loi_rasts_comb<-list(file.path(temp_dir,"all_preds.tif"))
     }
 
@@ -708,27 +708,27 @@ fasttrib_points<-function(
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
-    attrib_tbl<-copy_to(df=as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
-                          setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
-                          mutate(across(everything(),~1.1)) %>%
-                          .[F,],
-                        con_attr,
-                        "attrib_tbl",
-                        overwrite =T,
-                        temporary =F,
-                        analyze=T,
-                        in_transaction=T)
+    attrib_tbl<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
+                                 stats::setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
+                                 dplyr::mutate(dplyr::across(tidyselect::everything(),~1.1)) %>%
+                                 .[F,],
+                               con_attr,
+                               "attrib_tbl",
+                               overwrite =T,
+                               temporary =F,
+                               analyze=T,
+                               in_transaction=T)
 
-    ot<-ihydro::parallel_layer_processing(n_cores=n_cores,
-                                          attr_db_loc=attr_db_loc,
-                                          polygons=all_subb,
-                                          n_per_cycle=subb_per_core,
-                                          rasts=loi_rasts_exists,
-                                          cols=unlist(loi_rasts_names),
-                                          temp_dir=temp_dir,
-                                          tbl_nm="attrib_tbl",
-                                          sub_nm="attrib_tbl",
-                                          link_id_nm="subb_link_id"
+    ot<-parallel_layer_processing(n_cores=n_cores,
+                                  attr_db_loc=attr_db_loc,
+                                  polygons=all_subb,
+                                  n_per_cycle=subb_per_core,
+                                  rasts=loi_rasts_exists,
+                                  cols=unlist(loi_rasts_names),
+                                  temp_dir=temp_dir,
+                                  tbl_nm="attrib_tbl",
+                                  sub_nm="attrib_tbl",
+                                  link_id_nm="subb_link_id"
     )
 
     attrib_tbl<-NULL
@@ -763,42 +763,42 @@ fasttrib_points<-function(
 
   us_flowpaths_out_o<-us_flowpaths_out
   us_flowpaths_out_o<-us_flowpaths_out_o %>%
-    arrange(desc(map_dbl(us_flowpaths,nrow))) %>%
-    mutate(splt1=rep(1:n_cores,length.out=n())) %>%
-    group_by(splt1) %>%
+    dplyr::arrange(dplyr::desc(purrr::map_dbl(us_flowpaths,nrow))) %>%
+    dplyr::mutate(splt1=rep(1:n_cores,length.out=dplyr::n())) %>%
+    dplyr::group_by(splt1) %>%
     # mutate(splt2=rep(1:catch_per_core,length.out=n())) %>%
     # ungroup() %>%
     # group_by(splt2) %>%
-    nest() %>%
-    ungroup() %>%
-    mutate(data=map(data,~mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2))) %>%
-    mutate(
-      attr_db_loc=list(attr_db_loc),
-      loi_rasts_names=list(loi_rasts_names),
-      loi_numeric_stats=list(loi_numeric_stats),
-      loi_cols=list(loi_cols)
-    ) %>%
-    group_by(splt1) %>%
-    nest() %>%
-    ungroup()
+    tidyr::nest() %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(data=purrr::map(data,~dplyr::mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2)))
+  dplyr::mutate(
+    attr_db_loc=list(attr_db_loc),
+    loi_rasts_names=list(loi_rasts_names),
+    loi_numeric_stats=list(loi_numeric_stats),
+    loi_cols=list(loi_cols)
+  ) %>%
+    dplyr::group_by(splt1) %>%
+    tidyr::nest() %>%
+    dplyr::ungroup()
 
-  nrep<-sum(map_dbl(us_flowpaths_out_o$data,~length(.$data[[1]])))
+  nrep<-sum(purrr::map_dbl(us_flowpaths_out_o$data,~length(.$data[[1]])))
 
   #browser()
 
   if (lumped_scheme) {
     if (verbose) print("Calculating Lumped Attributes")
 
-    with_progress(enable=T,{
-      p <- progressor(steps = nrep)
+    progressr::with_progress(enable=T,{
+      p <- progressr::progressor(steps = nrep)
       lumped_out<-us_flowpaths_out_o %>%
-        mutate(p=list(p)) %>%
+        dplyr::mutate(p=list(p)) %>%
         dplyr::mutate(attr=furrr::future_pmap(
           list(
             data=data,
             p=p
           ),
-          .options = furrr_options(globals = FALSE),
+          .options = furrr::furrr_options(globals = FALSE),
           carrier::crate(
             function(data,
                      p
@@ -881,7 +881,7 @@ fasttrib_points<-function(
 
                     if (any(attrs %in% c("sd","stdev"))){
                       sd_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sd(.,na.rm=T))) %>%
+                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~stats::sd(.,na.rm=T))) %>%
                         dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_sd"))%>%
                         dplyr::collect()
 
@@ -909,7 +909,7 @@ fasttrib_points<-function(
                     }
                     if (any(attrs=="median")){
                       median_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~median(.,na.rm=T)))%>%
+                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~stats::median(.,na.rm=T)))%>%
                         dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_median")) %>%
                         dplyr::collect()
 
@@ -967,19 +967,19 @@ fasttrib_points<-function(
   if (length(weighting_scheme_s)>0) {
     if (verbose) print("Calculating s-targeted Attributes")
 
-    with_progress(enable=T,{
+    progressr::with_progress(enable=T,{
 
-      p <- progressor(steps = nrep)
+      p <- progressr::progressor(steps = nrep)
       s_targ_out<-us_flowpaths_out_o %>%
-        mutate(p=list(p),
-               weighting_scheme_s=list(weighting_scheme_s)) %>%
+        dplyr::mutate(p=list(p),
+                      weighting_scheme_s=list(weighting_scheme_s)) %>%
         dplyr::mutate(attr=furrr::future_pmap(
           list(
             data=data,
             weighting_scheme_s=weighting_scheme_s,
             p=p
           ),
-          .options = furrr_options(globals = FALSE),
+          .options = furrr::furrr_options(globals = FALSE),
           carrier::crate(
             function(data,
                      weighting_scheme_s,
@@ -1202,18 +1202,18 @@ fasttrib_points<-function(
   if (length(weighting_scheme_o)>0) {
     if (verbose) print("Calculating o-targeted Attributes")
 
-    with_progress(enable=T,{
-      p <- progressor(steps = nrep)
+    progressr::with_progress(enable=T,{
+      p <- progressr::progressor(steps = nrep)
       o_targ_out<-us_flowpaths_out_o %>%
-        mutate(p=list(p),
-               weighting_scheme_o=list(weighting_scheme_o)) %>%
+        dplyr::mutate(p=list(p),
+                      weighting_scheme_o=list(weighting_scheme_o)) %>%
         dplyr::mutate(attr=furrr::future_pmap(
           list(
             data=data,
             weighting_scheme_o=weighting_scheme_o,
             p=p
           ),
-          .options = furrr_options(globals = FALSE),
+          .options = furrr::furrr_options(globals = FALSE),
           carrier::crate(
             function(data,
                      weighting_scheme_o,
@@ -1433,21 +1433,21 @@ fasttrib_points<-function(
   #browser()
 
   final_out<-target_IDs %>%
-    mutate(link_id=as.character(link_id))
+    dplyr::mutate(link_id=as.character(link_id))
 
-  if (!is.null(lumped_out)) final_out<-left_join(final_out,lumped_out ,by="link_id")
-  if (!is.null(s_targ_out)) final_out<-left_join(final_out,s_targ_out ,by="link_id")
-  if (!is.null(o_targ_out)) final_out<-left_join(final_out,o_targ_out ,by="link_id")
+  if (!is.null(lumped_out)) final_out<-dplyr::left_join(final_out,lumped_out ,by="link_id")
+  if (!is.null(s_targ_out)) final_out<-dplyr::left_join(final_out,s_targ_out ,by="link_id")
+  if (!is.null(o_targ_out)) final_out<-dplyr::left_join(final_out,o_targ_out ,by="link_id")
 
   final_out<-final_out %>%
-    mutate(across(ends_with("_prop"),~ifelse(is.na(.),0,.))) %>%
-    select(-any_of("pour_point_id"))
+    dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) %>%
+    dplyr::select(-tidyselect::any_of("pour_point_id"))
 
   data.table::fwrite(final_out,file.path(temp_dir,out_filename))
 
-  zip(zip_loc,
-      file.path(temp_dir,out_filename),
-      flags = '-r9Xjq'
+  utils::zip(zip_loc,
+             file.path(temp_dir,out_filename),
+             flags = '-r9Xjq'
   )
 
 
@@ -1458,7 +1458,40 @@ fasttrib_points<-function(
 
 }
 
-#' @export
+
+#' @importFrom carrier crate
+#' @importFrom data.table fwrite rbindlist data.table fread
+#' @importFrom DBI dbConnect dbDisconnect dbAppendTable
+#' @importFrom dplyr select bind_rows distinct filter tbl collect left_join bind_cols mutate summarize pull rename_with
+#' @importFrom exactextractr exact_extract
+#' @importFrom furrr future_pmap furrr_options
+#' @importFrom future plan tweak multisession future futureOf resolved
+#' @importFrom progressr with_progress progress progressor
+#' @importFrom purrr map pmap map2
+#' @importFrom RSQLite SQLite
+#' @importFrom sf st_as_sf write_sf read_sf
+#' @importFrom stats setNames
+#' @importFrom terra rast subset extract cellFromRowColCombine readValues readStop
+#' @importFrom tibble as_tibble
+#' @importFrom tidyselect any_of
+#' @importFrom carrier crate
+#' @importFrom data.table fwrite rbindlist data.table fread
+#' @importFrom DBI dbConnect dbDisconnect dbAppendTable
+#' @importFrom dplyr select bind_rows distinct filter tbl collect left_join bind_cols mutate summarize pull rename_with
+#' @importFrom exactextractr exact_extract
+#' @importFrom furrr future_pmap furrr_options
+#' @importFrom future plan tweak multisession future futureOf resolved
+#' @importFrom progressr with_progress progress progressor
+#' @importFrom purrr map pmap map2
+#' @importFrom RSQLite SQLite
+#' @importFrom sf st_as_sf write_sf read_sf
+#' @importFrom stats setNames
+#' @importFrom terra rast subset extract cellFromRowColCombine readValues readStop
+#' @importFrom tibble as_tibble
+#' @importFrom tidyselect any_of
+#' @keywords internal
+#' @noRd
+
 parallel_layer_processing <- function(n_cores,
                                       attr_db_loc,
                                       polygons,
@@ -1490,8 +1523,8 @@ parallel_layer_processing <- function(n_cores,
 
   if (n_cores>1) {
     n_cores_2<-n_cores_2-1
-    oplan <- plan(list(tweak(multisession, workers = 2), tweak(multisession, workers = n_cores_2)))
-    on.exit(plan(oplan), add = TRUE)
+    oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
+    on.exit(future::plan(oplan), add = TRUE)
   }
 
 
@@ -1504,12 +1537,12 @@ parallel_layer_processing <- function(n_cores,
   splt<-split(all_subb,all_subb$core)
   splt<-lapply(splt,function(x){
     x$split<-rep(1:ceiling(nrow(x)/n_per_cycle),length.out=nrow(x))
-    x<-as_tibble(x) %>%
-      select(link_id,core,split)
+    x<-tibble::as_tibble(x) %>%
+      dplyr::select(link_id,core,split)
     split(x,x$split)
   })
 
-  total_outs<-sum(unlist(map(splt,length)))
+  total_outs<-sum(unlist(purrr::map(splt,length)))
 
   out<-future::future(
     #purrr::pmap(
@@ -1526,7 +1559,7 @@ parallel_layer_processing <- function(n_cores,
            # cell_fp=list(cell_fp),
            # cell_tbl=list(cell_tbl)
       ),
-      .options = furrr_options(globals = FALSE),
+      .options = furrr::furrr_options(globals = FALSE),
       carrier::crate(
         function(x,
                  core_numb,
@@ -1776,11 +1809,11 @@ parallel_layer_processing <- function(n_cores,
   total_procs<-0
 
 
-  with_progress(enable=progress,{
-    p <- progressor(steps = total_outs)
+  progressr::with_progress(enable=progressr::progress,{
+    p <- progressr::progressor(steps = total_outs)
 
 
-    while(!resolved(future_out)) {
+    while(!future::resolved(future_out)) {
       Sys.sleep(1)
 
       fl_attr<-list.files(temp_dir,sub_nm,full.names = T)
@@ -1790,8 +1823,8 @@ parallel_layer_processing <- function(n_cores,
       if (length(fl_attr)>0) {
         con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
 
-        template<-tbl(con_attr_sub,tbl_nm) %>%
-          collect(n=1) %>%
+        template<-dplyr::tbl(con_attr_sub,tbl_nm) %>%
+          dplyr::collect(n=1) %>%
           sapply(class)
 
         df<-purrr::map(fl_attr,~try(data.table::fread(.,

@@ -13,6 +13,15 @@
 #'
 
 
+#' @importFrom carrier crate
+#' @importFrom data.table fread data.table
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom dplyr select mutate
+#' @importFrom RSQLite SQLite
+#' @importFrom sf st_geometry st_as_sf st_area write_sf st_join
+#' @importFrom terra terraOptions vect rast crop writeRaster app as.polygons rasterize values ncell
+#' @importFrom whitebox wbt_unnest_basins
+
 generate_subbasins<-function(
     input,
     points,

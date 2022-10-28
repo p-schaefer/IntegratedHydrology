@@ -25,6 +25,8 @@
 #' @export
 #'
 
+#' @importFrom hydroweight process_input
+
 process_hydrology<-function(
     dem,
     output_filename,

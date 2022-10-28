@@ -15,7 +15,6 @@
 #' @export
 #'
 
-
 generate_vectors<-function(
     input,
     extra_attr=c(

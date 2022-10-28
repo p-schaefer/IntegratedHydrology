@@ -15,6 +15,15 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 
+#' @importFrom carrier crate
+#' @importFrom furrr future_pmap furrr_options
+#' @importFrom hydroweight process_input
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map pmap
+#' @importFrom terra terraOptions rast writeRaster as.polygons ext crs writeVector vect wrap split
+#' @importFrom utils unzip zip
+#' @importFrom whitebox wbt_options wbt_exe_path
+
 process_loi<-function(
     input=NULL,
     dem=NULL,
@@ -30,10 +39,6 @@ process_loi<-function(
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
-  # require(sf)
-  # require(terra)
-  # require(whitebox)
-  # require(tidyverse)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -66,7 +71,7 @@ process_loi<-function(
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
-  wbt_options(exe_path=wbt_exe_path(),
+  whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
               verbose=verbose,
               wd=temp_dir)
 
@@ -78,48 +83,48 @@ process_loi<-function(
   if (verbose) print("Preparing DEM")
   if (!is.null(input)){
     zip_loc<-input$outfile
-    fl<-unzip(list=T,zip_loc)
+    fl<-utils::unzip(list=T,zip_loc)
 
-    unzip(zip_loc,
+    utils::unzip(zip_loc,
           c("dem_final.tif"),
           exdir=temp_dir,
           overwrite=T,
           junkpaths=T)
 
-    dem<-rast(file.path(temp_dir,"dem_final.tif"))
+    dem<-terra::rast(file.path(temp_dir,"dem_final.tif"))
   } else {
     dem<-hydroweight::process_input(dem,input_name="dem",working_dir=temp_dir)
     if (!inherits(dem,"SpatRaster")) stop("dem must be a class 'SpatRaster'")
-    writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal="COMPRESS=NONE")
+    terra::writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal="COMPRESS=NONE")
   }
 
   if (is.null(clip_region)) {
-    clip_region<-as.polygons(rast(ext(dem),crs=crs(dem)))
-    writeVector(clip_region,file.path(temp_dir,"clip_region.shp"),overwrite=T)
+    clip_region<-terra::as.polygons(terra::rast(terra::ext(dem),crs=terra::crs(dem)))
+    terra::writeVector(clip_region,file.path(temp_dir,"clip_region.shp"),overwrite=T)
   } else {
     clip_region<-hydroweight::process_input(clip_region,
                                             input_name="clip_region",
                                             working_dir=temp_dir,
                                             target=terra::vect("POLYGON ((0 -5, 10 0, 10 -10, 0 -5))",crs=terra::crs(dem)))
 
-    writeVector(clip_region,file.path(temp_dir,"clip_region.shp"),overwrite=T)
+    terra::writeVector(clip_region,file.path(temp_dir,"clip_region.shp"),overwrite=T)
   }
 
-  target_crs<-crs(dem)
+  target_crs<-terra::crs(dem)
 
   # Prepare loi -------------------------------------------------------------
 
-  num_inputs<-map(num_inputs,function(x){
+  num_inputs<-purrr::map(num_inputs,function(x){
     if (inherits(x,"character")) return(x)
-    if (inherits(x,c("sf","sfc","sfg"))) return(wrap(vect(x)))
-    if (inherits(x,c("SpatRaster","SpatVector"))) return(wrap(x))
+    if (inherits(x,c("sf","sfc","sfg"))) return(terra::wrap(terra::vect(x)))
+    if (inherits(x,c("SpatRaster","SpatVector"))) return(terra::wrap(x))
     return(x)
   })
 
-  cat_inputs<-map(cat_inputs,function(x){
+  cat_inputs<-purrr::map(cat_inputs,function(x){
     if (inherits(x,"character")) return(x)
-    if (inherits(x,c("sf","sfc","sfg"))) return(wrap(vect(x)))
-    if (inherits(x,c("SpatRaster","SpatVector"))) return(wrap(x))
+    if (inherits(x,c("sf","sfc","sfg"))) return(terra::wrap(terra::vect(x)))
+    if (inherits(x,c("SpatRaster","SpatVector"))) return(terra::wrap(x))
     return(x)
   })
 
@@ -155,12 +160,12 @@ process_loi<-function(
 
   #inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
 
-  with_progress(enable=T,{
+  progressr::with_progress(enable=T,{
     print("Processing loi")
-    p <- progressor(steps = (length(num_inputs) + length(cat_inputs)))
+    p <- progressr::progressor(steps = (length(num_inputs) + length(cat_inputs)))
 
-    ot<-future_pmap(c(inputs_list,list(p=list(p))),
-             .options=furrr_options(globals = F),
+    ot<-furrr::future_pmap(c(inputs_list,list(p=list(p))),
+             .options=furrr::furrr_options(globals = F),
              carrier::crate(
                function(lyr_nms=lyr_nms,
                         lyr=lyr,
@@ -287,7 +292,7 @@ process_loi<-function(
 
   dist_list_out<-dist_list_out[sapply(dist_list_out,file.exists)]
 
-  zip(output_filename,
+  utils::zip(output_filename,
       unlist(dist_list_out),
       flags = '-r9Xjq'
   )
@@ -296,10 +301,10 @@ process_loi<-function(
 
   if (return_products){
 
-    ott<-map(meta,~map(.,~rast(.$output_filename)))
+    ott<-purrr::map(meta,~purrr::map(.,~terra::rast(.$output_filename)))
     ott2<-list(
-      num_inputs=rast(unlist(ott["num_rast"],use.names = F)),
-      cat_inputs=rast(unlist(ott["cat_rast"],use.names = F))
+      num_inputs=terra::rast(unlist(ott["num_rast"],use.names = F)),
+      cat_inputs=terra::rast(unlist(ott["cat_rast"],use.names = F))
     )
     ott2<-lapply(ott2,terra::wrap)
     # names(ott)[grepl("num_rast",unlist(dist_list_out))]<-"num_inputs"

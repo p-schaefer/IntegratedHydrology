@@ -18,8 +18,28 @@
 #' @param verbose logical.
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
-#' @export
 #'
+
+#' @importFrom carrier crate
+#' @importFrom data.table fread
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom dplyr collect tbl mutate across na_if left_join select filter if_any pull distinct group_by ungroup rename arrange desc case_when sym summarise
+#' @importFrom furrr future_map2 furrr_options
+#' @importFrom future nbrOfWorkers availableCores
+#' @importFrom hydroweight process_input hydroweight hydroweight_attributes
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map pmap map_chr reduce
+#' @importFrom RSQLite SQLite
+#' @importFrom sf read_sf st_union st_length st_area st_as_sf st_geometry st_buffer
+#' @importFrom stats setNames
+#' @importFrom terra writeRaster rast crs crop vect wrap
+#' @importFrom tibble tibble as_tibble
+#' @importFrom tidyr nest unnest
+#' @importFrom tidyselect any_of ends_with everything
+#' @importFrom units set_units
+#' @importFrom utils unzip head zip
+#' @export
+
 
 attrib_points<-function(
     input,
@@ -64,8 +84,8 @@ attrib_points<-function(
     dw_fl<-NULL
   }
 
-  fl<-unzip(list=T,zip_loc)
-  fl_loi<-unzip(list=T,loi_loc)
+  fl<-utils::unzip(list=T,zip_loc)
+  fl_loi<-utils::unzip(list=T,loi_loc)
 
   # Get site name column ----------------------------------------------------
   if (any(grepl("snapped_points",fl)) & !all_reaches){
@@ -83,31 +103,31 @@ attrib_points<-function(
 
   db_fp<-input$db_loc
   con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
-  stream_links<-collect(tbl(con,"stream_links")) %>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-    mutate(across(any_of(site_id_col),na_if,""))
+  stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
   DBI::dbDisconnect(con)
 
-  all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
-    left_join(stream_links, by = c("link_id"))
+  all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>% #stream_links.shp
+    dplyr::left_join(stream_links, by = c("link_id"))
 
   # all_points<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
   #   left_join(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv")) %>%
   #               mutate(across(any_of(site_id_col),na_if,"")),
   #             by="link_id")
 
-  all_catch<-read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
+  all_catch<-sf::read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
 
   # Setup remove_region -----------------------------------------------------
   remove_region<-hydroweight::process_input(remove_region,input_name="remove_region")
   if (!is.null(remove_region)){
     if (inherits(remove_region,"SpatRaster")) {
-      writeRaster(remove_region,file.path(temp_dir,"remove_region.tif"))
+      terra::writeRaster(remove_region,file.path(temp_dir,"remove_region.tif"))
       remove_region<-file.path(temp_dir,"remove_region.tif")
     }
     if (inherits(remove_region,"SpatVector")) {
-      writeRaster(remove_region,file.path(temp_dir,"remove_region.shp"))
+      terra::writeRaster(remove_region,file.path(temp_dir,"remove_region.shp"))
       remove_region<-file.path(temp_dir,"remove_region.shp")
     }
   }
@@ -116,24 +136,24 @@ attrib_points<-function(
 
   # Setup loi  --------------------------------------------------------------
 
-  unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir)
+  utils::unzip(loi_loc,file="loi_meta.rds",exdir = temp_dir)
 
   loi_meta<-readRDS(file.path(temp_dir,"loi_meta.rds"))
 
-  loi_rasts_exists<-map(loi_meta,~unlist(map(.,~.$output_filename)))
-  loi_rasts_names<-unlist(map(loi_meta,~unlist(map(.,~.$lyr_variables))))
+  loi_rasts_exists<-purrr::map(loi_meta,~unlist(purrr::map(.,~.$output_filename)))
+  loi_rasts_names<-unlist(purrr::map(loi_meta,~unlist(purrr::map(.,~.$lyr_variables))))
 
   loi_rasts<-purrr::map(loi_rasts_exists,terra::rast)
   loi_rasts_comb<-terra::rast(loi_rasts)
   names(loi_rasts_comb)<-unlist(sapply(loi_rasts,names))
 
   loi_rasts_exists_names<-loi_rasts_names
-  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~setNames(as.list(.),.)) %>% unlist(recursive=T))
-  loi_rasts_exists_names<-map(loi_rasts_exists_names,~map(.,~loi_numeric_stats))
+  loi_rasts_exists_names<-purrr::map(loi_rasts_exists_names,~purrr::map(.,~stats::setNames(as.list(.),.)) %>% unlist(recursive=T))
+  loi_rasts_exists_names<-purrr::map(loi_rasts_exists_names,~purrr::map(.,~loi_numeric_stats))
 
   if (F){
     # try to see if this is faster with a big dataset
-    writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
+    terra::writeRaster(loi_rasts_comb,file.path(temp_dir,"all_preds.tif"))
     loi_rasts_comb<-list(file.path(temp_dir,"all_preds.tif"))
   }
 
@@ -152,26 +172,26 @@ attrib_points<-function(
   # loi_rasts_names<-map(loi_rasts,names) %>% unlist()
   # names(loi_rasts_names)<-loi_rasts_names
 
-  target_crs<-crs(loi_rasts[[1]])
+  target_crs<-terra::crs(loi_rasts[[1]])
 
   # Setup spec table if missing ---------------------------------------------
   if (is.null(spec)){
-    spec<-tibble(uid=all_points %>%
-                   select(any_of(site_id_col)) %>%
-                   filter(!if_any(any_of(site_id_col),is.na)) %>%
-                   pull(1)
+    spec<-tibble::tibble(uid=all_points %>%
+                   dplyr::select(tidyselect::any_of(site_id_col)) %>%
+                   dplyr::filter(!dplyr::if_any(tidyselect::any_of(site_id_col),is.na)) %>%
+                   dplyr::pull(1)
     ) %>%
-      setNames(site_id_col) %>%
-      mutate(loi=list(setNames(unlist(loi_rasts_exists_names,recursive = F,use.names = F),loi_rasts_names)))
+      stats::setNames(site_id_col) %>%
+      dplyr::mutate(loi=list(stats::setNames(unlist(loi_rasts_exists_names,recursive = F,use.names = F),loi_rasts_names)))
 
     if (all_reaches){
       spec<-spec %>%
-        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        distinct()
+        dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        dplyr::distinct()
     }
 
     spec <- spec %>%
-      mutate(across(c(any_of(site_id_col),any_of("link_id")),as.character))
+      dplyr::mutate(dplyr::across(c(tidyselect::any_of(site_id_col),tidyselect::any_of("link_id")),as.character))
 
   }
 
@@ -184,10 +204,10 @@ attrib_points<-function(
 
   if (!any(colnames(spec) == "link_id")){
     spec<-spec %>%
-      left_join(all_points %>%
-                  as_tibble() %>%
-                  select(any_of(site_id_col),link_id) %>%
-                  mutate(across(c(link_id,any_of(site_id_col)),as.character)),
+      dplyr::left_join(all_points %>%
+                  tibble::as_tibble() %>%
+                  dplyr::select(tidyselect::any_of(site_id_col),link_id) %>%
+                  dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)),
                 by=site_id_col
       )
   }
@@ -203,18 +223,18 @@ attrib_points<-function(
   # Assemble Output Table ---------------------------------------------------
 
   if (target_streamseg) {
-    target_O<-read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
-      mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-      left_join(spec %>% select(link_id,any_of(site_id_col)),
+    target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
+      dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
+      dplyr::left_join(spec %>% dplyr::select(link_id,tidyselect::any_of(site_id_col)),
                 by="link_id")
 
     if (all_reaches){
       target_O<-target_O %>%
-        mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        select(link_id) %>%
-        group_by(link_id) %>%
-        mutate(geometry=st_union(geometry)) %>%
-        ungroup()
+        dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        dplyr::select(link_id) %>%
+        dplyr::group_by(link_id) %>%
+        dplyr::mutate(geometry=sf::st_union(geometry)) %>%
+        dplyr::ungroup()
 
     }
 
@@ -232,37 +252,37 @@ attrib_points<-function(
 
   } else {
     target_O<-all_points %>%
-      mutate(across(c(link_id,any_of(site_id_col)),as.character))
+      dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character))
   }
 
   target_O<-target_O %>%
-    filter(link_id %in% spec$link_id)
+    dplyr::filter(link_id %in% spec$link_id)
 
   #browser()
 
   # Generate Catchments
   out<-spec %>%
-    select(any_of(site_id_col),loi)%>%
-    left_join(all_catch %>%
-                mutate(link_id=as.character(link_id)) %>%
-                left_join(all_points %>%
-                            as_tibble() %>%
-                            mutate(link_id=as.character(link_id)) %>%
-                            mutate(across(any_of(site_id_col),as.character)) %>%
-                            select(link_id,any_of(site_id_col)),
+    dplyr::select(tidyselect::any_of(site_id_col),loi)%>%
+    dplyr::left_join(all_catch %>%
+                dplyr::mutate(link_id=as.character(link_id)) %>%
+                dplyr::left_join(all_points %>%
+                            tibble::as_tibble() %>%
+                            dplyr::mutate(link_id=as.character(link_id)) %>%
+                            dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),as.character)) %>%
+                            dplyr::select(link_id,tidyselect::any_of(site_id_col)),
                           by="link_id") %>%
-                select(any_of(site_id_col))
+                dplyr::select(tidyselect::any_of(site_id_col))
               ,by=site_id_col) %>%
-    setNames(c("UID","loi","clip_region")) %>%
-    left_join(target_O %>%
-                select(any_of(site_id_col)) %>%
-                setNames(c("UID","geometry")) %>%
-                rename(target_O=geometry),
+    stats::setNames(c("UID","loi","clip_region")) %>%
+    dplyr::left_join(target_O %>%
+                dplyr::select(tidyselect::any_of(site_id_col)) %>%
+                stats::setNames(c("UID","geometry")) %>%
+                dplyr::rename(target_O=geometry),
               by="UID")
 
   if (target_streamseg){
     out<-out%>%
-      filter(as.numeric(st_length(target_O))>0)
+      dplyr::filter(as.numeric(sf::st_length(target_O))>0)
   }
 
 
@@ -280,17 +300,17 @@ attrib_points<-function(
                                        return_products=F)
 
 
-  n_cores<-nbrOfWorkers()
-  if (is.infinite(n_cores)) n_cores<-availableCores(logical = F)
+  n_cores<-future::nbrOfWorkers()
+  if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
 
   #browser()
   if (verbose) print("Calculating Attributes")
-  with_progress(enable=T,{
-  p <- progressor(steps = nrow(out))
+  progressr::with_progress(enable=T,{
+  p <- progressr::progressor(steps = nrow(out))
 
   out2<-out %>%
-    arrange(desc(st_area(clip_region))) %>%
-    mutate(t_dir=temp_dir,
+    dplyr::arrange(dplyr::desc(sf::st_area(clip_region))) %>%
+    dplyr::mutate(t_dir=temp_dir,
            dw_dir=ifelse(is.null(dw_dir),NA,dw_dir),
            target_crs=target_crs,
            loi=loi,
@@ -305,11 +325,11 @@ attrib_points<-function(
            stream_weights=hw_streams,
            p=rep(list(p),nrow(out))
     ) %>%
-    mutate(core=rep(1:n_cores,length.out=nrow(.))) %>%
-    group_by(core) %>%
-    nest() %>%
-    ungroup() %>%
-    mutate(data2=map(data, function(x){
+    dplyr::mutate(core=rep(1:n_cores,length.out=nrow(.))) %>%
+    dplyr::group_by(core) %>%
+    tidyr::nest() %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(data2=purrr::map(data, function(x){
       #browser()
       new_temp_dir<-file.path(x$t_dir[[1]],basename(tempfile()))
       dir.create(new_temp_dir)
@@ -333,7 +353,7 @@ attrib_points<-function(
 
       return(list(stream_w=stream_w,
                   rast_load=as.list(file.path(new_temp_dir,sapply(x$loi_rasts_exists[[1]], basename))) %>%
-                    setNames(gsub("\\.tif$","",sapply(x$loi_rasts_exists[[1]], basename))),
+                    stats::setNames(gsub("\\.tif$","",sapply(x$loi_rasts_exists[[1]], basename))),
                   flow_accum=file.path(new_temp_dir,"dem_accum_d8.tif"),
                   dem=file.path(new_temp_dir,"dem_final.tif"),
                   ts=file.path(new_temp_dir,"dem_streams_d8.tif"),
@@ -344,8 +364,8 @@ attrib_points<-function(
     }))
 
   out2<-out2 %>%
-    mutate(attrib=future_map2(data2,data,
-                              .options = furrr_options(globals = FALSE),
+    dplyr::mutate(attrib=furrr::future_map2(data2,data,
+                              .options = furrr::furrr_options(globals = FALSE),
                               carrier::crate(function(data2,x){
                                 # mutate(attrib=map2(data2,data,carrier::crate(function(data2,x){
                                 #browser()
@@ -596,27 +616,27 @@ attrib_points<-function(
                               })))
 
   out3<-out2%>%
-    unnest(attrib) %>%
-    unnest(data) %>%
-    select(-core) %>%
-    arrange(UID)
+    tidyr::unnest(attrib) %>%
+    tidyr::unnest(data) %>%
+    tibble::tibble(-core) %>%
+    dplyr::arrange(UID)
   })
 
   #browser()
   out4<-out3 %>%
     #select(-target_O,-loi,-clip_region,-UID) %>%
-    select(attrib) %>%
-    mutate(attrib_out=map(attrib,~.$attr)) %>%
-    mutate(attrib_out=map(attrib_out,~mutate(.,across(c(everything(),-any_of(site_id_col)),as.numeric)))) %>%
-    mutate(distance_weights=map(attrib,~.$distance_weights)) %>%
-    mutate(weighted_attr=map(attrib,~.$weighted_attr)) %>%
-    unnest(attrib_out) %>%
-    select(any_of(site_id_col),any_of("distance_weights"),any_of("weighted_attr"),everything(),-attrib) %>%
-    mutate(across(c(everything(),-any_of(site_id_col),-any_of("distance_weights"),-any_of("weighted_attr")),as.numeric)) %>%
-    mutate(across(ends_with("_prop"),~case_when(is.na(.) | is.nan(.) ~ 0, T ~ .))) %>%
-    group_by(!!sym(site_id_col)) %>%
-    summarise(across(everything(),head,1)) %>%
-    ungroup()
+    dplyr::select(attrib) %>%
+    dplyr::mutate(attrib_out=purrr::map(attrib,~.$attr)) %>%
+    dplyr::mutate(attrib_out=purrr::map(attrib_out,~dplyr::mutate(.,dplyr::across(c(tidyselect::everything(),-tidyselect::any_of(site_id_col)),as.numeric)))) %>%
+    dplyr::mutate(distance_weights=purrr::map(attrib,~.$distance_weights)) %>%
+    dplyr::mutate(weighted_attr=purrr::map(attrib,~.$weighted_attr)) %>%
+    tidyr::unnest(attrib_out) %>%
+    dplyr::select(tidyselect::any_of(site_id_col),tidyselect::any_of("distance_weights"),tidyselect::any_of("weighted_attr"),tidyselect::everything(),-attrib) %>%
+    dplyr::mutate(dplyr::across(c(tidyselect::everything(),-tidyselect::any_of(site_id_col),-tidyselect::any_of("distance_weights"),-tidyselect::any_of("weighted_attr")),as.numeric)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~dplyr::case_when(is.na(.) | is.nan(.) ~ 0, T ~ .))) %>%
+    dplyr::group_by(!!dplyr::sym(site_id_col)) %>%
+    dplyr::summarise(dplyr::across(tidyselect::everything(),utils::head,1)) %>%
+    dplyr::ungroup()
   #dplyr::distinct()
 
 
@@ -628,7 +648,7 @@ attrib_points<-function(
 
   saveRDS(out4,file.path(temp_dir,"point_attributes.rds"))
 
-  zip(out_file,
+  utils::zip(out_file,
       file.path(temp_dir,"point_attributes.rds"),
       flags = '-r9Xjq'
   )

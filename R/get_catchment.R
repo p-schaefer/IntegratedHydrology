@@ -10,6 +10,16 @@
 #' @export
 #'
 
+#' @importFrom DBI dbConnect dbDisconnect
+#' @importFrom dplyr collect tbl mutate across na_if filter if_any rename group_by ungroup select
+#' @importFrom furrr future_map
+#' @importFrom progressr with_progress progressor
+#' @importFrom RSQLite SQLite
+#' @importFrom sf read_sf st_union st_as_sf
+#' @importFrom tidyr nest unnest
+#' @importFrom tidyselect any_of everything
+#' @importFrom whitebox wbt_options wbt_exe_path
+
 get_catchment<-function(
     input,
     site_id_col=NULL,
@@ -28,7 +38,7 @@ get_catchment<-function(
 
   options(dplyr.summarise.inform = FALSE,future.rng.onMisuse="ignore")
 
-  wbt_options(exe_path=wbt_exe_path(),verbose=F)
+  whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),verbose=F)
 
   target_points<-as.character(target_points)
 
@@ -40,12 +50,12 @@ get_catchment<-function(
   zip_loc<-input$outfile
   db_loc<-input$db_loc
 
-  subb<-read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
+  subb<-sf::read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
 
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-  points<-collect(tbl(con,"stream_links")) %>%
-    mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-    mutate(across(any_of(site_id_col),na_if,""))
+  points<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
+    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
   DBI::dbDisconnect(con)
 
   # points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
@@ -54,10 +64,10 @@ get_catchment<-function(
   if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
   sites<-points %>%
-    select(any_of(site_id_col),link_id) %>%
-    filter(!if_any(any_of(site_id_col),is.na)) %>%
-    mutate(across(everything(),paste0)) %>%
-    filter(if_any(any_of(site_id_col), ~.x %in% target_points))
+    select(tidyselect::any_of(site_id_col),link_id) %>%
+    dplyr::filter(!dplyr::if_any(tidyselect::any_of(site_id_col),is.na)) %>%
+    dplyr::mutate(dplyr::across(tidyselect::everything(),paste0)) %>%
+    dplyr::filter(dplyr::if_any(tidyselect::any_of(site_id_col), ~.x %in% target_points))
 
   missing_sites<-target_points[!target_points %in% sites[[1]]]
   if (length(missing_sites)>0) stop(paste0("'target_points' not present in 'points' layer: ",paste0(missing_sites,collapse = ", ")))
@@ -65,14 +75,14 @@ get_catchment<-function(
 
   us_fp_fun<-function(link_id_in,db_loc=db_loc){
     con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    out<-tbl(con,"us_flowpaths") %>%
-      filter(pour_point_id %in% link_id_in) %>%
-      rename(link_id=origin_link_id) %>%
-      collect() %>%
+    out<-dplyr::tbl(con,"us_flowpaths") %>%
+      dplyr::filter(pour_point_id %in% link_id_in) %>%
+      dplyr::rename(link_id=origin_link_id) %>%
+      dplyr::collect() %>%
       # DBI::dbGetQuery(con, paste0("SELECT source_id,link_id FROM us_flowpaths WHERE source_id IN (",paste0(link_id,collapse = ","),")")) %>%
-      group_by(pour_point_id) %>%
-      nest() %>%
-      ungroup()
+      dplyr::group_by(pour_point_id) %>%
+      tidyr::nest() %>%
+      dplyr::ungroup()
 
     out2<-out$data
     names(out2)<-out$pour_point_id
@@ -84,20 +94,20 @@ get_catchment<-function(
   }
 
 #browser()
-  with_progress(enable=T,{
-    p <- progressor(steps = nrow(sites))
+  progressr::with_progress(enable=T,{
+    p <- progressr::progressor(steps = nrow(sites))
 
     out<-sites %>%
-      mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc)) %>%
-      mutate(subb=future_map(us_flowpaths,function(x) {
+      dplyr::mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc)) %>%
+      dplyr::mutate(subb=furrr::future_map(us_flowpaths,function(x) {
         suppressPackageStartupMessages(library(sf))
         subb %>%
-          filter(link_id %in% x$link_id)
+          dplyr::filter(link_id %in% x$link_id)
       })) %>%
-      mutate(geometry=future_map(subb,function(x) {#
+      dplyr::mutate(geometry=furrr::future_map(subb,function(x) {#
         #browser()
-        out<-select(x,geometry) %>%
-          st_union() #%>%
+        out<-dplyr::select(x,geometry) %>%
+          sf::st_union() #%>%
           # st_as_sf() %>%
           # rename(geometry=x) %>%
           # mutate(link_id=y) %>%
@@ -107,9 +117,9 @@ get_catchment<-function(
         #out<-write_sf(out,file.path(tdir,paste0(y,"_Catchment_poly.shp")))
         return(out)
       })) %>%
-      unnest(geometry) %>%
-      select(-us_flowpaths) %>%
-      st_as_sf()
+      tidyr::unnest(geometry) %>%
+      dplyr::select(-us_flowpaths) %>%
+      sf::st_as_sf()
   })
 
   suppressWarnings(unlink(tdir,force = T,recursive = T))
