@@ -616,16 +616,16 @@ fasttrib_points<-function(
 
                                 for (i in sub_catch_split){
                                   ihydro::parallel_layer_processing(n_cores=n_cores,
-                                                            attr_db_loc=attr_db_loc,
-                                                            polygons=i,
-                                                            n_per_cycle=subb_per_core,
-                                                            rasts=hw_o_lo,
-                                                            cols=names(hw_o_lo),
-                                                            temp_dir=temp_dir_sub_sub,
-                                                            tbl_nm="o_target_weights",
-                                                            sub_nm="o_target_weights",
-                                                            link_id_nm="catch_link_id",
-                                                            progress=F
+                                                                    attr_db_loc=attr_db_loc,
+                                                                    polygons=i,
+                                                                    n_per_cycle=subb_per_core,
+                                                                    rasts=hw_o_lo,
+                                                                    cols=names(hw_o_lo),
+                                                                    temp_dir=temp_dir_sub_sub,
+                                                                    tbl_nm="o_target_weights",
+                                                                    sub_nm="o_target_weights",
+                                                                    link_id_nm="catch_link_id",
+                                                                    progress=F
                                   )
                                 }
 
@@ -772,12 +772,12 @@ fasttrib_points<-function(
     tidyr::nest() %>%
     dplyr::ungroup() %>%
     dplyr::mutate(data=purrr::map(data,~dplyr::mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2))) %>%
-  dplyr::mutate(
-    attr_db_loc=list(attr_db_loc),
-    loi_rasts_names=list(loi_rasts_names),
-    loi_numeric_stats=list(loi_numeric_stats),
-    loi_cols=list(loi_cols)
-  ) %>%
+    dplyr::mutate(
+      attr_db_loc=list(attr_db_loc),
+      loi_rasts_names=list(loi_rasts_names),
+      loi_numeric_stats=list(loi_numeric_stats),
+      loi_cols=list(loi_cols)
+    ) %>%
     dplyr::group_by(splt1) %>%
     tidyr::nest() %>%
     dplyr::ungroup()
