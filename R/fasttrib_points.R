@@ -615,7 +615,7 @@ fasttrib_points<-function(
                                 sub_catch_split<-split(sub_catch,sub_catch$split)
 
                                 for (i in sub_catch_split){
-                                  parallel_layer_processing(n_cores=n_cores,
+                                  ihydro::parallel_layer_processing(n_cores=n_cores,
                                                             attr_db_loc=attr_db_loc,
                                                             polygons=i,
                                                             n_per_cycle=subb_per_core,
@@ -771,7 +771,7 @@ fasttrib_points<-function(
     # group_by(splt2) %>%
     tidyr::nest() %>%
     dplyr::ungroup() %>%
-    dplyr::mutate(data=purrr::map(data,~dplyr::mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2)))
+    dplyr::mutate(data=purrr::map(data,~dplyr::mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2))) %>%
   dplyr::mutate(
     attr_db_loc=list(attr_db_loc),
     loi_rasts_names=list(loi_rasts_names),
