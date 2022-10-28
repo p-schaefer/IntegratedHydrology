@@ -793,7 +793,7 @@ fasttrib_points<-function(
       p <- progressr::progressor(steps = nrep)
       lumped_out<-us_flowpaths_out_o %>%
         dplyr::mutate(p=list(p)) %>%
-        dplyr::mutate(attr=furrr::future_pmap(
+        dplyr::mutate(attr=furrr::future_pmap(#
           list(
             data=data,
             p=p
@@ -881,7 +881,7 @@ fasttrib_points<-function(
 
                     if (any(attrs %in% c("sd","stdev"))){
                       sd_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~stats::sd(.,na.rm=T))) %>%
+                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sd(.,na.rm=T))) %>%
                         dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_sd"))%>%
                         dplyr::collect()
 
