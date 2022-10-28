@@ -1443,7 +1443,11 @@ fasttrib_points<-function(
     dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) %>%
     dplyr::select(-tidyselect::any_of("pour_point_id"))
 
-  data.table::fwrite(final_out,file.path(temp_dir,out_filename))
+  data.table::fwrite(x=final_out,
+                     file=file.path(temp_dir,out_filename),
+                     buffMB = 128L,
+                     nThread = 1,
+                     showProgress = F)
 
   utils::zip(zip_loc,
              file.path(temp_dir,out_filename),
