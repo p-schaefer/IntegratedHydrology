@@ -248,12 +248,13 @@ fasttrib_points<-function(
     }
 
     if (length(link_id)>0){
+      link_id_sel<-link_id
       target_IDs<-dplyr::bind_rows(
         target_IDs,
         all_points %>%
           tibble::as_tibble() %>%
           dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
-          dplyr::filter(link_id %in% link_id)
+          dplyr::filter(link_id %in% link_id_sel)
       )
     }
   }
@@ -836,10 +837,9 @@ fasttrib_points<-function(
 
                     out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
                       dplyr::rename(link_id=origin_link_id) %>%
-                      dplyr::filter(link_id %in% local(link_id_in)) %>%
+                      dplyr::filter(pour_point_id %in% local(link_id_in)) %>%
                       dplyr::collapse() %>%
                       dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
-                                         dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
                                          dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
                                          dplyr::rename(link_id=subb_link_id )%>%
                                          dplyr::collapse(),
@@ -869,7 +869,7 @@ fasttrib_points<-function(
                     median_out<-NULL
                     sum_out<-NULL
 
-                    if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) >0){
+                    if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) > 0){
                       mean_out<-out %>%
                         dplyr::select(-link_id,-cell_number) %>%
                         dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)/sum(!is.na(.))),
@@ -1024,10 +1024,9 @@ fasttrib_points<-function(
 
                     out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
                       dplyr::rename(link_id=origin_link_id) %>%
-                      dplyr::filter(link_id %in% local(link_id_in)) %>%
+                      dplyr::filter(pour_point_id %in% local(link_id_in)) %>%
                       dplyr::collapse() %>%
                       dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
-                                         dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
                                          dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
                                          dplyr::rename(link_id=subb_link_id ) %>%
                                          dplyr::collapse(),
@@ -1258,10 +1257,9 @@ fasttrib_points<-function(
 
                     out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
                       dplyr::rename(link_id=origin_link_id) %>%
-                      dplyr::filter(link_id %in% local(link_id_in)) %>%
+                      dplyr::filter(pour_point_id %in% local(link_id_in)) %>%
                       dplyr::collapse() %>%
                       dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
-                                         dplyr::filter(subb_link_id %in% local(link_id_in)) %>%
                                          dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
                                          dplyr::rename(link_id=subb_link_id ) %>%
                                          dplyr::collapse(),
