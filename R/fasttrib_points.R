@@ -1186,9 +1186,7 @@ fasttrib_points<-function(
                         dplyr::select(pour_point_id,tidyselect::ends_with("_lumped_sum"),tidyselect::ends_with("_lumped_noNAcount"),tidyselect::any_of("lumped_count")) %>%
                         dplyr::summarise(
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$num_rast),"_lumped_sum")),
-                                        # can't get the below to work
-                                        #~sum(x,na.rm=T)/sum( rlang::sym(gsub("_lumped_sum","_lumped_noNAcount",dplyr::cur_column())))
-                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T)
+                                        ~sum(x,na.rm=T)/sum( dbplyr::sql(gsub("_lumped_sum","_lumped_noNAcount",dplyr::cur_column()),na.rm=T))
                           ),
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_lumped_sum")),
                                         ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T))
