@@ -797,14 +797,21 @@ fasttrib_points<-function(
   us_flowpaths_out_o<-us_flowpaths_out
   us_flowpaths_out_o<-us_flowpaths_out_o %>%
     dplyr::arrange(dplyr::desc(purrr::map_dbl(us_flowpaths,nrow))) %>%
-    dplyr::mutate(splt1=sort(rep(1:n_cores,length.out=dplyr::n()))) %>%
+    dplyr::mutate(splt1=rep(1:n_cores,length.out=dplyr::n())) %>%
     dplyr::group_by(splt1) %>%
     # mutate(splt2=rep(1:catch_per_core,length.out=n())) %>%
     # ungroup() %>%
     # group_by(splt2) %>%
     tidyr::nest() %>%
     dplyr::ungroup() %>%
-    dplyr::mutate(data=purrr::map(data,~dplyr::mutate(.,splt2=rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.))) %>% split(.,.$splt2))) %>%
+    dplyr::mutate(data=purrr::map(data,
+                                  ~dplyr::mutate(.,
+                                                 splt2=sample(rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.)),size=nrow(.),replace=F)
+                                                 ) %>%
+                                    split(.,.$splt2) %>%
+                                    .[order(names(.))]
+                                  )
+    ) %>%
     dplyr::mutate(
       attr_db_loc=list(attr_db_loc),
       loi_rasts_names=list(loi_rasts_names),
@@ -1185,7 +1192,7 @@ fasttrib_points<-function(
                           ),
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_lumped_sum")),
                                         ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T))
-                          ) %>%
+                        ) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$num_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_mean")) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$cat_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_prop")) %>%
                         dplyr::ungroup() %>%
