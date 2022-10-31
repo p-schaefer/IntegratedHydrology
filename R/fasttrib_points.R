@@ -792,7 +792,7 @@ fasttrib_points<-function(
   #
   # Lumped Attributes -------------------------------------------------------
 
-  browser() # here make calculations work with more than 1 link_id at a time
+  #browser() # here make calculations work with more than 1 link_id at a time
 
   us_flowpaths_out_o<-us_flowpaths_out
   us_flowpaths_out_o<-us_flowpaths_out_o %>%
@@ -1135,6 +1135,9 @@ fasttrib_points<-function(
                     median_out<-NULL
                     sum_out<-NULL
 
+                    subcols<-paste(sapply(loi_cols,function(x) paste0(x,"_",weighting_scheme_s)))
+                    if (lumped_scheme) subcols<-c(subcols,paste(sapply(loi_cols,function(x) paste0(x,"_lumped"))))
+
                     subb_summary_out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
                       dplyr::rename(link_id=origin_link_id) %>%
                       dplyr::filter(pour_point_id %in% local(link_id_in)) %>%
@@ -1142,7 +1145,9 @@ fasttrib_points<-function(
                       dplyr::left_join(dplyr::tbl(con_attr,"subb_sum") %>%
                                          dplyr::rename(link_id=subb_link_id)
                                        ,by="link_id") %>%
-                      dplyr::select(pour_point_id,tidyselect::any_of("lumped_count"),tidyselect::contains(paste(sapply(loi_cols,function(x) paste0(x,"_",weighting_scheme_s)))),tidyselect::contains(weighting_scheme_s)) %>%
+                      dplyr::select(pour_point_id,tidyselect::any_of("lumped_count"),
+                                    tidyselect::contains(subcols),
+                                    tidyselect::contains(weighting_scheme_s)) %>%
                       dplyr::group_by(pour_point_id) %>%
                       dplyr::summarise(
                         dplyr::across(c(tidyselect::ends_with(paste0("_",c("sum","noNAcount"))),tidyselect::any_of("lumped_count")),sum,na.rm=T ),
@@ -1176,10 +1181,10 @@ fasttrib_points<-function(
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$num_rast),"_lumped_sum")),
                                         # can't get the below to work
                                         #~sum(x,na.rm=T)/sum( rlang::sym(gsub("_lumped_sum","_lumped_noNAcount",dplyr::cur_column())))
-                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"))
+                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T)
                           ),
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_lumped_sum")),
-                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count")))
+                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T))
                           ) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$num_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_mean")) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$cat_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_prop")) %>%
