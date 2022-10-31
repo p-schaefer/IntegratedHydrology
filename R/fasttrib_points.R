@@ -749,8 +749,17 @@ fasttrib_points<-function(
 
     attr_col<-unlist(loi_rasts_names,use.names=F)
 
+    # lid<-dplyr::tbl(con_attr,"attrib_tbl") %>%
+    #   dplyr::select(subb_link_id) %>%
+    #   dplyr::distinct() %>%
+    #   dplyr::collect() %>%
+    #   dplyr::mutate(splt=rep(1:n_cores,length.out=nrow(.))) %>%
+    #   dplyr::group_by(splt) %>%
+    #   tidyr::nest() %>%
+    #   dplyr::ungroup()
+
     subb_sum<-dplyr::tbl(con_attr,"attrib_tbl") %>%
-      dplyr::left_join(dplyr::tbl(con_attr,"s_target_weights")) %>%
+      dplyr::left_join(dplyr::tbl(con_attr,"s_target_weights"),by = c("subb_link_id", "cell_number")) %>%
       dplyr::mutate(across(any_of(attr_col), ~.*(!!sym("iFLS")),.names="{.col}_iFLS" )) %>%
       dplyr::mutate(across(any_of(attr_col), ~.*(!!sym("HAiFLS")),.names="{.col}_HAiFLS" )) %>%
       mutate(lumped=1) %>%
