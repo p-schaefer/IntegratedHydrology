@@ -740,7 +740,7 @@ fasttrib_points<-function(
 
   if (!use_existing_attr | !"subb_sum" %in% attr_tbl_list) {
 
-    if (verbose) print("Writing subbasin summaries database")
+    if (verbose) print("Writing subbasin summaries to database")
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
 
@@ -816,10 +816,10 @@ fasttrib_points<-function(
     dplyr::mutate(data=purrr::map(data,
                                   ~dplyr::mutate(.,
                                                  splt2=sample(rep(1:ceiling(nrow(.)/catch_per_core),length.out=nrow(.)),size=nrow(.),replace=F)
-                                                 ) %>%
+                                  ) %>%
                                     split(.,.$splt2) %>%
                                     .[order(names(.))]
-                                  )
+    )
     ) %>%
     dplyr::mutate(
       attr_db_loc=list(attr_db_loc),
@@ -1195,10 +1195,13 @@ fasttrib_points<-function(
                         dplyr::select(pour_point_id,tidyselect::ends_with("_lumped_sum"),tidyselect::ends_with("_lumped_noNAcount"),tidyselect::any_of("lumped_count")) %>%
                         dplyr::summarise(
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$num_rast),"_lumped_sum")),
-                                        ~sum(x,na.rm=T)/sum( dbplyr::sql(gsub("_lumped_sum","_lumped_noNAcount",dplyr::cur_column()),na.rm=T))
-                          ),
+                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T)
+                          )
+                          #~sum(.,na.rm=T)/sum( dbplyr::sql(gsub("_lumped_sum","_lumped_noNAcount",dplyr::cur_column()),na.rm=T))
+                          ,
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_lumped_sum")),
-                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T))
+                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T)
+                          )
                         ) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$num_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_mean")) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$cat_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_prop")) %>%
