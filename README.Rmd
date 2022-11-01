@@ -1045,54 +1045,7 @@ paste0(round(dw_time[[3]]/60,2),
        " cores.")
 
 
-# Plot some attributes along their respective stream lines for visualization:
-targ_param<-c("slope_lumped_mean","slope_iFLS_mean","slope_HAiFLO_mean",
-              "LC_1_lumped_prop","LC_1_iFLS_prop","LC_1_HAiFLO_prop", 
-              "GEO_NAME_CZfg_lumped_prop","GEO_NAME_CZfg_iFLS_prop","GEO_NAME_CZfg_HAiFLO_prop")
 
-targ_param_nm<-paste0(
-  rep(c("Lumped-Weighted\n","iFLS-Weighted\n","HAiFLO-Weighted\n"),length.out=9),
-  rep(c("mean Slope","% LC-1","% Geoclass-CZfg"),each=3)
-)
-
-attr_lines<-hydro_out$stream_lines %>%
-  mutate(link_id=floor(link_id)) %>% 
-  group_by(link_id) %>%              
-  summarize(geometry=st_union(geometry)) %>%
-  ungroup() %>% 
-  mutate(link_id=as.character(link_id)) %>% 
-  left_join(final_attributes_all) %>% 
-  select(link_id,any_of(targ_param))
-
-pout<-map2(targ_param,targ_param_nm,function(x,y) tm_shape(attr_lines) +
-             tm_lines(col=x,
-                      palette = "viridis",
-                      alpha =0.8,
-                      legend.col.show=F,
-                      legend.lwd.show=F,
-                      scale=1)+
-             tm_layout(main.title=y,main.title.size=1)
-)
-
-tmap_arrange(pout,ncol=3)
-
-
-
-a1<-fasttrib_points(
-    input=hydro_out,
-    loi_file=output_filename_loi,
-    link_id="988",
-    out_filename="subsample_points_wgtattr.csv",
-    weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-    loi_numeric_stats = c("mean", "sd",  "min", "max"),
-    inv_function = function(x) {
-        (x * 0.001 + 1)^-1
-    },
-    temp_dir=NULL,use_exising_hw=T,
-    verbose=F
-)
-
-mapview::mapview(attr_lines,zcol="GEO_NAME_CZfg_lumped_prop")
 
 ```
 
