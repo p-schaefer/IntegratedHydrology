@@ -98,6 +98,8 @@ library(whitebox)
 library(terra)
 library(sf)
 library(dplyr)
+library(tidyr)
+library(purrr)
 
 # Many function in 'ihydro' can be run in parallel internally. 
 
@@ -986,6 +988,8 @@ fasttrib_points_time_big<-system.time(
   )
 )
 
+final_attributes_all
+
 attrib_points_time_big<-system.time(
   final_attributes_slow<-attrib_points(
     input=hydro_out,
@@ -1006,7 +1010,7 @@ attrib_points_time_big<-system.time(
   )
 )
 
-final_attributes_all
+final_attributes_slow
 
 pmap(
   list(
@@ -1058,7 +1062,7 @@ attr_lines<-hydro_out$stream_lines %>%
   ungroup() %>% 
   mutate(link_id=as.character(link_id)) %>% 
   left_join(final_attributes_all) %>% 
-  select(any_of(targ_param))
+  select(link_id,any_of(targ_param))
 
 pout<-map2(targ_param,targ_param_nm,function(x,y) tm_shape(attr_lines) +
              tm_lines(col=x,
@@ -1072,6 +1076,23 @@ pout<-map2(targ_param,targ_param_nm,function(x,y) tm_shape(attr_lines) +
 
 tmap_arrange(pout,ncol=3)
 
+
+
+a1<-fasttrib_points(
+    input=hydro_out,
+    loi_file=output_filename_loi,
+    link_id="988",
+    out_filename="subsample_points_wgtattr.csv",
+    weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
+    loi_numeric_stats = c("mean", "sd",  "min", "max"),
+    inv_function = function(x) {
+        (x * 0.001 + 1)^-1
+    },
+    temp_dir=NULL,use_exising_hw=T,
+    verbose=F
+)
+
+mapview::mapview(attr_lines,zcol="GEO_NAME_CZfg_lumped_prop")
 
 ```
 
@@ -1306,7 +1327,8 @@ prediction_data<-final_attributes_all %>%
       pivot_wider(names_from=origin,values_from=prop_shared_catchment,values_fill=0),
     by=c("link_id")
   ) %>% 
-  mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
+  mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.))) %>% 
+  tidyr::drop_na()
 
 prediction_data
 ```
