@@ -201,6 +201,8 @@ fasttrib_points<-function(
     }
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
+
     n_dec<-max(sapply(all_subb$link_id,decimalplaces))
     all_subb_rast<-terra::rasterize(all_subb,
                                     terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif")),
@@ -382,6 +384,7 @@ fasttrib_points<-function(
     # names(hw2)<-sapply(hw2,names)
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
     s_trg_weights<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(names(hw_streams_lo))+2),nrow=1,.name_repair="minimal") %>%
                                     stats::setNames(c("subb_link_id","cell_number",names(hw_streams_lo))) %>%
@@ -501,6 +504,7 @@ fasttrib_points<-function(
 
 
         con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+        t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
         o_trg_weights<-tibble::tibble(catch_link_id="1.1",
                                       cell_number=1L,
@@ -684,6 +688,7 @@ fasttrib_points<-function(
     if (verbose) print("Writing LOI to attributes database")
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
     attrib_tbl<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
                                  stats::setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
@@ -719,6 +724,7 @@ fasttrib_points<-function(
     if (verbose) print("Writing subbasin summaries to database")
 
     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
 
     if ("subb_sum" %in% attr_tbl_list) DBI::dbRemoveTable(con_attr,"subb_sum")
@@ -747,6 +753,7 @@ fasttrib_points<-function(
   }
 
   con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+  t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
   #browser()
   #t1<-DBI::dbExecute(con_attr,"PRAGMA analysis_limit=1000")
@@ -866,7 +873,7 @@ fasttrib_points<-function(
                     # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
                     #
                     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
-                    t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
+                    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
                     names(attr_nms)<-attr_nms
@@ -1222,7 +1229,7 @@ fasttrib_points<-function(
                     # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
                     #
                     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
-                    t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
+                    t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
                     names(attr_nms)<-attr_nms
@@ -1787,6 +1794,7 @@ parallel_layer_processing <- function(n_cores,
 
       if (length(fl_attr)>0) {
         con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+        t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
         template<-dplyr::tbl(con_attr_sub,tbl_nm) %>%
           dplyr::collect(n=1) %>%
@@ -1851,6 +1859,7 @@ parallel_layer_processing <- function(n_cores,
 
     if (length(fl_attr)>0) {
       con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=1000000)
+      t1<-DBI::dbExecute(con_attr_sub,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
       template<-tbl(con_attr_sub,tbl_nm) %>%
         collect(n=1) %>%
