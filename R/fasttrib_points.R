@@ -1889,7 +1889,7 @@ parallel_layer_processing <- function(n_cores,
 
               if (T){ #this is using exact() with cell numbers
                 con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
-                t1<-DBI::dbExecute(con,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
+                t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                 cell_tbl_sub<-try(stop(""),silent=T)
 

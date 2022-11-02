@@ -36,9 +36,11 @@ generate_pdist<-function(
 
   #browser()
   # DS directed path-lengths
+  DBI::dbExecute(con,"DROP TABLE IF EXISTS fcon_pwise_dist")
+
   if (verbose) print("Calculating Flow Connected Distances")
   flowconn_out<-dplyr::tbl(con,"stream_links") %>%
-    dplyr::filter(!is.na(!!rlang::sym(site_id_col))) %>%
+    dplyr::filter(!is.na(dbplyr::sql(site_id_col))) %>%
     dplyr::select(link_id) %>%
     dplyr::rename(origin_link_id=link_id) %>%
     dplyr::left_join(
@@ -53,7 +55,7 @@ generate_pdist<-function(
     dplyr::rename(origin=origin_link_id) %>%
     dplyr::rename(destination=destination_link_id) %>%
     dplyr::group_by(origin) %>%
-    dbplyr::window_order(USChnLn_Fr) %>%
+    dbplyr::window_order(dbplyr::sql("USChnLn_Fr")) %>%
     dplyr::mutate(directed_path_length=cumsum(link_lngth)) %>%
     dplyr::ungroup() %>%
     dplyr::select(origin,destination,directed_path_length) %>%
@@ -66,7 +68,7 @@ generate_pdist<-function(
           by=c("origin_link_id"="link_id")
         ) %>%
         dplyr::group_by(pour_point_id) %>%
-        dplyr::summarize(origin_catchment=sum(sbbsn_area)) %>%
+        dplyr::summarize(origin_catchment=sum(sbbsn_area,na.rm=T)) %>%
         dplyr::rename(origin=pour_point_id),
       by="origin"
     ) %>%
@@ -78,7 +80,7 @@ generate_pdist<-function(
           by=c("origin_link_id"="link_id")
         ) %>%
         dplyr::group_by(pour_point_id) %>%
-        dplyr::summarize(destination_catchment=sum(sbbsn_area)) %>%
+        dplyr::summarize(destination_catchment=sum(sbbsn_area,na.rm=T)) %>%
         dplyr::rename(destination=pour_point_id),
       by="destination"
     ) %>%
@@ -91,18 +93,11 @@ generate_pdist<-function(
       T ~ 0
     )) %>%
     dplyr::mutate(undirected_path_length=directed_path_length) %>%
-    dplyr::select(-origin_catchment,-destination_catchment)
-
-  DBI::dbExecute(con,"DROP TABLE IF EXISTS fcon_pwise_dist")
-  t1<-flowconn_out %>%
-    dplyr::copy_to(df=.,
-            con,
-            "fcon_pwise_dist",
-            overwrite =T,
-            temporary =F,
-            indexes=c("origin","destination"),
-            analyze=T,
-            in_transaction=T)
+    dplyr::select(-origin_catchment,-destination_catchment) %>%
+    dplyr::compute(name = "fcon_pwise_dist",
+                   temporary = F,
+                   overwrite=T,
+                   indexes = c("origin","destination"))
 
 
   #un-directed path-lengths
@@ -125,29 +120,17 @@ generate_pdist<-function(
         dplyr::tbl(con,"ds_flowpaths") %>% dplyr::select(origin_p1=destination_link_id,origin_p2=origin_link_id),
         by = c("origin_p1", "origin_p2")
       ) %>%
-    # left_join(tbl(con,"fcon_pwise_dist") %>% select(origin,destination,directed_path_length_dir1=directed_path_length),
-    #           by=c("origin_p2"="origin",
-    #                "origin_p1"="destination")) %>%
-    # mutate(undirected_path_length=case_when(
-    #   is.na(directed_path_length_dir1) ~ as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2),
-    #   T ~ 0
-    # )) %>%
     dplyr::mutate(undirected_path_length=as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2)) %>%
       dplyr::select(origin=origin_p1,destination=origin_p2,undirected_path_length) %>%
       dplyr::mutate(directed_path_length=0,
              prop_shared_catchment=0,
-             prop_shared_logcatchment=0)
+             prop_shared_logcatchment=0)%>%
+      dplyr::compute(name = "funcon_pwise_dist",
+                     temporary = F,
+                     overwrite=T,
+                     indexes = c("origin","destination"))
 
 
-    t1<-flowUNconn_out %>%
-      dplyr::copy_to(df=.,
-              con,
-              "funcon_pwise_dist",
-              overwrite =T,
-              temporary =F,
-              indexes=c("origin","destination"),
-              analyze=T,
-              in_transaction=T)
 
   }
 
