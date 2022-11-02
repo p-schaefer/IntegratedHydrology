@@ -91,7 +91,7 @@ prep_weights<-function(
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
   stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
 
   all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%

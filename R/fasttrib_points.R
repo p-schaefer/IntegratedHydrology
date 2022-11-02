@@ -178,7 +178,7 @@ fasttrib_points<-function(
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
   stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
 
   all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
@@ -769,7 +769,7 @@ fasttrib_points<-function(
                 across(any_of(attr_col),~sum(.,na.rm=T),.names="{.col}_lumped_sum"),
                 across(any_of(attr_col),~min(.,na.rm=T),.names="{.col}_lumped_min"),
                 across(any_of(attr_col),~max(.,na.rm=T),.names="{.col}_lumped_max"),
-                across(any_of(attr_col),~sum(!is.na(.)),.names="{.col}_lumped_noNAcount"),
+                across(any_of(attr_col),~sum(!is.na(.),na.rm=T),.names="{.col}_lumped_noNAcount"),
                 across(any_of("lumped"),~n(),.names="{.col}_count")
       ) %>%
       compute(name="subb_sum",indexes=c("subb_link_id"),temporary=F)
@@ -918,7 +918,7 @@ fasttrib_points<-function(
                     if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) > 0){
                       mean_out<-out %>%
                         dplyr::select(-link_id,-cell_number) %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)/sum(!is.na(.))),
+                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)/sum(!is.na(.),na.rm=T)),
                                          dplyr::across(tidyselect::any_of(names(loi_rasts_names$cat_rast)),~sum(.,na.rm=T)/dplyr::n())) %>%
                         dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_mean")) %>%
                         dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$cat_rast)),~paste0(.x,"_lumped_prop")) %>%
@@ -1106,13 +1106,13 @@ fasttrib_points<-function(
 
                       if ("iFLS" %in% weighting_scheme_s){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                         out_extra<-out_extra %>%
-                          dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("iFLS")),.names="{.col}_iFLS"))
+                          dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(dbplyr::sql("iFLS")),.names="{.col}_iFLS"))
 
                       }
 
                       if ("HAiFLS" %in% weighting_scheme_s){
                         out_extra<-out_extra %>%
-                          dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLS")),.names="{.col}_HAiFLS" ))
+                          dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(dbplyr::sql("HAiFLS")),.names="{.col}_HAiFLS" ))
 
                       }
 
@@ -1166,9 +1166,9 @@ fasttrib_points<-function(
                                     tidyselect::contains(weighting_scheme_s)) %>%
                       dplyr::group_by(pour_point_id) %>%
                       dplyr::summarise(
-                        dplyr::across(c(tidyselect::ends_with(paste0("_",c("sum","noNAcount"))),tidyselect::any_of("lumped_count")),sum,na.rm=T ),
-                        dplyr::across(tidyselect::ends_with(paste0("_",c("min"))),min,na.rm=T ),
-                        dplyr::across(tidyselect::ends_with(paste0("_",c("max"))),max,na.rm=T )
+                        dplyr::across(c(tidyselect::ends_with(paste0("_",c("sum","noNAcount"))),tidyselect::any_of("lumped_count")),~sum(.,na.rm=T)),
+                        dplyr::across(tidyselect::ends_with(paste0("_",c("min"))),~min(.,na.rm=T)),
+                        dplyr::across(tidyselect::ends_with(paste0("_",c("max"))),~max(.,na.rm=T))
                       )
 
                     if (length(weighting_scheme_s)>0 | any(attrs %in% c("mean","min","max","count","sum"))){
@@ -1180,8 +1180,8 @@ fasttrib_points<-function(
                       weighted_mean_out<-subb_summary_out %>%
                         dplyr::group_by(pour_point_id) %>%
                         dplyr::summarize(
-                          dplyr::across(tidyselect::ends_with(paste0("_","iFLS_sum")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS_sum"),na.rm=T)),
-                          dplyr::across(tidyselect::ends_with(paste0("_","HAiFLS_sum")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS_sum"),na.rm=T))
+                          dplyr::across(tidyselect::ends_with(paste0("_","iFLS_sum")),~sum(.,na.rm=T)/sum(dbplyr::sql("iFLS_sum"),na.rm=T)),
+                          dplyr::across(tidyselect::ends_with(paste0("_","HAiFLS_sum")),~sum(.,na.rm=T)/sum(dbplyr::sql("HAiFLS_sum"),na.rm=T))
                         ) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(paste0(names(loi_rasts_names$num_rast),"_")),~paste0(gsub("_sum","",.x),"_mean")) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_")),~paste0(gsub("_sum","",.x),"_prop")) %>%
@@ -1199,7 +1199,7 @@ fasttrib_points<-function(
                           )
                           ,
                           dplyr::across(tidyselect::starts_with(paste0(names(loi_rasts_names$cat_rast),"_lumped_sum")),
-                                        ~sum(.,na.rm=T)/sum(!!rlang::sym("lumped_count"),na.rm=T)
+                                        ~sum(.,na.rm=T)/sum(dbplyr::sql("lumped_count"),na.rm=T)
                           )
                         ) %>%
                         dplyr::rename_with(.cols=tidyselect::starts_with(names(loi_rasts_names$num_rast)),~paste0(gsub("_lumped_sum","",.x),"_lumped_mean")) %>%
@@ -1278,13 +1278,13 @@ fasttrib_points<-function(
                                           tidyselect::any_of("iFLS")
                             ) %>%
                             dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~(!!rlang::sym("iFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)))^2)),
+                                                        ~(dbplyr::sql("iFLS") * ((.-(sum(.,na.rm=T)/sum(dbplyr::sql("iFLS"),na.rm=T)))^2)),
                                                         .names="{.col}_iFLS_term1"),
                                           dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~ ((sum(!!rlang::sym("iFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLS")!=0,na.rm=T)) * sum(!!rlang::sym("iFLS"),na.rm=T),
+                                                        ~ ((sum(dbplyr::sql("iFLS")!=0,na.rm=T)-1)/sum(dbplyr::sql("iFLS")!=0,na.rm=T)) * sum(dbplyr::sql("iFLS"),na.rm=T),
                                                         .names="{.col}_iFLS_term2"
                                           ))%>%
-                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),sum,na.rm=T),
+                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                                              dplyr::across(tidyselect::ends_with("_term2"),~.[1])
                             ) %>%
                             dplyr::collect()
@@ -1297,13 +1297,13 @@ fasttrib_points<-function(
                                           tidyselect::any_of("HAiFLS")
                             ) %>%
                             dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
+                                                        ~(dbplyr::sql("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(dbplyr::sql("HAiFLS"),na.rm=T)))^2)),
                                                         .names="{.col}_HAiFLS_term1"),
                                           dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
+                                                        ~ ((sum(dbplyr::sql("HAiFLS")!=0,na.rm=T)-1)/sum(dbplyr::sql("HAiFLS")!=0,na.rm=T)) * sum(dbplyr::sql("HAiFLS"),na.rm=T),
                                                         .names="{.col}_HAiFLS_term2"
                                           ))%>%
-                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),sum,na.rm=T),
+                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                                              dplyr::across(tidyselect::ends_with("_term2"),~.[1])
                             ) %>%
                             dplyr::collect()
@@ -1553,13 +1553,13 @@ fasttrib_points<-function(
 
                     if ("iFLO" %in% weighting_scheme_o){ # This is the only way I could get around an error by iterating over weighting_scheme_s
                       out<-out %>%
-                        dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("iFLO")),.names="{.col}_iFLO" ))
+                        dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(dbplyr::sql("iFLO")),.names="{.col}_iFLO" ))
 
                     }
 
                     if ("HAiFLO" %in% weighting_scheme_o){
                       out<-out %>%
-                        dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(!!rlang::sym("HAiFLO")),.names="{.col}_HAiFLO" ))
+                        dplyr::mutate(dplyr::across(tidyselect::any_of(attr_nms), ~.*(dbplyr::sql("HAiFLO")),.names="{.col}_HAiFLO" ))
 
                     }
 
@@ -1607,13 +1607,13 @@ fasttrib_points<-function(
                                           tidyselect::any_of("iFLO")
                             ) %>%
                             dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
+                                                        ~(dbplyr::sql("iFLO") * ((.-(sum(.,na.rm=T)/sum(dbplyr::sql("iFLO"),na.rm=T)))^2)),
                                                         .names="{.col}_iFLO_term1"),
                                           dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
+                                                        ~ ((sum(dbplyr::sql("iFLO")!=0,na.rm=T)-1)/sum(dbplyr::sql("iFLO")!=0,na.rm=T)) * sum(dbplyr::sql("iFLO"),na.rm=T),
                                                         .names="{.col}_iFLO_term2"
                                           ))%>%
-                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),sum,na.rm=T),
+                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                                              dplyr::across(tidyselect::ends_with("_term2"),~.[1])
                             ) %>%
                             dplyr::collect()
@@ -1626,13 +1626,13 @@ fasttrib_points<-function(
                                           tidyselect::any_of("HAiFLO")
                             ) %>%
                             dplyr::mutate(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
+                                                        ~(dbplyr::sql("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(dbplyr::sql("HAiFLO"),na.rm=T)))^2)),
                                                         .names="{.col}_HAiFLO_term1"),
                                           dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),
-                                                        ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
+                                                        ~ ((sum(dbplyr::sql("HAiFLO")!=0,na.rm=T)-1)/sum(dbplyr::sql("HAiFLO")!=0,na.rm=T)) * sum(dbplyr::sql("HAiFLO"),na.rm=T),
                                                         .names="{.col}_HAiFLO_term2"
                                           ))%>%
-                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),sum,na.rm=T),
+                            dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                                              dplyr::across(tidyselect::ends_with("_term2"),~.[1])
                             ) %>%
                             dplyr::collect()

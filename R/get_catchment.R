@@ -55,7 +55,7 @@ get_catchment<-function(
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
   points<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
 
   # points<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%

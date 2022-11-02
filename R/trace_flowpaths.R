@@ -58,7 +58,7 @@ trace_flowpaths<-function(
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
   final_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
 
   fp<-trace_flowpath_fn(input=final_links,

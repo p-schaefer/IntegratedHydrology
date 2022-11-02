@@ -105,7 +105,7 @@ attrib_points<-function(
   con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
   stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),dplyr::na_if,""))
+    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
 
   all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
@@ -635,7 +635,7 @@ attrib_points<-function(
     dplyr::mutate(dplyr::across(c(tidyselect::everything(),-tidyselect::any_of(site_id_col),-tidyselect::any_of("distance_weights"),-tidyselect::any_of("weighted_attr")),as.numeric)) %>%
     dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~dplyr::case_when(is.na(.) | is.nan(.) ~ 0, T ~ .))) %>%
     dplyr::group_by(!!dplyr::sym(site_id_col)) %>%
-    dplyr::summarise(dplyr::across(tidyselect::everything(),utils::head,1)) %>%
+    dplyr::summarise(dplyr::across(tidyselect::everything(),~utils::head(.,1))) %>%
     dplyr::ungroup()
   #dplyr::distinct()
 

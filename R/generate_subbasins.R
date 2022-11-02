@@ -85,7 +85,7 @@ generate_subbasins<-function(
 
     stream_links<-collect(tbl(con,"stream_links")) %>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-      mutate(across(any_of(site_id_col),na_if,""))
+      mutate(across(any_of(site_id_col),~na_if(.,"")))
 
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>% #stream_links.shp
@@ -204,7 +204,7 @@ generate_subbasins<-function(
 
       all_stream_links<-collect(tbl(con,"stream_links")) %>%
         mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-        mutate(across(any_of(site_id_col),na_if,""))
+        mutate(across(any_of(site_id_col),~na_if(.,"")))
 
       all_stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
         mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
@@ -221,7 +221,7 @@ generate_subbasins<-function(
   } else {
     stream_links<-collect(tbl(con,"stream_links")) %>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%
-      mutate(across(any_of(site_id_col),na_if,""))
+      mutate(across(any_of(site_id_col),~na_if(.,"")))
 
     stream_links<-read_sf(file.path("/vsizip",zip_loc,"stream_links.shp")) %>%
       mutate(across(c(link_id,any_of(site_id_col)),as.character)) %>%

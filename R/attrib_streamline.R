@@ -307,7 +307,7 @@ attrib_streamline<-function(
       dplyr::filter(!is.na(link_id)) %>%
       dplyr::select(tidyselect::any_of(site_id_col),tidyselect::everything()) %>%
       dplyr::group_by(ID) %>%
-      dplyr::summarise(dplyr::across(tidyselect::everything(),utils::head,1)) %>%
+      dplyr::summarise(dplyr::across(tidyselect::everything(),~utils::head(.,1))) %>%
       dplyr::ungroup()
 
     new_final_points<-final_points
