@@ -133,7 +133,7 @@ fasttrib_points<-function(
   }
 
 
-  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
   # # DBI::dbSendStatement(con_attr, "PRAGMA busy_timeout = 10000")
   # # DBI::dbSendStatement(con_attr,"PRAGMA journal_mode = WAL")
   # # DBI::dbSendStatement(con_attr,"PRAGMA synchronous = 0")
@@ -175,7 +175,7 @@ fasttrib_points<-function(
   site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
 
   db_loc<-input$db_loc
-  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc,cache_size=200000)
   stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
     dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
@@ -200,7 +200,7 @@ fasttrib_points<-function(
       }
     }
 
-    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
 
     n_dec<-max(sapply(all_subb$link_id,decimalplaces))
     all_subb_rast<-terra::rasterize(all_subb,
@@ -274,7 +274,7 @@ fasttrib_points<-function(
   # Get Upstream flowpaths --------------------------------------------------
 
   us_fp_fun<-function(link_id_in,db_loc=db_loc){
-    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc,cache_size=200000)
     out<-dplyr::tbl(con,"us_flowpaths") %>%
       dplyr::filter(pour_point_id %in% link_id_in) %>%
       dplyr::rename(link_id=origin_link_id) %>%
@@ -382,7 +382,7 @@ fasttrib_points<-function(
     # hw2<-map(hw_streams_lo,terra::rast)
     # names(hw2)<-sapply(hw2,names)
 
-    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
 
     s_trg_weights<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(names(hw_streams_lo))+2),nrow=1,.name_repair="minimal") %>%
                                     stats::setNames(c("subb_link_id","cell_number",names(hw_streams_lo))) %>%
@@ -501,7 +501,7 @@ fasttrib_points<-function(
         p <- progressr::progressor(steps = length(target_O_sub))
 
 
-        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
 
         o_trg_weights<-tibble::tibble(catch_link_id="1.1",
                                       cell_number=1L,
@@ -642,7 +642,7 @@ fasttrib_points<-function(
 
           }))
 
-        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+        con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
 
         t1<-DBI::dbExecute(con_attr,"CREATE INDEX idx_o_target_weights ON o_target_weights (catch_link_id, cell_number)")
 
@@ -684,7 +684,7 @@ fasttrib_points<-function(
 
     if (verbose) print("Writing LOI to attributes database")
 
-    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
 
     attrib_tbl<-dplyr::copy_to(df=tibble::as_tibble(matrix(ncol = length(unlist(loi_rasts_names))+2,nrow=1),.name_repair="minimal") %>%
                                  stats::setNames(c("subb_link_id","cell_number",unlist(loi_rasts_names))) %>%
@@ -719,7 +719,7 @@ fasttrib_points<-function(
 
     if (verbose) print("Writing subbasin summaries to database")
 
-    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
     t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
 
@@ -748,7 +748,7 @@ fasttrib_points<-function(
 
   }
 
-  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+  con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
   t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
   #browser()
@@ -873,7 +873,7 @@ fasttrib_points<-function(
                     # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
                     # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
                     #
-                    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+                    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
                     t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
@@ -1234,7 +1234,7 @@ fasttrib_points<-function(
                     # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
                     # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
                     #
-                    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc)
+                    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=200000)
                     t1<-DBI::dbExecute(con_attr,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
@@ -1600,7 +1600,7 @@ parallel_layer_processing <- function(n_cores,
                 # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
                 # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
                 #
-                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=200000)
                 t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                 cell_tbl_sub<-try(stop(""),silent=T)
@@ -1668,7 +1668,7 @@ parallel_layer_processing <- function(n_cores,
               }
 
               if (F) { #this is using readValues() per subbasin
-                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+                con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=200000)
 
                 cell_tbl_sub<-try(stop(""),silent=T)
 
@@ -1799,7 +1799,7 @@ parallel_layer_processing <- function(n_cores,
       fl_attr<-fl_attr[!grepl(paste0(sub_nm,"_s_"),fl_attr)]
 
       if (length(fl_attr)>0) {
-        con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+        con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=200000)
 
         template<-dplyr::tbl(con_attr_sub,tbl_nm) %>%
           dplyr::collect(n=1) %>%
@@ -1863,7 +1863,7 @@ parallel_layer_processing <- function(n_cores,
   if (length(fl_attr)>0) {
 
     if (length(fl_attr)>0) {
-      con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
+      con_attr_sub<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc,cache_size=200000)
 
       template<-tbl(con_attr_sub,tbl_nm) %>%
         collect(n=1) %>%
