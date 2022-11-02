@@ -242,7 +242,7 @@ fasttrib_points<-function(
       target_IDs<-all_points %>%
         tibble::as_tibble() %>%
         dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
-        dplyr::filter(dbplyr::sql(site_id_col) %in% sample_points)
+        dplyr::filter(!!rlang::sym(site_id_col) %in% sample_points)
     } else {
       target_IDs<-NULL
     }
