@@ -766,8 +766,6 @@ fasttrib_points<-function(
   o_targ_out<-NULL
 
   #
-  # Lumped Attributes -------------------------------------------------------
-
   #browser() # here make calculations work with more than 1 link_id at a time
 
   us_flowpaths_out_o<-us_flowpaths_out
@@ -799,170 +797,6 @@ fasttrib_points<-function(
     dplyr::ungroup()
 
   nrep<-sum(purrr::map_dbl(us_flowpaths_out_o$data,~length(.$data[[1]])))
-
-  if (F & lumped_scheme) {
-    if (verbose) print("Calculating Lumped Attributes")
-
-    progressr::with_progress(enable=T,{
-      p <- progressr::progressor(steps = nrep)
-      lumped_out<-us_flowpaths_out_o %>%
-        dplyr::mutate(p=list(p)) %>%
-        dplyr::mutate(attr=furrr::future_pmap(#
-          list(
-            data=data,
-            p=p
-          ),
-          .options = furrr::furrr_options(globals = FALSE),
-          carrier::crate(
-            function(data,
-                     p
-            ){
-              #browser()
-              options(scipen = 999)
-              `%>%` <- magrittr::`%>%`
-
-              purrr::pmap_dfr(
-                list(
-                  x=data$data[[1]],
-                  attr_db_loc=data$attr_db_loc,
-                  loi_rasts_names=data$loi_rasts_names,
-                  loi_numeric_stats=data$loi_numeric_stats,
-                  loi_cols=data$loi_cols,
-                  p=list(p)
-                ),
-                carrier::crate(
-                  function(x,
-                           attr_db_loc,
-                           loi_rasts_names,
-                           loi_numeric_stats,
-                           loi_cols,
-                           p
-                  ){
-                    #browser()
-
-                    link_id_in<-x$link_id
-
-                    #browser()
-                    options(scipen = 999)
-                    `%>%` <- magrittr::`%>%`
-
-                    con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
-
-                    out<-dplyr::tbl(con_attr,"us_flowpaths") %>%
-                      dplyr::rename(link_id=origin_link_id) %>%
-                      dplyr::filter(pour_point_id %in% local(link_id_in)) %>%
-                      dplyr::collapse() %>%
-                      dplyr::left_join(dplyr::tbl(con_attr,"attrib_tbl") %>%
-                                         dplyr::select(subb_link_id,cell_number,tidyselect::any_of(loi_cols)) %>%
-                                         dplyr::rename(link_id=subb_link_id )%>%
-                                         dplyr::collapse(),
-                                       by=c("link_id")
-                      ) %>%
-                      dplyr::group_by(pour_point_id) %>%
-                      dplyr::compute()
-
-                    attrs<-loi_numeric_stats
-
-                    mean_out<-NULL
-                    sd_out<-NULL
-                    min_out<-NULL
-                    max_out<-NULL
-                    count_out<-NULL
-                    median_out<-NULL
-                    sum_out<-NULL
-
-                    if (any("mean"==attrs)|length(loi_rasts_names$cat_rast) > 0){
-                      mean_out<-out %>%
-                        dplyr::select(-link_id,-cell_number) %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)/sum(!is.na(.),na.rm=T)),
-                                         dplyr::across(tidyselect::any_of(names(loi_rasts_names$cat_rast)),~sum(.,na.rm=T)/dplyr::n())) %>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_mean")) %>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$cat_rast)),~paste0(.x,"_lumped_prop")) %>%
-                        dplyr::collect()
-                    }
-
-                    if (any(attrs %in% c("sd","stdev"))){
-                      sd_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sd(.,na.rm=T))) %>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_sd"))%>%
-                        dplyr::collect()
-
-                    }
-                    if (any(attrs=="min")){
-                      min_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~min(.,na.rm=T))) %>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_min"))%>%
-                        dplyr::collect()
-
-                    }
-                    if (any(attrs=="max")){
-                      max_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~max(.,na.rm=T)))%>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_max")) %>%
-                        dplyr::collect()
-
-                    }
-                    if (any(attrs=="count")){
-                      count_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.[!is.na(.)],na.rm=T)))%>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_count")) %>%
-                        dplyr::collect()
-
-                    }
-                    if (any(attrs=="median")){
-                      median_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~stats::median(.,na.rm=T)))%>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_median")) %>%
-                        dplyr::collect()
-
-                    }
-                    if (any(attrs=="sum")){
-                      sum_out<-out %>%
-                        dplyr::summarise(dplyr::across(tidyselect::any_of(names(loi_rasts_names$num_rast)),~sum(.,na.rm=T)))%>%
-                        dplyr::rename_with(.cols=tidyselect::any_of(names(loi_rasts_names$num_rast)),~paste0(.x,"_lumped_sum")) %>%
-                        dplyr::collect()
-                    }
-
-                    final_list<-list(
-                      mean_out,
-                      sd_out,
-                      min_out,
-                      max_out,
-                      count_out,
-                      median_out,
-                      sum_out
-                    )
-                    final_list<-final_list[!sapply(final_list,is.null)]
-
-                    final_out<-purrr::reduce(
-                      final_list,
-                      dplyr::left_join,
-                      by="pour_point_id"
-                    )
-
-                    final_out <- x %>%
-                      dplyr::select(-us_flowpaths,-splt2) %>%
-                      dplyr::left_join(final_out,by=c("link_id"="pour_point_id"))
-
-
-                    DBI::dbDisconnect(con_attr)
-
-                    p()
-
-                    gg<-gc()
-
-                    return(final_out)
-
-                  })
-              )
-
-            })
-        )) %>%
-        dplyr::select(attr) %>%
-        tidyr::unnest(cols = c(attr))
-    })
-
-  }
 
   # s-targeted Attributes -------------------------------------------------------
 
@@ -1028,7 +862,11 @@ fasttrib_points<-function(
                     `%>%` <- magrittr::`%>%`
                     #browser()
 
+                    # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
+                    # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
+                    #
                     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+                    t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
                     names(attr_nms)<-attr_nms
@@ -1380,7 +1218,11 @@ fasttrib_points<-function(
                     `%>%` <- magrittr::`%>%`
                     #browser()
 
+                    # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
+                    # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
+                    #
                     con_attr<-DBI::dbConnect(RSQLite::SQLite(), attr_db_loc,cache_size=1000000)
+                    t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
                     attr_nms<-names(c(loi_rasts_names$num_rast,loi_rasts_names$cat_rast))
                     names(attr_nms)<-attr_nms
@@ -1742,6 +1584,9 @@ parallel_layer_processing <- function(n_cores,
               `%>%` <- magrittr::`%>%`
 
               if (T){ #this is using exact() with cell numbers
+                # Sys.setenv(paste0('SQLITE_TMPDIR=',temp_dir,"'"))
+                # Sys.setenv(paste0('TMPDIR=',temp_dir,"'"))
+                #
                 con_attr2<-DBI::dbConnect(RSQLite::SQLite(),attr_db_loc)
                 t1<-DBI::dbExecute(con_attr2,paste0("PRAGMA temp_store_directory = '",temp_dir,"'"))
 
