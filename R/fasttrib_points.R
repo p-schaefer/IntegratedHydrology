@@ -812,12 +812,14 @@ fasttrib_points<-function(
       s_targ_out<-us_flowpaths_out_o %>%
         dplyr::mutate(p=list(p),
                       weighting_scheme_s=list(weighting_scheme_s),
+                      temp_dir=list(temp_dir),
                       lumped_scheme=list(lumped_scheme)) %>%
         dplyr::mutate(attr=furrr::future_pmap(
           list(
             core=splt1,
             data=data,
             weighting_scheme_s=weighting_scheme_s,
+            temp_dir=temp_dir,
             lumped_scheme=lumped_scheme,
             p=p
           ),
@@ -826,6 +828,7 @@ fasttrib_points<-function(
             function(core,
                      data,
                      weighting_scheme_s,
+                     temp_dir,
                      lumped_scheme,
                      p
             ){
@@ -1179,16 +1182,19 @@ fasttrib_points<-function(
       p <- progressr::progressor(steps = nrep)
       o_targ_out<-us_flowpaths_out_o %>%
         dplyr::mutate(p=list(p),
+                      temp_dir=list(temp_dir),
                       weighting_scheme_o=list(weighting_scheme_o)) %>%
         dplyr::mutate(attr=furrr::future_pmap(
           list(
             data=data,
+            temp_dir=temp_dir,
             weighting_scheme_o=weighting_scheme_o,
             p=p
           ),
           .options = furrr::furrr_options(globals = FALSE),
           carrier::crate(
             function(data,
+                     temp_dir,
                      weighting_scheme_o,
                      p
             ){
