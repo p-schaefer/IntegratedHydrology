@@ -842,6 +842,7 @@ fasttrib_points<-function(
                   loi_rasts_names=data$loi_rasts_names,
                   weighting_scheme_s=list(weighting_scheme_s),
                   lumped_scheme=list(lumped_scheme),
+                  temp_dir=list(temp_dir),
                   loi_numeric_stats=data$loi_numeric_stats,
                   loi_cols=data$loi_cols,
                   p=list(p)
@@ -853,6 +854,7 @@ fasttrib_points<-function(
                            loi_rasts_names,
                            weighting_scheme_s,
                            lumped_scheme,
+                           temp_dir,
                            loi_numeric_stats,
                            loi_cols,
                            p
@@ -1202,6 +1204,7 @@ fasttrib_points<-function(
                   loi_rasts_names=data$loi_rasts_names,
                   weighting_scheme_o=list(weighting_scheme_o),
                   loi_numeric_stats=data$loi_numeric_stats,
+                  temp_dir=list(temp_dir),
                   loi_cols=data$loi_cols,
                   p=list(p)
                 ),
@@ -1211,6 +1214,7 @@ fasttrib_points<-function(
                            loi_rasts_names,
                            weighting_scheme_o,
                            loi_numeric_stats,
+                           temp_dir,
                            loi_cols,
                            p
                   ){
