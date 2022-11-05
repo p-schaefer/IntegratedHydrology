@@ -349,11 +349,11 @@ fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extra
 
 fl
 #>                   Name  Length                Date
-#> 1        dem_final.tif 1804210 2022-11-01 08:22:00
-#> 2           dem_d8.tif  454212 2022-11-01 08:22:00
-#> 3     dem_accum_d8.tif  904212 2022-11-01 08:22:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-11-01 08:22:00
-#> 5   dem_streams_d8.tif  904212 2022-11-01 08:22:00
+#> 1        dem_final.tif 1804212 2022-11-05 14:11:00
+#> 2           dem_d8.tif  454212 2022-11-05 14:11:00
+#> 3     dem_accum_d8.tif  904212 2022-11-05 14:11:00
+#> 4 dem_accum_d8_sca.tif  904212 2022-11-05 14:11:00
+#> 5   dem_streams_d8.tif  904212 2022-11-05 14:11:00
 
 flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
                            hydro_out$outfile, # Then specify the full path to the zip file
@@ -361,7 +361,7 @@ flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions 
 )
 
 flow_accum_path
-#> [1] "/vsizip/C:\\Users\\PSCHAE~1\\AppData\\Local\\Temp\\RtmpsH7G2l\\Processed_Hydrology.zip/dem_accum_d8.tif"
+#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpiIxHom\\Processed_Hydrology.zip/dem_accum_d8.tif"
 
 flow_accum<-rast(flow_accum_path)
 
@@ -506,8 +506,8 @@ head(hydro_out$us_flowpaths)
 #> 2 10            10            
 #> 3 100           100           
 #> 4 1000          1000          
-#> 5 1000          1005          
-#> 6 1000          1006
+#> 5 1000          1001          
+#> 6 1000          1004
 
 head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
 #> # A tibble: 6 × 2
@@ -516,9 +516,9 @@ head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
 #> 1 1                   1             
 #> 2 10                  10            
 #> 3 100                 100           
-#> 4 1000                130           
-#> 5 1000                1112          
-#> 6 1000                1118.1
+#> 4 1000                127           
+#> 5 1000                1107.1        
+#> 6 1000                1107
 
 us_790<-hydro_out$us_flowpaths %>%
   filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
@@ -625,10 +625,10 @@ head(hydro_out$pwise_dist)
 #>   <chr>  <chr>                      <dbl>          <dbl>   <dbl>   <dbl> <chr>  
 #> 1 1      1                          132.          1        1       132.  Flow C…
 #> 2 10     10                          42.4         1        1        42.4 Flow C…
-#> 3 10     1217                       192.          0.0289   0.763   192.  Flow C…
-#> 4 100    100                        627.          1        1       627.  Flow C…
-#> 5 100    1141                       862.          0.111    0.853   862.  Flow C…
-#> 6 100    1135                      1122.          0.0997   0.847  1122.  Flow C…
+#> 3 10     1210                       192.          0.0289   0.763   192.  Flow C…
+#> 4 100    100                        230.          1        1       230.  Flow C…
+#> 5 100    1132                       465.          0.284    0.904   465.  Flow C…
+#> 6 100    1139                       579.          0.218    0.886   579.  Flow C…
 #> # … with abbreviated variable names ¹​prop_shared_catchment,
 #> #   ²​prop_shared_logcatchment, ³​undirected_path_length, ⁴​dist_type
 
@@ -692,20 +692,20 @@ dmat<-hydro_out$pwise_dist %>%
   log1p()
 
 head(dmat)
-#>          1055.1   1040.1   1003.1   1017.1 1076.1 973.1 1058.1 1079.1 1042.1
-#> 1003.1 8.967618 0.000000 0.000000 0.000000      0     0      0      0      0
-#> 1017.1 9.396383 7.494625 8.379798 0.000000      0     0      0      0      0
-#> 1026.1 9.548604 8.237140 8.754396 7.797961      0     0      0      0      0
-#> 103.1  9.664710 8.613486 8.995312 0.000000      0     0      0      0      0
-#> 1037.1 8.427519 0.000000 0.000000 0.000000      0     0      0      0      0
-#> 1038.1 9.307670 0.000000 8.112417 0.000000      0     0      0      0      0
-#>        1091.1 1098.1 1026.1 929.1 774.1 714.1 785.1 871.1 909.1 855.1
-#> 1003.1      0      0      0     0     0     0     0     0     0     0
-#> 1017.1      0      0      0     0     0     0     0     0     0     0
-#> 1026.1      0      0      0     0     0     0     0     0     0     0
-#> 103.1       0      0      0     0     0     0     0     0     0     0
-#> 1037.1      0      0      0     0     0     0     0     0     0     0
-#> 1038.1      0      0      0     0     0     0     0     0     0     0
+#>          1035.1    998.1   1050.1   1012.1 1071.1 968.1 1053.1 1074.1 1037.1
+#> 101.1  8.613486 8.995312 9.664710 0.000000      0     0      0      0      0
+#> 1012.1 7.494625 8.379798 9.396383 0.000000      0     0      0      0      0
+#> 1021.1 8.237140 8.754396 9.548604 7.797961      0     0      0      0      0
+#> 1032.1 0.000000 0.000000 8.427519 0.000000      0     0      0      0      0
+#> 1033.1 0.000000 8.112417 9.307670 0.000000      0     0      0      0      0
+#> 1035.1 0.000000 8.027024 9.282589 0.000000      0     0      0      0      0
+#>        1086.1 1093.1 1021.1 924.1 769.1 709.1 780.1 866.1 904.1 850.1
+#> 101.1       0      0      0     0     0     0     0     0     0     0
+#> 1012.1      0      0      0     0     0     0     0     0     0     0
+#> 1021.1      0      0      0     0     0     0     0     0     0     0
+#> 1032.1      0      0      0     0     0     0     0     0     0     0
+#> 1033.1      0      0      0     0     0     0     0     0     0     0
+#> 1035.1      0      0      0     0     0     0     0     0     0     0
 
 # This table describes the proportions of shared catchments at destination points (rows)
 # from upstream origin points (columns)
@@ -725,20 +725,20 @@ dmat2<-hydro_out$pwise_dist %>%
   tibble::column_to_rownames("link_id")
 
 head(dmat2)
-#>           1055.1    1040.1    1003.1    1017.1 1076.1 973.1 1058.1 1079.1
-#> 1003.1 0.9645389 0.0000000 0.0000000 0.0000000      0     0      0      0
-#> 1017.1 0.9410187 0.9872311 0.9756151 0.0000000      0     0      0      0
-#> 1026.1 0.8304294 0.8712109 0.8609600 0.8824792      0     0      0      0
-#> 103.1  0.7294950 0.7653197 0.7563147 0.0000000      0     0      0      0
-#> 1037.1 0.7370688 0.0000000 0.0000000 0.0000000      0     0      0      0
-#> 1038.1 0.7853246 0.0000000 0.8141969 0.0000000      0     0      0      0
-#>        1042.1 1091.1 1098.1 1026.1 929.1 774.1 714.1 785.1 871.1 909.1 855.1
-#> 1003.1      0      0      0      0     0     0     0     0     0     0     0
-#> 1017.1      0      0      0      0     0     0     0     0     0     0     0
-#> 1026.1      0      0      0      0     0     0     0     0     0     0     0
-#> 103.1       0      0      0      0     0     0     0     0     0     0     0
-#> 1037.1      0      0      0      0     0     0     0     0     0     0     0
-#> 1038.1      0      0      0      0     0     0     0     0     0     0     0
+#>           1035.1     998.1    1050.1    1012.1 1071.1 968.1 1053.1 1074.1
+#> 101.1  0.7653298 0.7563228 0.7294989 0.0000000      0     0      0      0
+#> 1012.1 0.9872277 0.9756092 0.9410081 0.0000000      0     0      0      0
+#> 1021.1 0.8712224 0.8609692 0.8304339 0.8824939      0     0      0      0
+#> 1032.1 0.0000000 0.0000000 0.7370728 0.0000000      0     0      0      0
+#> 1033.1 0.0000000 0.8142056 0.7853288 0.0000000      0     0      0      0
+#> 1035.1 0.0000000 0.9882312 0.9531825 0.0000000      0     0      0      0
+#>        1037.1 1086.1 1093.1 1021.1 924.1 769.1 709.1 780.1 866.1 904.1 850.1
+#> 101.1       0      0      0      0     0     0     0     0     0     0     0
+#> 1012.1      0      0      0      0     0     0     0     0     0     0     0
+#> 1021.1      0      0      0      0     0     0     0     0     0     0     0
+#> 1032.1      0      0      0      0     0     0     0     0     0     0     0
+#> 1033.1      0      0      0      0     0     0     0     0     0     0     0
+#> 1035.1      0      0      0      0     0     0     0     0     0     0     0
 
 # Here we multiply the matrices (using the proportions of shared catchments as a rough weighting scheme)
 # calculate manhattan distances and generate a heatmap
@@ -823,20 +823,20 @@ dmat<-hydro_out$pwise_dist %>%
   distinct()
 
 dmat
-#> # A tibble: 21,380 × 6
-#>    origin destination value_diff dist_type                    dist Distance Ty…¹
-#>    <chr>  <chr>            <dbl> <chr>                       <dbl> <chr>        
-#>  1 1003.1 1055.1               4 directed_path_length     7844.    Flow Connect…
-#>  2 1003.1 1055.1               4 undirected_path_length   7844.    Flow Unconne…
-#>  3 1003.1 1055.1               4 prop_shared_catchment       0.528 Shared Catch…
-#>  4 1003.1 1055.1               4 prop_shared_logcatchment    0.965 Shared log-C…
-#>  5 1017.1 1040.1               1 directed_path_length     1797.    Flow Connect…
-#>  6 1017.1 1040.1               1 undirected_path_length   1797.    Flow Unconne…
-#>  7 1017.1 1040.1               1 prop_shared_catchment       0.803 Shared Catch…
-#>  8 1017.1 1040.1               1 prop_shared_logcatchment    0.987 Shared log-C…
-#>  9 1017.1 1003.1               1 directed_path_length     4357.    Flow Connect…
-#> 10 1017.1 1003.1               1 undirected_path_length   4357.    Flow Unconne…
-#> # … with 21,370 more rows, and abbreviated variable name ¹​`Distance Type`
+#> # A tibble: 21,272 × 6
+#>    origin destination value_diff dist_type                      dist Distance …¹
+#>    <chr>  <chr>            <dbl> <chr>                         <dbl> <chr>      
+#>  1 101.1  1035.1               2 directed_path_length      5504.     Flow Conne…
+#>  2 101.1  1035.1               2 undirected_path_length    5504.     Flow Uncon…
+#>  3 101.1  1035.1               2 prop_shared_catchment        0.0179 Shared Cat…
+#>  4 101.1  1035.1               2 prop_shared_logcatchment     0.765  Shared log…
+#>  5 101.1  998.1                2 directed_path_length      8064.     Flow Conne…
+#>  6 101.1  998.1                2 undirected_path_length    8064.     Flow Uncon…
+#>  7 101.1  998.1                2 prop_shared_catchment        0.0146 Shared Cat…
+#>  8 101.1  998.1                2 prop_shared_logcatchment     0.756  Shared log…
+#>  9 101.1  1050.1               2 directed_path_length     15751.     Flow Conne…
+#> 10 101.1  1050.1               2 undirected_path_length   15751.     Flow Uncon…
+#> # … with 21,262 more rows, and abbreviated variable name ¹​`Distance Type`
 
 require(ggplot2)
 ggplot(dmat %>% filter(dist_type %in% c("directed_path_length","undirected_path_length")),
@@ -909,32 +909,32 @@ hydro_out_sparse<-process_hydrology(
 # Since we didn't return the products, we'll verify the outputs exist in the .zip file
 unzip(list=T,hydro_out_sparse$outfile)
 #>                    Name  Length                Date
-#> 1         dem_final.tif 1804210 2022-11-01 08:29:00
-#> 2            dem_d8.tif  454212 2022-11-01 08:29:00
-#> 3      dem_accum_d8.tif  904212 2022-11-01 08:29:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-11-01 08:29:00
-#> 5    dem_streams_d8.tif  904212 2022-11-01 08:29:00
-#> 6       site_id_col.csv      22 2022-11-01 08:29:00
-#> 7      stream_links.dbf   18372 2022-11-01 08:29:00
-#> 8      stream_links.prj     503 2022-11-01 08:29:00
-#> 9      stream_links.shp    6428 2022-11-01 08:29:00
-#> 10     stream_links.shx    1908 2022-11-01 08:29:00
-#> 11     stream_lines.dbf    5691 2022-11-01 08:29:00
-#> 12     stream_lines.prj     503 2022-11-01 08:29:00
-#> 13     stream_lines.shp   70924 2022-11-01 08:29:00
-#> 14     stream_lines.shx    1900 2022-11-01 08:29:00
-#> 15    stream_points.dbf  145016 2022-11-01 08:29:00
-#> 16    stream_points.prj     503 2022-11-01 08:29:00
-#> 17    stream_points.shp  162444 2022-11-01 08:29:00
-#> 18    stream_points.shx   46484 2022-11-01 08:29:00
-#> 19   Subbasins_poly.dbf    7782 2022-11-01 08:29:00
-#> 20   Subbasins_poly.prj     503 2022-11-01 08:29:00
-#> 21   Subbasins_poly.shp  380032 2022-11-01 08:29:00
-#> 22   Subbasins_poly.shx    1908 2022-11-01 08:29:00
-#> 23   Catchment_poly.dbf   18372 2022-11-01 08:30:00
-#> 24   Catchment_poly.prj     503 2022-11-01 08:30:00
-#> 25   Catchment_poly.shp  997812 2022-11-01 08:30:00
-#> 26   Catchment_poly.shx    1908 2022-11-01 08:30:00
+#> 1         dem_final.tif 1804212 2022-11-05 14:13:00
+#> 2            dem_d8.tif  454212 2022-11-05 14:13:00
+#> 3      dem_accum_d8.tif  904212 2022-11-05 14:13:00
+#> 4  dem_accum_d8_sca.tif  904212 2022-11-05 14:13:00
+#> 5    dem_streams_d8.tif  904212 2022-11-05 14:13:00
+#> 6       site_id_col.csv      22 2022-11-05 14:13:00
+#> 7      stream_links.dbf   18372 2022-11-05 14:13:00
+#> 8      stream_links.prj     503 2022-11-05 14:13:00
+#> 9      stream_links.shp    6428 2022-11-05 14:13:00
+#> 10     stream_links.shx    1908 2022-11-05 14:13:00
+#> 11     stream_lines.dbf    5691 2022-11-05 14:13:00
+#> 12     stream_lines.prj     503 2022-11-05 14:13:00
+#> 13     stream_lines.shp   70924 2022-11-05 14:13:00
+#> 14     stream_lines.shx    1900 2022-11-05 14:13:00
+#> 15    stream_points.dbf  145016 2022-11-05 14:13:00
+#> 16    stream_points.prj     503 2022-11-05 14:13:00
+#> 17    stream_points.shp  162444 2022-11-05 14:13:00
+#> 18    stream_points.shx   46484 2022-11-05 14:13:00
+#> 19   Subbasins_poly.dbf    7782 2022-11-05 14:13:00
+#> 20   Subbasins_poly.prj     503 2022-11-05 14:13:00
+#> 21   Subbasins_poly.shp  380032 2022-11-05 14:13:00
+#> 22   Subbasins_poly.shx    1908 2022-11-05 14:13:00
+#> 23   Catchment_poly.dbf   18372 2022-11-05 14:14:00
+#> 24   Catchment_poly.prj     503 2022-11-05 14:14:00
+#> 25   Catchment_poly.shp  997812 2022-11-05 14:14:00
+#> 26   Catchment_poly.shx    1908 2022-11-05 14:14:00
 
 tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
   tm_polygons(col="white",alpha =0.2,legend.show=F) +
@@ -1061,7 +1061,7 @@ final_attributes_sub_slow %>%
 #> # A tibble: 3 × 13
 #>   site_id slope_lumped…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷ slope…⁸
 #>     <dbl>          <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1       1           2.99   1.46    0.203   10.2     3.02   1.49     2.40   1.54 
+#> 1       1           2.97   1.47    0.203   10.2     3.09   1.51     2.41   1.54 
 #> 2      25           3.48  NA      NA       NA       3.36  NA        1.50  NA    
 #> 3      80           2.23   0.837   0.400    4.34    2.28   0.881    1.77   0.714
 #> # … with 4 more variables: slope_iFLS_distwtd_mean <dbl>,
@@ -1204,16 +1204,16 @@ final_attributes
 #> # A tibble: 45 × 94
 #>    link_id site_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷
 #>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1124.1  41              0.672       0 1.28e-1  0.107   0.0924       0       0
-#>  2 1118.1  1               0.290       0 7.30e-4  0.0662  0.643        0       0
-#>  3 103.1   62              0.706       0 1.44e-1  0       0.150        0       0
-#>  4 145.1   26              0.413       0 0        0.131   0.456        0       0
-#>  5 1091.1  4               0.174       0 4.90e-2  0.0437  0.733        0       0
-#>  6 1058.1  7               0.495       0 6.90e-2  0.0254  0.411        0       0
-#>  7 1053.1  5               0.594       0 8.35e-2  0.0118  0.311        0       0
-#>  8 1079.1  8               0.264       0 5.17e-2  0.0390  0.645        0       0
-#>  9 1085.1  66              0.667       0 5.05e-2  0       0.283        0       0
-#> 10 1098.1  28              0.462       0 1.96e-2  0.0900  0.428        0       0
+#>  1 1118.1  41              0.672       0 1.28e-1  0.107   0.0924       0       0
+#>  2 1107.1  1               0.290       0 7.36e-4  0.0665  0.643        0       0
+#>  3 101.1   62              0.706       0 1.44e-1  0       0.150        0       0
+#>  4 142.1   26              0.413       0 0        0.131   0.456        0       0
+#>  5 1086.1  4               0.174       0 4.91e-2  0.0437  0.734        0       0
+#>  6 1053.1  7               0.495       0 6.90e-2  0.0254  0.411        0       0
+#>  7 1048.1  5               0.594       0 8.35e-2  0.0118  0.311        0       0
+#>  8 1074.1  8               0.263       0 5.18e-2  0.0390  0.645        0       0
+#>  9 1080.1  66              0.667       0 5.05e-2  0       0.283        0       0
+#> 10 1093.1  28              0.462       0 1.96e-2  0.0900  0.428        0       0
 #> # … with 35 more rows, 85 more variables: GEO_NAME_CZam_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZbg_iFLS_prop <dbl>, GEO_NAME_CZfg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZg_iFLS_prop <dbl>, GEO_NAME_CZig_iFLS_prop <dbl>,
@@ -1298,20 +1298,20 @@ fasttrib_points_time_big<-system.time(
 #> [1] "Calculating o-targeted Attributes"
 
 final_attributes_all
-#> # A tibble: 1,206 × 93
+#> # A tibble: 1,196 × 93
 #>    link_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷ GEO_N…⁸
 #>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 7              0            0  0       0.429    0.571 0        0       0     
-#>  2 5              0            0  0       0.0834   0.917 0        0       0     
-#>  3 1209           0.0584       0  0.0901  0.0798   0.772 0        0       0     
-#>  4 1217           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
-#>  5 1215           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
-#>  6 1              0.0642       0  0.659   0.120    0.157 0        0       0.0488
-#>  7 1206           0.254        0  0.303   0.0706   0.373 0        0       0     
-#>  8 3              0.755        0  0.0387  0        0.206 0        0       0     
-#>  9 1207           0.285        0  0.428   0.104    0.167 0.0162   0       0     
+#>  1 6              0            0  0       0.429    0.571 0        0       0     
+#>  2 5              0            0  0       0.0828   0.917 0        0       0     
+#>  3 1202           0.0584       0  0.0896  0.0799   0.772 0        0       0     
+#>  4 1210           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
+#>  5 1208           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
+#>  6 1              0.0641       0  0.659   0.120    0.157 0        0       0.0487
+#>  7 1199           0.253        0  0.304   0.0704   0.373 0        0       0     
+#>  8 2              0.760        0  0.0396  0        0.200 0        0       0     
+#>  9 1200           0.285        0  0.428   0.104    0.167 0.0162   0       0     
 #> 10 33             0.319        0  0.0354  0.138    0.508 0        0       0     
-#> # … with 1,196 more rows, 84 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
+#> # … with 1,186 more rows, 84 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZfg_iFLS_prop <dbl>, GEO_NAME_CZg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZig_iFLS_prop <dbl>, GEO_NAME_CZlg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZve_iFLS_prop <dbl>, GEO_NAME_Km_iFLS_prop <dbl>,
@@ -1340,20 +1340,20 @@ attrib_points_time_big<-system.time(
 )
 
 final_attributes_slow
-#> # A tibble: 1,206 × 95
+#> # A tibble: 1,196 × 95
 #>    link_id distance_we…¹ weigh…² LC_1_…³ LC_1_…⁴ LC_1_…⁵ LC_1_…⁶ LC_1_…⁷ LC_2_…⁸
 #>      <dbl> <list>        <list>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1       1 <NULL>        <NULL>   0.0910 0.0205   0.118   0.110   0.0369       0
-#>  2       2 <NULL>        <NULL>   0.576  0.800    0.565   0.575   0.718        0
-#>  3       3 <NULL>        <NULL>   0.737  0.798    0.763   0.749   0.719        0
-#>  4       4 <NULL>        <NULL>   0.866  0.896    0.874   0.866   0.858        0
+#>  1       1 <NULL>        <NULL>   0.0909 0.0205   0.118   0.110   0.0370       0
+#>  2       2 <NULL>        <NULL>   0.740  0.794    0.769   0.753   0.705        0
+#>  3       3 <NULL>        <NULL>   0.569  0.780    0.567   0.575   0.627        0
+#>  4       4 <NULL>        <NULL>   0.843  0.896    0.851   0.841   0.844        0
 #>  5       5 <NULL>        <NULL>   0      0        0       0       0            0
-#>  6       6 <NULL>        <NULL>   0.132  0.0251   0.150   0.128   0.0558       0
+#>  6       6 <NULL>        <NULL>   0      0        0       0       0            0
 #>  7       7 <NULL>        <NULL>   0      0        0       0       0            0
-#>  8       8 <NULL>        <NULL>   0      0        0       0       0            0
+#>  8       8 <NULL>        <NULL>   0.132  0.0250   0.147   0.126   0.0614       0
 #>  9       9 <NULL>        <NULL>   0.228  0.371    0.220   0.230   0.288        0
-#> 10      10 <NULL>        <NULL>   0.0624 0.00905  0.0650  0.0650  0.0116       0
-#> # … with 1,196 more rows, 86 more variables: LC_2_HAiFLO_prop <dbl>,
+#> 10      10 <NULL>        <NULL>   0.0624 0.00902  0.0650  0.0650  0.0115       0
+#> # … with 1,186 more rows, 86 more variables: LC_2_HAiFLO_prop <dbl>,
 #> #   LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
 #> #   LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, LC_3_lumped_prop <dbl>,
 #> #   LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, LC_4_iFLO_prop <dbl>,
@@ -1387,23 +1387,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.8 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 0.26 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 1.98 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 0.94 min to calculate for 3 reaches with 92 attributes using 8 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 141.91 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 44.42 min to calculate for 1196 reaches with 92 attributes using 8 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 27.9 min to calculate for 1206 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 15.39 min to calculate for 1196 reaches with 92 attributes using 8 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "4.8 min to calculate distance weights for 1206 reaches using 8 cores."
+#> [1] "1.63 min to calculate distance weights for 1196 reaches using 8 cores."
 ```
 
 [Back to top](#1-introduction)
@@ -1439,12 +1439,12 @@ head(response_table)
 #> # A tibble: 6 × 3
 #>   site_id value link_id
 #>   <chr>   <dbl> <chr>  
-#> 1 1           1 1118.1 
-#> 2 4           1 1091.1 
-#> 3 5           1 1053.1 
-#> 4 7           1 1058.1 
-#> 5 8           1 1079.1 
-#> 6 11          2 1042.1
+#> 1 1           1 1107.1 
+#> 2 4           1 1086.1 
+#> 3 5           1 1048.1 
+#> 4 7           1 1053.1 
+#> 5 8           1 1074.1 
+#> 6 11          2 1037.1
 
 # Columns for spatial cross-validation
 # Here we will use a matrix of directed path lengths to perform the
@@ -1467,21 +1467,21 @@ clust_data<-hydro_out$pwise_dist %>%
 
 head(clust_data)
 #> # A tibble: 6 × 198
-#>   link_id CLUST_1003 CLUST_1020 CLUST_…¹ CLUST…² CLUST…³ CLUST…⁴ CLUST…⁵ CLUST…⁶
-#>   <chr>        <dbl>      <dbl>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1003.1        5.75       6.45     7.19    7.22    7.39    7.58    7.79    7.81
-#> 2 1017.1        8.42       8.48     8.62    8.62    8.67    8.72    8.80    8.80
-#> 3 1026.1        8.78       8.83     8.92    8.93    8.96    9.00    9.06    9.06
-#> 4 103.1         9.01       9.05     9.13    9.13    9.16    9.20    9.24    9.25
-#> 5 1037.1        0          0        0       0       0       0       0       0   
-#> 6 1038.1        8.16       8.24     8.41    8.42    8.47    8.54    8.63    8.64
-#> # … with 189 more variables: CLUST_970 <dbl>, CLUST_950 <dbl>, CLUST_976 <dbl>,
-#> #   CLUST_1150 <dbl>, CLUST_953 <dbl>, CLUST_977 <dbl>, CLUST_994 <dbl>,
-#> #   CLUST_968 <dbl>, CLUST_981 <dbl>, CLUST_920 <dbl>, CLUST_1067 <dbl>,
-#> #   CLUST_960 <dbl>, CLUST_969 <dbl>, CLUST_990 <dbl>, CLUST_1055.1 <dbl>,
-#> #   CLUST_1055 <dbl>, CLUST_1088 <dbl>, CLUST_980 <dbl>, CLUST_1017 <dbl>,
-#> #   CLUST_1130 <dbl>, CLUST_1040.1 <dbl>, CLUST_1040 <dbl>, CLUST_992 <dbl>,
-#> #   CLUST_1084 <dbl>, CLUST_1016 <dbl>, CLUST_971 <dbl>, CLUST_1039 <dbl>, …
+#>   link_id CLUST_101 CLUST_1131 CLUST_1…¹ CLUST…² CLUST…³ CLUST…⁴ CLUST…⁵ CLUST…⁶
+#>   <chr>       <dbl>      <dbl>     <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 101.1        7.74       7.77      7.99    8.03    8.12    8.17    8.33    8.35
+#> 2 1012.1       0          0         0       0       0       0       0       0   
+#> 3 1021.1       0          0         0       0       0       0       0       0   
+#> 4 1032.1       0          0         0       0       0       0       0       0   
+#> 5 1033.1       0          0         0       0       0       0       0       0   
+#> 6 1035.1       0          0         0       0       0       0       0       0   
+#> # … with 189 more variables: CLUST_1063 <dbl>, CLUST_1124 <dbl>,
+#> #   CLUST_1035.1 <dbl>, CLUST_1035 <dbl>, CLUST_987 <dbl>, CLUST_1079 <dbl>,
+#> #   CLUST_1011 <dbl>, CLUST_966 <dbl>, CLUST_1034 <dbl>, CLUST_974 <dbl>,
+#> #   CLUST_998.1 <dbl>, CLUST_998 <dbl>, CLUST_1015 <dbl>, CLUST_962 <dbl>,
+#> #   CLUST_943 <dbl>, CLUST_1025 <dbl>, CLUST_977 <dbl>, CLUST_1002 <dbl>,
+#> #   CLUST_939 <dbl>, CLUST_965 <dbl>, CLUST_945 <dbl>, CLUST_971 <dbl>,
+#> #   CLUST_1143 <dbl>, CLUST_948 <dbl>, CLUST_972 <dbl>, CLUST_989 <dbl>, …
 
 # Combine the data into a single dataset.
 comb_data<-response_table %>% 
@@ -1508,12 +1508,12 @@ head(comb_data)
 #> # A tibble: 6 × 337
 #>   site_id value link_id LC_1_i…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷
 #>   <chr>   <dbl> <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1           1 1118.1     0.290       0 7.30e-4  0.0662   0.643       0       0
-#> 2 4           1 1091.1     0.174       0 4.90e-2  0.0437   0.733       0       0
-#> 3 5           1 1053.1     0.594       0 8.35e-2  0.0118   0.311       0       0
-#> 4 7           1 1058.1     0.495       0 6.90e-2  0.0254   0.411       0       0
-#> 5 8           1 1079.1     0.264       0 5.17e-2  0.0390   0.645       0       0
-#> 6 11          2 1042.1     0.252       0 4.53e-2  0.0666   0.636       0       0
+#> 1 1           1 1107.1     0.290       0 7.36e-4  0.0665   0.643       0       0
+#> 2 4           1 1086.1     0.174       0 4.91e-2  0.0437   0.734       0       0
+#> 3 5           1 1048.1     0.594       0 8.35e-2  0.0118   0.311       0       0
+#> 4 7           1 1053.1     0.495       0 6.90e-2  0.0254   0.411       0       0
+#> 5 8           1 1074.1     0.263       0 5.18e-2  0.0390   0.645       0       0
+#> 6 11          2 1037.1     0.252       0 4.53e-2  0.0666   0.636       0       0
 #> # … with 327 more variables: GEO_NAME_CZam_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZbg_iFLS_prop <dbl>, GEO_NAME_CZfg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZg_iFLS_prop <dbl>, GEO_NAME_CZig_iFLS_prop <dbl>,
@@ -1631,32 +1631,32 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            8  1720     3 rmse    standa…  2.92     5   0.151 Prepro…
-#>  2 standard          132   359    24 rmse    standa…  2.92     5   0.154 Prepro…
-#>  3 standard           28  1217    16 rmse    standa…  2.93     5   0.161 Prepro…
-#>  4 standard           16   636     9 rmse    standa…  2.93     5   0.154 Prepro…
-#>  5 standard          129   259    25 rmse    standa…  2.93     5   0.139 Prepro…
-#>  6 spatial           126   685    26 rmse    standa…  2.80     5   0.244 Prepro…
-#>  7 spatial           116   136    27 rmse    standa…  2.81     5   0.236 Prepro…
-#>  8 spatial            96  1729    28 rmse    standa…  2.82     5   0.257 Prepro…
-#>  9 spatial           134  1813    23 rmse    standa…  2.82     5   0.239 Prepro…
-#> 10 spatial            88  1879    27 rmse    standa…  2.83     5   0.251 Prepro…
+#>  1 standard          132   359    24 rmse    standa…  2.89     5   0.151 Prepro…
+#>  2 standard          129   259    25 rmse    standa…  2.91     5   0.152 Prepro…
+#>  3 standard           66   524    23 rmse    standa…  2.92     5   0.136 Prepro…
+#>  4 standard            8  1720     3 rmse    standa…  2.92     5   0.149 Prepro…
+#>  5 standard           68   288    26 rmse    standa…  2.93     5   0.136 Prepro…
+#>  6 spatial           126   685    26 rmse    standa…  2.80     5   0.243 Prepro…
+#>  7 spatial           116   136    27 rmse    standa…  2.83     5   0.250 Prepro…
+#>  8 spatial            96  1729    28 rmse    standa…  2.83     5   0.253 Prepro…
+#>  9 spatial            88  1879    27 rmse    standa…  2.84     5   0.255 Prepro…
+#> 10 spatial           134  1813    23 rmse    standa…  2.84     5   0.237 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 
 map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            2   827    18 rsq     standa… 0.238     5  0.103  Prepro…
-#>  2 standard            5   981    30 rsq     standa… 0.213     5  0.0821 Prepro…
-#>  3 standard          125    94    33 rsq     standa… 0.210     5  0.0836 Prepro…
-#>  4 standard           24  1271    30 rsq     standa… 0.207     5  0.0762 Prepro…
-#>  5 standard            8  1720     3 rsq     standa… 0.205     5  0.0770 Prepro…
-#>  6 spatial           114  1284    36 rsq     standa… 0.179     2  0.118  Prepro…
-#>  7 spatial           116   136    27 rsq     standa… 0.133     5  0.0509 Prepro…
-#>  8 spatial           127   909    35 rsq     standa… 0.119     4  0.0628 Prepro…
-#>  9 spatial           126   685    26 rsq     standa… 0.110     5  0.0405 Prepro…
-#> 10 spatial            96  1729    28 rsq     standa… 0.109     5  0.0467 Prepro…
+#>  1 standard            2   827    18 rsq     standa… 0.228     5  0.0970 Prepro…
+#>  2 standard            5   981    30 rsq     standa… 0.212     5  0.0768 Prepro…
+#>  3 standard            8  1720     3 rsq     standa… 0.208     5  0.0801 Prepro…
+#>  4 standard           66   524    23 rsq     standa… 0.205     5  0.0717 Prepro…
+#>  5 standard          132   359    24 rsq     standa… 0.204     5  0.0691 Prepro…
+#>  6 spatial           114  1284    36 rsq     standa… 0.195     2  0.122  Prepro…
+#>  7 spatial           127   909    35 rsq     standa… 0.121     4  0.0607 Prepro…
+#>  8 spatial           126   685    26 rsq     standa… 0.117     5  0.0406 Prepro…
+#>  9 spatial            83   735    34 rsq     standa… 0.112     4  0.0641 Prepro…
+#> 10 spatial            96  1729    28 rsq     standa… 0.101     5  0.0433 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1678,13 +1678,13 @@ best_tunes
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1   134  1481    12 rmse    standard    2.98     5   0.196 Preproce…  2.92  1.97
+#> 1    48  1190    26 rmse    standard    2.95     5   0.115 Preproce…  2.89  1.90
 #> 
 #> $spatial
 #> # A tibble: 1 × 11
 #>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
 #>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1   126   685    26 rmse    standard    2.80     5   0.244 Preproce…  2.80     0
+#> 1   126   685    26 rmse    standard    2.80     5   0.243 Preproce…  2.80     0
 
 # Final ranger results
 final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
@@ -1732,20 +1732,20 @@ prediction_data<-final_attributes_all %>%
   tidyr::drop_na()
 
 prediction_data
-#> # A tibble: 933 × 138
+#> # A tibble: 1,196 × 138
 #>    link_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷ GEO_N…⁸
 #>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1209           0.0584       0  0.0901  0.0798   0.772 0        0       0     
-#>  2 1217           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
-#>  3 1215           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
-#>  4 1206           0.254        0  0.303   0.0706   0.373 0        0       0     
-#>  5 3              0.755        0  0.0387  0        0.206 0        0       0     
-#>  6 1207           0.285        0  0.428   0.104    0.167 0.0162   0       0     
-#>  7 33             0.319        0  0.0354  0.138    0.508 0        0       0     
-#>  8 11             0.539        0  0       0        0.461 0        0       0     
-#>  9 1204           0.527        0  0.0356  0.0363   0.396 0.00519  0       0     
-#> 10 15             0.306        0  0       0        0.694 0        0       0     
-#> # … with 923 more rows, 129 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
+#>  1 6              0            0  0       0.429    0.571 0        0       0     
+#>  2 5              0            0  0       0.0828   0.917 0        0       0     
+#>  3 1202           0.0584       0  0.0896  0.0799   0.772 0        0       0     
+#>  4 1210           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
+#>  5 1208           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
+#>  6 1              0.0641       0  0.659   0.120    0.157 0        0       0.0487
+#>  7 1199           0.253        0  0.304   0.0704   0.373 0        0       0     
+#>  8 2              0.760        0  0.0396  0        0.200 0        0       0     
+#>  9 1200           0.285        0  0.428   0.104    0.167 0.0162   0       0     
+#> 10 33             0.319        0  0.0354  0.138    0.508 0        0       0     
+#> # … with 1,186 more rows, 129 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZfg_iFLS_prop <dbl>, GEO_NAME_CZg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZig_iFLS_prop <dbl>, GEO_NAME_CZlg_iFLS_prop <dbl>,
 #> #   GEO_NAME_CZve_iFLS_prop <dbl>, GEO_NAME_Km_iFLS_prop <dbl>,
@@ -1776,20 +1776,20 @@ prediction_tbl<-tibble(
          `Predicted`=p50) 
 
 prediction_tbl
-#> # A tibble: 933 × 6
+#> # A tibble: 1,196 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
-#>  1 1209        1     1     3           2         1
-#>  2 1217        1     1     3           2         1
-#>  3 1215        3     4     6           3         4
-#>  4 1206        3     4     8           5         4
-#>  5 3           4     8     8           4         8
-#>  6 1207        3     6     8           5         6
-#>  7 33          3     4     6           3         4
-#>  8 11          3     7     8           5         7
-#>  9 1204        3     6     8           5         6
-#> 10 15          1     1     3           2         1
-#> # … with 923 more rows
+#>  1 6           1     2     4           3         2
+#>  2 5           1     3     5           4         3
+#>  3 1202        1     1     3           2         1
+#>  4 1210        1     1     3           2         1
+#>  5 1208        1     4     6           5         4
+#>  6 1           3     5     8           5         5
+#>  7 1199        2     4     8           6         4
+#>  8 2           3     7     8           5         7
+#>  9 1200        3     5     8           5         5
+#> 10 33          1     3     6           5         3
+#> # … with 1,186 more rows
 
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
