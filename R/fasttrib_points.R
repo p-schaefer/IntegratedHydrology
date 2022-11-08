@@ -310,6 +310,7 @@ fasttrib_points<-function(
       target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
         dplyr::select(link_id) %>%
         dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
+        dplyr::filter(link_id %in% target_IDs$link_id) %>%
         dplyr::group_by(link_id) %>%
         dplyr::summarize(geometry=sf::st_union(geometry)) %>%
         dplyr::ungroup()
