@@ -320,6 +320,31 @@ fasttrib_points<-function(
 
   #browser()
 
+  # Calculate missing catchments --------------------------------------------
+
+  if (any(!target_IDs[["link_id"]] %in% all_catch[["link_id"]])) {
+    if (verbose) print("Calculating missing catchments")
+
+    missing_ids<-target_IDs[["link_id"]][!target_IDs[["link_id"]] %in% all_catch[["link_id"]]]
+
+    extra_catchments<-get_catchment(
+      input=input,
+      site_id_col=NULL,
+      target_points=missing_ids
+    )
+
+    all_catch<-bind_rows(extra_catchments,all_catch) %>%
+      select(link_id)
+
+    sf::write_sf(all_catch,file.path(temp_dir,"Catchment_poly.shp"))
+    ls<-list.files(temp_dir,"Catchment_poly",full.names=T)
+
+    zip(zip_loc,unlist(ls),flags = '-r9Xjq')
+
+    rm(extra_catchments)
+  }
+
+
   # Sort everything by target_IDs
   target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
   all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
@@ -423,9 +448,10 @@ fasttrib_points<-function(
   # Separate target_o into non-overlapping groups ---------------------------
   if (length(weighting_scheme_o)>0){
     if (!use_existing_attr | !"o_target_weights" %in% attr_tbl_list){
+      if (verbose) print("Generating Site Targeted Weights")
+
       if (!use_exising_hw){
 
-        if (verbose) print("Generating Site Targeted Weights")
         if (verbose) print("Unnesting Basins")
 
         temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
