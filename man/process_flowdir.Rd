@@ -42,12 +42,9 @@ process_flowdir(
 \item{verbose}{logical.}
 }
 \value{
-If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
+An object of class ihydro. If \code{return_products = TRUE}, all geospatial analysis products are returned as well.
 }
 \description{
-Process flow direction/accumulation and extracts streams from DEM
-}
-\details{
 If \code{return_products} = T, Packed-SpatRaster objects are returned. If \code{burn_streams} is specified, \link[whitebox:wbt_fill_burn]{whitebox::wbt_fill_burn} is used to burn the stream layer into the DEM. This is followed by \link[whitebox:wbt_feature_preserving_smoothing]{whitebox::wbt_feature_preserving_smoothing} to smooth final DEM. The \code{depression_corr} argument can be used to apply filling or breaching approaches to enforce flow accumulation from internal pit cells.
 }
 \seealso{

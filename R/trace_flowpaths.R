@@ -3,7 +3,6 @@
 #'
 #' @param input resulting object from `generate_vectors()`
 #' @param return_products logical. If \code{TRUE}, a list containing the file path to write resulting \code{*.zip} file, and resulting GIS products. If \code{FALSE}, file path only.
-#' @param calc_catch character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output
 #' @param pwise_dist logical. Calculate pairwise distances.
 #' @param pwise_all_links logical. Should all pairwise distances be calculate, or only those originating from sampling points
 #' @param temp_dir character. File path for temporary file storage, If \code{NULL}, `tempfile()` will be used
@@ -12,29 +11,23 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 
-#' @importFrom data.table fread
 #' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if select
+#' @importFrom dplyr collect tbl mutate across na_if
 #' @importFrom RSQLite SQLite
-#' @importFrom sf st_as_sf st_geometry st_polygon write_sf
-#' @importFrom tibble tibble
 #' @importFrom tidyselect any_of
-#' @importFrom utils zip
 
 trace_flowpaths<-function(
     input,
     return_products=F,
     temp_dir=NULL,
-    calc_catch=c("all","none","sample_points"),
+    #calc_catch=c("all","none","sample_points"),
     pwise_dist=F,
     pwise_all_links=F,
     verbose=F
 ){
+  if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   options(future.rng.onMisuse="ignore")
   options(scipen = 999)
-
-  calc_catch<-calc_catch[1]
-  match.arg(calc_catch,several.ok = F)
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -47,16 +40,18 @@ trace_flowpaths<-function(
 
   options(dplyr.summarise.inform = FALSE)
 
-  zip_loc<-input$outfile
-  db_loc<-input$db_loc
+  db_loc<-db_fp<-zip_loc<-input$outfile
+  #db_loc<-input$db_loc
 
-  site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+
+  site_id_col<-dplyr::collect(dplyr::tbl(con,"site_id_col"))$site_id_col
 
   # final_links<-as_tibble(data.table::fread(cmd=paste("unzip -p ",zip_loc,"stream_links.csv"))) %>%
   #   mutate(across(any_of(site_id_col),na_if,""))
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-  final_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
+  #con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  final_links<-dplyr::collect(dplyr::tbl(con,"stream_links_attr")) %>%
     dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
     dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
   DBI::dbDisconnect(con)
@@ -68,71 +63,20 @@ trace_flowpaths<-function(
                         temp_dir=temp_dir)
 
   if (pwise_dist){
-    gp<-generate_pdist(
+    input<-generate_pdist(
       input=input,
       verbose=verbose,
       pwise_all_links=pwise_all_links
     )
   }
 
-  # dist_list_out<-list(
-  #   fp
-  # )
-  #
-  #
-  # if (verbose) print("Generating Output")
-  #
-  # zip(out_file,
-  #     unlist(dist_list_out),
-  #     flags = '-r9Xjq'
-  # )
 
-  output<-input[!names(input) %in% c("catchment_poly")]
-
-  if (calc_catch=="none"){
-    all_catch<-sf::st_as_sf(tibble::tibble(link_id="a",geometry=sf::st_geometry(sf::st_polygon(list(matrix(c(0,0,10,0,10,10,0,10,0,0),ncol=2, byrow=TRUE))))))[F,]
-  } else {
-    if (calc_catch=="all") {
-      all_catch<-get_catchment(input = output,
-                               target_points = final_links[["link_id"]],
-                               temp_dir=temp_dir
-                               ) %>%
-        dplyr::select(link_id)
-    }
-    if (calc_catch=="sample_points"){
-      all_catch<-get_catchment(input = output,
-                               site_id_col=site_id_col,
-                               target_points = final_links[[site_id_col]],
-                               temp_dir=temp_dir) %>%
-        dplyr::select(link_id)
-
-    }
-
-    sf::write_sf(all_catch,file.path(temp_dir,"Catchment_poly.shp"))
-
-    utils::zip(zip_loc,
-        list.files(temp_dir,"Catchment_poly",full.names = T),
-        flags = '-r9Xjq'
-    )
-  }
-
-
-
-
-
-  if (return_products){
-    output<-c(
-      list(catchments=all_catch %>% dplyr::select(link_id)
-      ),
-      output
-    )
-  }
   suppressWarnings(file.remove(list.files(temp_dir,full.names = T)))
 
-  return(output)
+  class(input)<-"ihydro"
+  return(input)
 
 }
-
 
 #' @export
 #' @importFrom carrier crate
@@ -149,6 +93,30 @@ trace_flowpaths<-function(
 #' @importFrom utils tail
 #' @keywords internal
 #' @noRd
+#' @importFrom carrier crate
+#' @importFrom DBI dbConnect dbExecute dbGetQuery dbAppendTable dbDisconnect
+#' @importFrom dplyr select filter mutate case_when distinct group_by arrange ungroup bind_rows copy_to rename tbl left_join collect pull full_join
+#' @importFrom furrr future_map furrr_options future_map2 future_pmap
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map2
+#' @importFrom RSQLite SQLite
+#' @importFrom stats setNames
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr pivot_longer pivot_wider unnest nest
+#' @importFrom tidyselect starts_with
+#' @importFrom utils tail
+#' @importFrom carrier crate
+#' @importFrom DBI dbConnect dbExecute dbGetQuery dbAppendTable dbDisconnect
+#' @importFrom dplyr select filter mutate case_when distinct group_by arrange ungroup bind_rows copy_to rename tbl left_join collect pull full_join
+#' @importFrom furrr future_map furrr_options future_map2 future_pmap
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map2
+#' @importFrom RSQLite SQLite
+#' @importFrom stats setNames
+#' @importFrom tibble as_tibble
+#' @importFrom tidyr pivot_longer pivot_wider unnest nest
+#' @importFrom tidyselect starts_with
+#' @importFrom utils tail
 trace_flowpath_fn<-function(
     input,
     db_loc,
@@ -184,7 +152,7 @@ trace_flowpath_fn<-function(
     dplyr::ungroup()
 
   # Downstream paths
-  if (verbose) print("Calculating Downstream Flowpaths")
+  if (verbose) message("Calculating Downstream Flowpaths")
 
   progressr::with_progress(enable=T,{
 
@@ -324,9 +292,10 @@ trace_flowpath_fn<-function(
       #con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
       ot<-DBI::dbAppendTable(con, "ds_flowpaths", int_tribs_int)
 
+
       ot<-dplyr::tbl(con,"ds_flowpaths") %>%
         dplyr::left_join(
-          dplyr::tbl(con,"stream_links") %>%
+          dplyr::tbl(con,"stream_links_attr") %>%
             dplyr::select(link_id,trib_id),
           by=c("destination_link_id"="link_id")
         ) %>%
@@ -336,7 +305,7 @@ trace_flowpath_fn<-function(
 
       final_ds_paths_out<-dplyr::tbl(con,"ds_flowpaths") %>%
         dplyr::left_join(
-          dplyr::tbl(con,"stream_links") %>%
+          dplyr::tbl(con,"stream_links_attr") %>%
             dplyr::select(link_id,trib_id),
           by=c("destination_link_id"="link_id")
         ) %>%
@@ -353,7 +322,7 @@ trace_flowpath_fn<-function(
   #browser()
 
   #con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
-  if (verbose) print("Calculating Upstream Flowpaths")
+  if (verbose) message("Calculating Upstream Flowpaths")
   DBI::dbExecute(con,"DROP TABLE IF EXISTS us_flowpaths")
 
   sql_code<-dplyr::tbl(con,"ds_flowpaths") %>%

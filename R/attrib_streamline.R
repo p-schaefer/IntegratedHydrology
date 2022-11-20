@@ -15,7 +15,6 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #'
 
-#' @importFrom data.table fwrite
 #' @importFrom DBI dbConnect dbDisconnect
 #' @importFrom dplyr select mutate case_when bind_cols group_by summarize across ungroup filter left_join summarise arrange desc row_number bind_rows rename if_any rowwise full_join copy_to
 #' @importFrom hydroweight process_input
@@ -24,11 +23,11 @@
 #' @importFrom RSQLite SQLite
 #' @importFrom sf read_sf st_crs st_as_sf write_sf st_centroid st_join
 #' @importFrom stats setNames
-#' @importFrom terra terraOptions rast writeRaster crs as.points extract vect rasterize cells adjacent xyFromCell
+#' @importFrom terra terraOptions writeRaster rast crs as.points extract vect rasterize cells adjacent xyFromCell
 #' @importFrom tibble tibble as_tibble
 #' @importFrom tidyr fill gather pivot_wider
 #' @importFrom tidyselect everything any_of
-#' @importFrom utils unzip head zip
+#' @importFrom utils head
 #' @importFrom whitebox wbt_options wbt_exe_path wbt_stream_link_identifier wbt_stream_link_class wbt_stream_link_length wbt_tributary_identifier wbt_farthest_channel_head wbt_stream_link_slope wbt_stream_slope_continuous wbt_hack_stream_order wbt_strahler_stream_order wbt_horton_stream_order wbt_shreve_stream_magnitude wbt_length_of_upstream_channels wbt_raster_streams_to_vector
 #' @export
 
@@ -53,6 +52,7 @@ attrib_streamline<-function(
     compress=F,
     verbose=F
 ) {
+  if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
@@ -80,11 +80,11 @@ attrib_streamline<-function(
   temp_dir<-normalizePath(temp_dir)
 
   whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
-              verbose=verbose,
-              wd=temp_dir,
-              compress_rasters =compress)
+                        verbose=verbose>2,
+                        wd=temp_dir,
+                        compress_rasters =compress)
 
-  terra::terraOptions(verbose = verbose,
+  terra::terraOptions(verbose = verbose>3,
                       tempdir = temp_dir
   )
 
@@ -96,22 +96,29 @@ attrib_streamline<-function(
   options(scipen = 999)
   options(dplyr.summarise.inform = FALSE)
 
-  zip_loc<-input$outfile
-  fl<-utils::unzip(list=T,zip_loc)
-  db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),gsub(".zip",".db",basename(zip_loc)))
-  ds_fp<-db_loc
-  if (file.exists(ds_fp)) {
-    stop(paste0("sqlite database: ",ds_fp," Already Exists, please delete the file before proceeding."))
-    #warning(paste0("sqlite database: ",ds_fp," Already Exists, it was deleted and replaced."))
-    #file.remove(ds_fp)
-  }
-  con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+  ds_fp<-db_loc<-zip_loc<-input$outfile
+  #fl<-utils::unzip(list=T,zip_loc)
+  #db_loc<-file.path(gsub(basename(zip_loc),"",zip_loc),gsub(".zip",".db",basename(zip_loc)))
+  # db_loc<-zip_loc
+  # ds_fp<-db_loc
+  # if (file.exists(ds_fp)) {
+  #   stop(paste0("sqlite database: ",ds_fp," Already Exists, please delete the file before proceeding."))
+  #   #warning(paste0("sqlite database: ",ds_fp," Already Exists, it was deleted and replaced."))
+  #   #file.remove(ds_fp)
+  # }
 
-  utils::unzip(zip_loc,
-        c("dem_d8.tif","dem_streams_d8.tif","dem_final.tif"),
-        exdir=temp_dir,
-        overwrite=T,
-        junkpaths=T)
+  # utils::unzip(zip_loc,
+  #       c("dem_d8.tif","dem_streams_d8.tif","dem_final.tif"),
+  #       exdir=temp_dir,
+  #       overwrite=T,
+  #       junkpaths=T)
+
+  for (i in c("dem_d8","dem_streams_d8","dem_final")){
+    terra::writeRaster(
+      terra::rast(zip_loc,lyrs=i),
+      file.path(temp_dir,paste0(i,".tif")),overwrite=T,gdal=gdal_arg
+    )
+  }
 
   dem_final<-terra::rast(file.path(temp_dir,"dem_final.tif"))
   names(dem_final)<-"Elevation"
@@ -122,7 +129,7 @@ attrib_streamline<-function(
   # Attribute Stream network ------------------------------------------------
 
   # # Essential attributes
-  if (verbose) print("Calculating stream link attributes")
+  if (verbose) message("Calculating stream link attributes")
 
   whitebox::wbt_stream_link_identifier(
     d8_pntr= "dem_d8.tif",
@@ -222,7 +229,7 @@ attrib_streamline<-function(
   #saveRDS(strm,file.path(temp_dir, "strm_link_id.rds"))
 
   # Generate point attributions ---------------------------------------------
-  if (verbose) print("Extracting stream link attributes")
+  if (verbose) message("Extracting stream link attributes")
 
   id1<-terra::rast(file.path(temp_dir,"link_id.tif"))
   id2<-terra::as.points(id1)
@@ -267,8 +274,8 @@ attrib_streamline<-function(
     points<-hydroweight::process_input(points,target = terra::vect(utils::head(final_points[,1])),input_name="points")
 
     sf::write_sf(sf::st_as_sf(points) %>%
-               dplyr::select(tidyselect::any_of(site_id_col),tidyselect::everything()),
-             file.path(temp_dir,"original_points.shp"))
+                   dplyr::select(tidyselect::any_of(site_id_col),tidyselect::everything()),
+                 file.path(temp_dir,"original_points.shp"))
 
     points<-sf::st_as_sf(points) %>%
       dplyr::group_by(!!rlang::sym(site_id_col)) %>%
@@ -277,23 +284,25 @@ attrib_streamline<-function(
 
     if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
 
-    print("Snapping Points")
+    message("Snapping Points")
     snapped_points<-points %>%
       sf::st_join(final_points %>%
-                dplyr::filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
-                dplyr::group_by(link_id) %>%
-                dplyr::filter(USChnLn_Fr!=max(USChnLn_Fr)) %>%
-                dplyr::select(ID,link_id),
-              join=nngeo::st_nn,
-              maxdist = snap_distance,
-              progress =T
+                    dplyr::filter(!is.na(link_type)) %>%
+                    dplyr::filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
+                    dplyr::group_by(link_id) %>%
+                    dplyr::filter(USChnLn_Fr!=max(USChnLn_Fr)) %>%
+                    dplyr::select(ID,link_id),
+                  join=nngeo::st_nn,
+                  k=1,
+                  maxdist = snap_distance,
+                  progress =T
       ) %>%
       tibble::as_tibble() %>%
       dplyr::select(-geometry) %>%
       dplyr::left_join(final_points %>%
-                  #filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
-                  dplyr::select(ID,link_id),
-                by = c("ID", "link_id")) %>%
+                         #filter(!link_type %in% c("Link Node","Sink Node","Source Node (head water)")) %>%
+                         dplyr::select(ID,link_id),
+                       by = c("ID", "link_id")) %>%
       sf::st_as_sf()
 
 
@@ -383,7 +392,7 @@ attrib_streamline<-function(
   d8_pntr<-terra::rast(file.path(temp_dir, "dem_d8.tif"))
 
   # Upstream ----------------------------------------------------------
-  if (verbose) print("Identifying Upstream Links")
+  if (verbose) message("Identifying Upstream Links")
   #browser()
 
   nodes<-final_points %>%
@@ -401,8 +410,8 @@ attrib_streamline<-function(
 
   cv1 <- tibble::tibble(target=cv[,2]) %>%
     dplyr::bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen") %>%
-                data.frame() %>%
-                stats::setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
+                       data.frame() %>%
+                       stats::setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
     tidyr::gather("direction","cell_num",-target) %>%
     dplyr::arrange(target) %>%
     dplyr::filter(!is.na(cell_num),!is.nan(cell_num)) %>%
@@ -449,19 +458,19 @@ attrib_streamline<-function(
     dplyr::mutate(nm=dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     dplyr::rename(ustrib_id = trib_id,
-           uslink_id=link_id) %>%
+                  uslink_id=link_id) %>%
     tidyr::pivot_wider(id_cols = c(target_link_id,target_trib_id),
-                names_from = c(nm),
-                names_sep = "",
-                values_from = c(ustrib_id,uslink_id)) %>%
+                       names_from = c(nm),
+                       names_sep = "",
+                       values_from = c(ustrib_id,uslink_id)) %>%
     dplyr::rename(link_id =target_link_id,
-           trib_id=target_trib_id)
+                  trib_id=target_trib_id)
 
   names(final_us)<-abbreviate(names(final_us),10)
 
 
   # Downstream -----------------------------------------------------------
-  if (verbose) print("Identifying Downstream Links")
+  if (verbose) message("Identifying Downstream Links")
 
   nodes<-final_points %>%
     dplyr::group_by(link_id) %>%
@@ -475,8 +484,8 @@ attrib_streamline<-function(
 
   cv1 <- tibble::tibble(target=cv[,2]) %>%
     dplyr::bind_cols(terra::adjacent(d8_pntr, cells=.$target, directions="queen")%>%
-                data.frame() %>%
-                stats::setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
+                       data.frame() %>%
+                       stats::setNames(c("TL","TM","TR","ML","MR","BL","BM","BR"))) %>%
     tidyr::gather("direction","cell_num",-target) %>%
     dplyr::arrange(target) %>%
     dplyr::mutate(on_stream=terra::extract(st_r,terra::xyFromCell(st_r,.$cell_num))$dem_streams_d8) %>%
@@ -522,13 +531,13 @@ attrib_streamline<-function(
     dplyr::mutate(nm=dplyr::row_number()) %>%
     dplyr::ungroup() %>%
     dplyr::rename(dstrib_id = trib_id,
-           dslink_id=link_id) %>%
+                  dslink_id=link_id) %>%
     tidyr::pivot_wider(id_cols = c(target_link_id,target_trib_id),
-                names_from = c(nm),
-                names_sep = "",
-                values_from = c(dstrib_id,dslink_id)) %>%
+                       names_from = c(nm),
+                       names_sep = "",
+                       values_from = c(dstrib_id,dslink_id)) %>%
     dplyr::rename(link_id =target_link_id,
-           trib_id=target_trib_id)
+                  trib_id=target_trib_id)
 
   names(final_ds)<-abbreviate(names(final_ds),10)
 
@@ -552,62 +561,94 @@ attrib_streamline<-function(
   sf::write_sf(final_links %>% dplyr::select(link_id),file.path(temp_dir,"stream_links.shp"))
   sf::write_sf(final_points %>% dplyr::select(ID),file.path(temp_dir,"stream_points.shp"))
 
+  con <- DBI::dbConnect(RSQLite::SQLite(), ds_fp)
+
+  # Only keep data with an associated stream line
+  # SOmetimes you can get a sink at the edge of a DEM with no assicaited stream
+
+  #lns<-sf::read_sf(file.path(temp_dir,paste0("stream_lines",".shp")))
+
   ot<-final_links %>%
     tibble::as_tibble() %>%
     dplyr::select(-geometry) %>%
+    #dplyr::filter(link_id %in% lns$link_id) %>%
     dplyr::copy_to(df=.,
-            con,
-            "stream_links",
-            overwrite =T,
-            temporary =F,
-            indexes=c("link_id","trib_id"),
-            analyze=T,
-            in_transaction=T)
+                   con,
+                   "stream_links_attr",
+                   overwrite =T,
+                   temporary =F,
+                   indexes=c("link_id","trib_id"),
+                   analyze=T,
+                   in_transaction=T)
 
-  #DBI::dbExecute(con,"CREATE INDEX inx_stream_links ON stream_links (link_id,trib_id)")
 
   ot<-final_points %>%
     tibble::as_tibble() %>%
     dplyr::select(-geometry) %>%
+    #dplyr::filter(link_id %in% lns$link_id) %>%
     dplyr::copy_to(df=.,
-            con,
-            "stream_points",
-            overwrite =T,
-            temporary =F,
-            unique_indexes=c("ID"),
-            indexes=c("link_id","trib_id"),
-            analyze=T,
-            in_transaction=T)
+                   con,
+                   "stream_points_attr",
+                   overwrite =T,
+                   temporary =F,
+                   unique_indexes=c("ID"),
+                   indexes=c("link_id","trib_id"),
+                   analyze=T,
+                   in_transaction=T)
 
-  #DBI::dbExecute(con,"CREATE INDEX inx_stream_points ON stream_points (ID,link_id,trib_id)")
+
+
+
+  # data.table::fwrite(tibble::tibble(site_id_col=site_id_col),file.path(temp_dir,"site_id_col.csv"))
+
+  # Generate Output ---------------------------------------------------------
+  if (verbose) message("Generating Output")
+
+  # dist_list_out<-c(
+  #   list.files(temp_dir,"site_id_col"),
+  #   list.files(temp_dir,"snapped_points"),
+  #   list.files(temp_dir,"original_points"),
+  #   list.files(temp_dir,"stream_links"),
+  #   list.files(temp_dir,"stream_lines"),
+  #   list.files(temp_dir,"stream_points")
+  # )
+
+  # dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
+  #
+  # out_file<-zip_loc
+
+  t1<-dplyr::copy_to(df=tibble::tibble(site_id_col=site_id_col),
+                     con,
+                     "site_id_col",
+                     overwrite =T,
+                     temporary =F,
+                     analyze=T,
+                     in_transaction=T)
+
+  for (i in c("snapped_points",
+              "original_points",
+              "stream_links",
+              "stream_lines",
+              "stream_points")){
+    if (file.exists(file.path(temp_dir,paste0(i,".shp")))){
+      t1<-sf::write_sf(
+        sf::read_sf(file.path(temp_dir,paste0(i,".shp"))), #%>%
+          #dplyr::filter(dplyr::if_any(.cols=tidyselect::any_of("link_id"),~.x %in% lns$link_id)),
+        db_loc,
+        layer=i,
+        delete_layer=T,
+        #layer_options = "OVERWRITE=true",
+        append = T
+      )
+    }
+  }
 
   DBI::dbDisconnect(con)
 
-  # data.table::fwrite(final_links %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_links.csv"))
-  # data.table::fwrite(final_points %>% as_tibble() %>% select(-geometry),file.path(temp_dir,"stream_points.csv"))
-
-  data.table::fwrite(tibble::tibble(site_id_col=site_id_col),file.path(temp_dir,"site_id_col.csv"))
-
-  # Generate Output ---------------------------------------------------------
-  if (verbose) print("Generating Output")
-
-  dist_list_out<-c(
-    list.files(temp_dir,"site_id_col"),
-    list.files(temp_dir,"snapped_points"),
-    list.files(temp_dir,"original_points"),
-    list.files(temp_dir,"stream_links"),
-    list.files(temp_dir,"stream_lines"),
-    list.files(temp_dir,"stream_points")
-  )
-
-  dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
-
-  out_file<-zip_loc
-
-  utils::zip(out_file,
-      unlist(dist_list_out),
-      flags = '-r9Xjq'
-  )
+  # utils::zip(out_file,
+  #     unlist(dist_list_out),
+  #     flags = '-r9Xjq'
+  # )
 
   output<-input[!names(input) %in% c("stream_lines",
                                      "links",
@@ -629,9 +670,10 @@ attrib_streamline<-function(
     )
   }
 
-  output$db_loc<-db_loc
+  #output$db_loc<-db_loc
 
   suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 
+  class(output)<-"ihydro"
   return(output)
 }

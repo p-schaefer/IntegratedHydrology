@@ -1,8 +1,6 @@
 
 #' Process flow direction/accumulation and extracts streams from DEM
 #'
-#' Process flow direction/accumulation and extracts streams from DEM
-#'
 #' If `return_products` = T, Packed-SpatRaster objects are returned. If `burn_streams` is specified, [whitebox::wbt_fill_burn] is used to burn the stream layer into the DEM. This is followed by [whitebox::wbt_feature_preserving_smoothing] to smooth final DEM. The `depression_corr` argument can be used to apply filling or breaching approaches to enforce flow accumulation from internal pit cells.
 #'
 #' @param dem character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster.
@@ -19,15 +17,15 @@
 #'
 #' @seealso [whitebox::wbt_d8_pointer], [whitebox::wbt_d8_flow_accumulation], [whitebox::wbt_extract_streams]
 #'
-#' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
+#' @return An object of class ihydro. If \code{return_products = TRUE}, all geospatial analysis products are returned as well.
 #' @export
 #'
 
 #' @importFrom hydroweight process_input
-#' @importFrom sf st_as_sf st_buffer
+#' @importFrom sf st_as_sf st_buffer write_sf
+#' @importFrom stars st_as_stars write_stars
 #' @importFrom stats setNames
-#' @importFrom terra terraOptions crs writeRaster res as.lines vect as.polygons ext writeVector mask wrap rast
-#' @importFrom utils zip
+#' @importFrom terra terraOptions crs writeRaster res as.lines vect as.polygons ext writeVector mask rast wrap
 #' @importFrom whitebox wbt_options wbt_exe_path wbt_feature_preserving_smoothing wbt_fill_depressions wbt_breach_depressions wbt_d8_pointer wbt_d8_flow_accumulation wbt_extract_streams wbt_remove_short_streams
 
 process_flowdir<-function(
@@ -59,18 +57,21 @@ process_flowdir<-function(
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
   output_filename<-normalizePath(output_filename,mustWork =F)
-  if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
+  #if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
+  if (!grepl("\\.gpkg$",output_filename)) stop("'output_filename' must be a file path ending in '.gpkg'")
+  if (file.exists(output_filename)) stop("'output_filename' already exists")
+
 
   depression_corr<-match.arg(depression_corr)
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
   whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
-              verbose=verbose,
+              verbose=verbose>2,
               wd=temp_dir,
               compress_rasters =compress)
 
-  terra::terraOptions(verbose = verbose,
+  terra::terraOptions(verbose = verbose>3,
                       tempdir = temp_dir
   )
 
@@ -140,14 +141,14 @@ process_flowdir<-function(
 
   # Process flow dirrection -------------------------------------------------
   ## Generate d8 pointer
-  if (verbose) print("Generating d8 pointer")
+  if (verbose) message("Generating d8 pointer")
   whitebox::wbt_d8_pointer(
     dem="dem_final.tif",
     output="dem_d8.tif"
   )
 
   ## Generate d8 flow accumulation in units of cells
-  if (verbose) print("Generating d8 flow accumulation")
+  if (verbose) message("Generating d8 flow accumulation")
   whitebox::wbt_d8_flow_accumulation(
     input = "dem_d8.tif",
     output = "dem_accum_d8.tif",
@@ -163,7 +164,7 @@ process_flowdir<-function(
 
 
   ## Generate streams with a stream initiation threshold
-  if (verbose) print("Extracting Streams")
+  if (verbose) message("Extracting Streams")
   whitebox::wbt_extract_streams(
     flow_accum = "dem_accum_d8.tif",
     output = "dem_streams_d8.tif",
@@ -171,7 +172,7 @@ process_flowdir<-function(
   )
 
   if (!is.null(min_length)){
-    if (verbose) print("Trimming Streams")
+    if (verbose) message("Trimming Streams")
     whitebox::wbt_remove_short_streams(
       d8_pntr="dem_d8.tif",
       streams="dem_streams_d8.tif",
@@ -181,6 +182,7 @@ process_flowdir<-function(
   }
 
   # Prepare Output ----------------------------------------------------------
+  #browser()
 
   dist_list_out<-list(
     "dem_final.tif",
@@ -197,16 +199,63 @@ process_flowdir<-function(
   if (!dir.exists(out_dir)) dir.create(out_dir)
 
   if (file.exists(out_file)) {
-    out_file<-file.path(out_dir,paste0(gsub("\\.zip","",basename(out_file)),"_",paste0(basename(tempfile()), ".zip")))
-    warning(paste0("Target .zip file already exists. Saving as: ",out_file))
+    out_file<-file.path(out_dir,paste0(gsub("\\.gpkg","",basename(out_file)),"_",paste0(basename(tempfile()), ".gpkg")))
+    warning(paste0("Target .gpkg file already exists. Saving as: ",out_file))
+
+    # out_file<-file.path(out_dir,paste0(gsub("\\.zip","",basename(out_file)),"_",paste0(basename(tempfile()), ".zip")))
+    # warning(paste0("Target .zip file already exists. Saving as: ",out_file))
   }
 
-  if (verbose) print("Generating Output")
+  if (verbose) message("Generating Output")
 
-  utils::zip(out_file,
-      unlist(dist_list_out),
-      flags = '-r9Xjq'
-  )
+  #browser()
+
+  dem_ext<-terra::rast(dist_list_out[[1]])
+
+  dem_ext<-dem_ext %>%
+    terra::ext() %>%
+    terra::as.polygons(crs=terra::crs(dem_ext)) %>%
+    sf::st_as_sf() %>%
+    sf::write_sf(out_file,
+                 layer="DEM_Extent",
+                 append = T,
+                 delete_layer = F,
+                 delete_dsn = F)
+
+  for (i in dist_list_out){
+    tmp<-terra::rast(unlist(i))
+
+    ot<-tmp %>%
+      stars::st_as_stars() %>%
+      stars::write_stars(
+        out_file,
+        driver = "GPKG",
+        append=T,
+        options = c("APPEND_SUBDATASET=YES",
+                    paste0("RASTER_TABLE=",names(tmp))
+        )
+      )
+    # t1<-terra::writeRaster(
+    #   tmp,
+    #   file.path(temp_dir,"temp.tif"),
+    #   datatype="FLT4S",
+    #   overwrite=T
+    # )
+    #
+    # terra::writeRaster(
+    #   t1,
+    #   out_file,
+    #   filetype = "GPKG",
+    #   gdal = c("APPEND_SUBDATASET=YES",
+    #            paste0("RASTER_TABLE=",names(tmp),"")
+    #   )
+    # )
+  }
+
+  # utils::zip(out_file,
+  #     unlist(dist_list_out),
+  #     flags = '-r9Xjq'
+  # )
 
   output<-list(
     outfile=out_file
@@ -220,5 +269,6 @@ process_flowdir<-function(
   }
   suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive=T)))
 
+  class(output)<-"ihydro"
   return(output)
 }

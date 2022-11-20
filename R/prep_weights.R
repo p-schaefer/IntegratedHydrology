@@ -1,7 +1,7 @@
 
 #' Prepares hydroweights and adds them to existing zip file
 #'
-#' @param input output from `process_hydrology()` (if `process_loi()` was not run on `process_hydrology()`, `loi_file` must be specified)
+#' @param input an object of class ihydro.
 #' @param sample_points character or NULL. IDs of unique station identifiers priveded in 'site_id_col' of `generate_vectors()`
 #' @param link_id character or NULL. 'link_id's of reaches to calculate attributes for.
 #' @param target_o_type character. One of: c("point","segment_point","segment_whole"). Target for iEucO" "iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.
@@ -14,35 +14,38 @@
 #' @export
 #'
 
-#' @importFrom data.table fread
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if left_join select filter bind_rows distinct rename group_by ungroup summarize
-#' @importFrom furrr future_map
-#' @importFrom future nbrOfWorkers availableCores future futureOf resolved
+#' @importFrom carrier crate
+#' @importFrom dplyr filter select mutate bind_rows
+#' @importFrom furrr future_pmap furrr_options
+#' @importFrom future nbrOfWorkers availableCores future futureOf resolved plan tweak multisession
 #' @importFrom hydroweight hydroweight
-#' @importFrom purrr map map2
-#' @importFrom rlang sym
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf st_union write_sf
-#' @importFrom terra terraOptions rast unique sources split
+#' @importFrom progressr with_progress progressor
+#' @importFrom purrr map
+#' @importFrom sf st_as_sf write_sf read_sf
+#' @importFrom stars st_as_stars write_stars
+#' @importFrom terra rast ext as.polygons crs terraOptions writeRaster unique sources split
 #' @importFrom tibble as_tibble
-#' @importFrom tidyr nest
-#' @importFrom tidyselect any_of
-#' @importFrom utils unzip zip
 #' @importFrom whitebox wbt_options wbt_exe_path wbt_unnest_basins
 
 prep_weights<-function(
     input,
+    output_filename=NULL,
     sample_points=NULL,
     link_id=NULL,
     target_o_type=c("point","segment_point","segment_whole"),
-    weighting_scheme =  c("iEucS", "iFLS", "HAiFLS","iEucO","iFLO",  "HAiFLO"),
+    weighting_scheme =  c("iFLS", "HAiFLS","iFLO",  "HAiFLO"),
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
     temp_dir=NULL,
     verbose=F
 ){
+  if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
+  if (inherits(output_filename,"ihydro")) output_filename<-output_filename$outfile
+
+  if (!file.exists(output_filename)){
+    t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
+  }
 
   n_cores<-future::nbrOfWorkers()
   if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
@@ -52,319 +55,387 @@ prep_weights<-function(
   options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
 
-  weighting_scheme_s<-weighting_scheme[grepl("FLS|iEucS",weighting_scheme)]
-  weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS|iEucS",weighting_scheme)]
-  if (length(weighting_scheme_o)>0) message("Calculation for iEucO, iFLO, and HAiFLO are slow")
+  weighting_scheme<-match.arg(weighting_scheme,several.ok = T)
+  weighting_scheme_s<-weighting_scheme[grepl("FLS",weighting_scheme)]
+  weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS",weighting_scheme)]
+  if (length(weighting_scheme_o)>0) message("Calculation for iFLO, and HAiFLO are slow")
 
   if (is.null(target_o_type)) target_o_type<-"point"
   if (length(target_o_type)>1) target_o_type<-target_o_type[[1]]
-  match.arg(target_o_type,several.ok = F)
-  match.arg(weighting_scheme,several.ok = T)
+  target_o_type<-match.arg(target_o_type,several.ok = F)
 
-  zip_loc<-input$outfile
+  db_loc<-zip_loc<-input$outfile
 
-  out_zip_loc<-zip_loc
-  out_zip_loc<-file.path(gsub(basename(out_zip_loc),"",out_zip_loc),paste0(gsub(".zip","_DW.zip",basename(out_zip_loc))))
-  if (file.exists(out_zip_loc)) file.remove(out_zip_loc)
+  if (is.null(output_filename) || output_filename==db_loc) {
+    output_filename<-db_loc
+  } else {
+    if (!grepl("\\.gpkg$",output_filename)) stop("output_filename must be a character ending in '.gpkg'")
 
-  db_loc<-input$db_loc
+    dem<-terra::rast(db_loc,"dem_final")
+    dem_ext<-dem %>%
+      terra::ext() %>%
+      terra::as.polygons(crs=terra::crs(dem)) %>%
+      sf::st_as_sf() %>%
+      sf::write_sf(output_filename,
+                   layer="DEM_Extent",
+                   append = T,
+                   delete_layer = F,
+                   delete_dsn = F)
+  }
+
+  output_filename<-as.ihydro(output_filename)
+  lyrs<-ihydro_layers(output_filename)
+  weighting_scheme_s<-weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name]
+
+  # out_zip_loc<-zip_loc
+  # out_zip_loc<-file.path(gsub(basename(out_zip_loc),"",out_zip_loc),paste0(gsub(".zip","_DW.zip",basename(out_zip_loc))))
+  # if (file.exists(out_zip_loc)) file.remove(out_zip_loc)
+
+  # db_loc<-input$db_loc
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
 
   whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
-              verbose=verbose,
-              wd=temp_dir)
+                        verbose=verbose>2,
+                        wd=temp_dir)
 
-  terra::terraOptions(verbose = verbose,
+  terra::terraOptions(verbose = verbose>3,
                       tempdir = temp_dir
   )
 
-  fl<-utils::unzip(list=T,zip_loc)
+  #fl<-utils::unzip(list=T,zip_loc)
 
-  if (verbose) print("Reading in data")
+  if (verbose) message("Reading in data")
 
-  site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
-
-  db_loc<-input$db_loc
-  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-  stream_links<-dplyr::collect(dplyr::tbl(con,"stream_links")) %>%
-    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(site_id_col),~dplyr::na_if(.,"")))
-  DBI::dbDisconnect(con)
-
-  all_points<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_links.shp"))%>%
-    dplyr::mutate(dplyr::across(c(link_id,tidyselect::any_of(site_id_col)),as.character)) %>% #stream_links.shp
-    dplyr::left_join(stream_links, by = c("link_id"))
-
-  all_subb<-sf::read_sf(file.path("/vsizip",zip_loc,"Subbasins_poly.shp"))
-  all_catch<-sf::read_sf(file.path("/vsizip",zip_loc,"Catchment_poly.shp"))
-
-  # Get target link_id ------------------------------------------------------
-  sample_points<-as.character(sample_points)
-  link_id<-as.character(link_id)
-  if (length(sample_points)==0 & length(link_id)==0) {
-    message("`sample_points` and `link_id` are NULL, all `link_id`s will evaluated")
-    target_IDs<-all_points %>%
-      tibble::as_tibble() %>%
-      dplyr::select(link_id,tidyselect::any_of(site_id_col))
-  } else {
-    if (site_id_col!="link_id" & length(sample_points)>0){
-      target_IDs<-all_points %>%
-        tibble::as_tibble() %>%
-        dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
-        dplyr::filter(!!rlang::sym(site_id_col) %in% sample_points)
-    } else {
-      target_IDs<-NULL
-    }
-
-    if (length(link_id)>0){
-      target_IDs<-dplyr::bind_rows(
-        target_IDs,
-        all_points %>%
-          tibble::as_tibble() %>%
-          dplyr::select(link_id,tidyselect::any_of(site_id_col)) %>%
-          dplyr::filter(link_id %in% link_id)
-      )
-    }
-  }
-
-  if (target_o_type=="segment_whole") {
-    target_IDs<-target_IDs %>%
-      dplyr::select(link_id) %>%
-      dplyr::mutate(link_id=as.character(floor(as.numeric(link_id))))
-  }
-
-  target_IDs<-dplyr::distinct(target_IDs)
-
-  # Get Upstream flowpaths --------------------------------------------------
-
-  us_fp_fun<-function(link_id_in,db_loc=db_loc){
-    con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
-    out<-dplyr::tbl(con,"us_flowpaths") %>%
-      dplyr::filter(pour_point_id %in% link_id_in) %>%
-      dplyr::rename(link_id=origin_link_id) %>%
-      dplyr::collect() %>%
-      dplyr::group_by(pour_point_id) %>%
-      tidyr::nest() %>%
-      dplyr::ungroup()
-
-    out2<-out$data
-    names(out2)<-out$pour_point_id
-
-    out2<-out2[link_id_in]
-
-    DBI::dbDisconnect(con)
-    return(out2)
+  target_IDs<-target_id_fun(
+    db_fp=db_loc,
+    sample_points=sample_points,
+    link_id=link_id,
+    segment_whole=target_o_type=="segment_whole",
+    target_o_type=target_o_type
+  )
 
 
-  }
-
-  # browser()
-  us_flowpaths_out<-target_IDs %>%
-    dplyr::select(link_id) %>%
-    dplyr::mutate(link_id=as.character(link_id)) %>%
-    dplyr::mutate(us_flowpaths=us_fp_fun(link_id,db_loc=db_loc))
-
-  # Select correct target for O -------------------------------------
-  if (target_o_type=="point"){
-    target_O<-all_points
-  } else {
-    if (target_o_type=="segment_point"){
-      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp"))
-    } else {
-      target_O<-sf::read_sf(file.path("/vsizip",zip_loc,"stream_lines.shp")) %>%
-        dplyr::select(link_id) %>%
-        dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
-        dplyr::group_by(link_id) %>%
-        dplyr::summarize(geometry=sf::st_union(geometry)) %>%
-        dplyr::ungroup()
-
-
-    }
-  }
-
-  #browser()
-
-  # Sort everything by target_IDs
-  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
-  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
-  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
-
-  target_IDs<-target_IDs[match(target_O[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-  target_IDs<-target_IDs[match(all_points[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-  target_IDs<-target_IDs[match(all_catch[["link_id"]],target_IDs[["link_id"]],nomatch = 0),]
-
-  target_O<-target_O[match(target_IDs[["link_id"]],target_O[["link_id"]],nomatch = 0),]
-  all_points<-all_points[match(target_IDs[["link_id"]],all_points[["link_id"]],nomatch = 0),]
-  all_catch<-all_catch[match(target_IDs[["link_id"]],all_catch[["link_id"]],nomatch = 0),]
-
-  us_flowpaths_out<-us_flowpaths_out[match(target_IDs[["link_id"]],us_flowpaths_out[["link_id"]],nomatch = 0),]
-
-  all_subb<-all_subb %>%
-    dplyr::filter(link_id %in% unlist(purrr::map(us_flowpaths_out$us_flowpaths,~.$link_id)))
-
-
-  # Calculate weighted S-target distances -------------------------------------
 
   temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
   dir.create(temp_dir_sub)
 
-  if (verbose) print("Generating Stream Targeted Weights")
-  hw_streams<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub,
-                                       target_O = NULL,
-                                       target_S = file.path("/vsizip",zip_loc,"dem_streams_d8.tif"),
-                                       target_uid = 'ALL',
-                                       OS_combine = FALSE,
-                                       dem=file.path("/vsizip",zip_loc,"dem_final.tif"),
-                                       flow_accum = file.path("/vsizip",zip_loc,"dem_accum_d8.tif"),
-                                       weighting_scheme = weighting_scheme_s,
-                                       inv_function = inv_function,
-                                       clean_tempfiles=T,
-                                       return_products = F,
-                                       wrap_return_products=F,
-                                       save_output=T)
-
-  uz_fls<-utils::unzip(list=T,hw_streams)$Name
-  utils::unzip(hw_streams,exdir =temp_dir_sub)
-
-  rout<-sapply(uz_fls,function(x) {
-    file.rename(
-      file.path(temp_dir_sub,x),
-      file.path(temp_dir_sub,paste0("ALL_",gsub(".tif","",x),"_inv_distances.tif"))
+  for (i in c("dem_streams_d8",
+              "dem_final",
+              "dem_accum_d8",
+              "dem_d8")) {
+    terra::writeRaster(
+      terra::rast(zip_loc,i),
+      file.path(temp_dir_sub,paste0(i,".tif"))
     )
-    return(file.path(temp_dir_sub,paste0("ALL_",gsub(".tif","",x),"_inv_distances.tif")))
-  })
-
-  utils::zip(out_zip_loc,
-      unlist(rout),
-      flags = '-r9Xjq'
-  )
-
-  t1<-try(file.remove(unlist(rout)),silent=T)
-  t1<-try(file.remove(hw_streams),silent=T)
-
-  # Calculate weighted O-target distances -------------------------------------
-
-  utils::unzip(zip_loc,
-        c("dem_d8.tif"),
-        exdir=temp_dir_sub,
-        overwrite=T,
-        junkpaths=T)
-  sf::write_sf(all_points %>% dplyr::select(link_id),
-           file.path(temp_dir_sub,"pour_points.shp"),
-           overwrite=T)
-
-  # Use unnest basins to find catchments that don't overlap
-  # Use asynchronous evaluation (if parallel backend registered)
-  # to clear up rasters as they are made
-  future_unnest<-future::future({
-    whitebox::wbt_unnest_basins(
-      wd=temp_dir_sub,
-      d8_pntr="dem_d8.tif",
-      pour_pts="pour_points.shp",
-      output="unnest.tif"
-    )
-  })
-
-  future_unnest_status <- future::futureOf(future_unnest)
-
-  rast_out<-list()
-  while(!future::resolved(future_unnest_status)){
-    Sys.sleep(0.2)
-    fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-
-    if (length(fl_un)==0) next
-
-    rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
-    rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
-
-    if (length(rast_all)>0){
-      rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
-      suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
-    }
   }
 
-  fl_un<-list.files(temp_dir_sub,"unnest_",full.names = T)
-  fl_un<-fl_un[grepl(".tif",fl_un)]
-  rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
-  rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
-  if (length(rast_all)>0){
-    rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
-    suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
-  }
-
-  target_O_sub<-purrr::map2(rast_out,seq_along(rast_out),~target_O[unlist(.x),] %>% dplyr::select(link_id) %>% dplyr::mutate(unn_group=.y))
-  splt_lst<-suppressWarnings(terra::split(target_O_sub,1:n_cores))
-  splt_lst<-splt_lst[!sapply(splt_lst,is.null)]
+  # Calculate weighted S-target distances -------------------------------------
 
   #browser()
 
-  sf::write_sf(dplyr::bind_rows(target_O_sub),file.path(temp_dir_sub,"unnest_group_target_O.shp"))
+  lyrs<-ihydro_layers(output_filename)
 
-  utils::zip(out_zip_loc,
-      list.files(temp_dir_sub,"unnest_group_target_O",full.names = T),
-      flags = '-r9Xjq'
-  )
+  if (length(weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name]) > 0) {
+    temp_dir_sub2<-file.path(temp_dir_sub,basename(tempfile()))
+    dir.create(temp_dir_sub2)
 
-  hw_o_targ<-furrr::future_map(splt_lst,function(x){
-    target_S <- terra::rast(file.path("/vsizip",zip_loc,"dem_streams_d8.tif"))
-    dem <- terra::rast(file.path("/vsizip",zip_loc,"dem_final.tif"))
-    flow_accum <- terra::rast(file.path("/vsizip",zip_loc,"dem_accum_d8.tif"))
+    if (verbose) message("Generating Stream Targeted Weights")
+    hw_streams<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub2,
+                                         target_O = NULL,
+                                         target_S = file.path(temp_dir_sub,paste0("dem_streams_d8",".tif")),
+                                         target_uid = 'ALL',
+                                         OS_combine = FALSE,
+                                         dem=file.path(temp_dir_sub,paste0("dem_final",".tif")),
+                                         flow_accum = file.path(temp_dir_sub,paste0("dem_accum_d8",".tif")),
+                                         weighting_scheme = weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name],
+                                         inv_function = inv_function,
+                                         clean_tempfiles=F,
+                                         return_products = T,
+                                         wrap_return_products=F,
+                                         save_output=F)
 
-    o_out<-purrr::map(x,function(y){
-      temp_dir_sub_sub<-file.path(temp_dir_sub,basename(tempfile()))
-      dir.create(temp_dir_sub_sub)
-      hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
-                                     target_O = y,
-                                     target_S = target_S,
-                                     target_uid = paste0("unnest_group_",y$unn_group[[1]]),
-                                     OS_combine = FALSE,
-                                     dem=dem,
-                                     flow_accum = flow_accum,
-                                     weighting_scheme = weighting_scheme_o,
-                                     inv_function = inv_function,
-                                     clean_tempfiles=T,
-                                     return_products = F,
-                                     wrap_return_products=F,
-                                     save_output=T)
+    for (i in hw_streams) {
 
+      t1<-terra::writeRaster(
+        i,
+        file.path(temp_dir_sub2,paste0(names(i),".tif")),
+        datatype="FLT4S",
+        overwrite=T
+      )
 
-
-      uz_fls<-utils::unzip(list=T,hw_o)$Name
-      utils::unzip(hw_o,exdir =temp_dir_sub_sub)
-
-      rout<-sapply(uz_fls,function(x) {
-        file.copy(
-          file.path(temp_dir_sub_sub,x),
-          file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",gsub(".tif","",x),"_inv_distances.tif"))
+      terra::writeRaster(
+        t1,
+        output_filename$outfile,
+        filetype = "GPKG",
+        gdal = c("APPEND_SUBDATASET=YES",
+                 paste0("RASTER_TABLE=",gsub("_inv","",names(t1)),"")
         )
-        return(file.path(temp_dir_sub,paste0("unnest_group_",y$unn_group[[1]],"_",gsub(".tif","",x),"_inv_distances.tif")))
+      )
+
+    }
+
+
+    rm(hw_streams)
+    t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
+  }
+
+  # Calculate weighted O-target distances -------------------------------------
+
+  rand_id <- function(n = 1,d=12) {
+    paste0(replicate(d, sample(c(LETTERS,letters,0:9),n,TRUE)),collapse = "")
+  }
+
+  if (length(weighting_scheme_o) > 0) {
+    temp_dir_sub2<-file.path(temp_dir_sub,basename(tempfile()))
+    dir.create(temp_dir_sub2)
+
+    lyrs<-ihydro_layers(output_filename)
+
+    target_o_meta<-NULL
+    if ("target_o_meta" %in% lyrs$layer_name){
+      target_o_meta<-sf::read_sf(output_filename,"target_o_meta") %>%
+        dplyr::filter(paste0(weighting_scheme_o,"_unn_group",unn_group) %in% lyrs$layer_name)
+    }
+
+    target_O<-target_o_fun(
+      db_fp=db_loc,
+      target_IDs=target_IDs,
+      target_o_type=target_o_type
+    ) %>%
+      dplyr::filter(!link_id %in% target_o_meta$link_id)
+
+    all_points<-target_o_fun(
+      db_fp=db_loc,
+      target_IDs=target_IDs,
+      target_o_type="point"
+    )%>%
+      dplyr::filter(!link_id %in% target_o_meta$link_id)
+
+    sf::write_sf(all_points %>% dplyr::select(link_id),
+                 file.path(temp_dir_sub2,"pour_points.shp"),
+                 overwrite=T)
+
+    if (nrow(target_O)>0){
+      if (verbose) message("Generating Site Targeted Weights")
+
+      # Unnest basins -----------------------------------------------------------
+
+      # Use unnest basins to find catchments that don't overlap
+      # Use asynchronous evaluation (if parallel backend registered)
+      # to clear up rasters as they are made
+      future_unnest<-future::future({
+        whitebox::wbt_unnest_basins(
+          d8_pntr=file.path(temp_dir_sub,"dem_d8.tif"),
+          pour_pts=file.path(temp_dir_sub2,"pour_points.shp"),
+          output=file.path(temp_dir_sub2,"unnest.tif")
+        )
       })
 
+      future_unnest_status <- future::futureOf(future_unnest)
+
+      rast_out<-list()
+      while(!future::resolved(future_unnest_status)){
+        Sys.sleep(0.2)
+        fl_un<-list.files(temp_dir_sub2,"unnest_",full.names = T)
+
+        if (length(fl_un)==0) next
+
+        rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
+        rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
+
+        if (length(rast_all)>0){
+          rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+          suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
+        }
+      }
+
+      fl_un<-list.files(temp_dir_sub2,"unnest_",full.names = T)
+      fl_un<-fl_un[grepl(".tif",fl_un)]
+      rast_all<-purrr::map(fl_un,function(x) try(terra::rast(x),silent=T))
+      rast_all<-rast_all[!sapply(rast_all,function(x) inherits(x,"try-error"))]
+      if (length(rast_all)>0){
+        rast_out<-c(rast_out,purrr::map(rast_all,terra::unique))
+        suppressWarnings(file.remove(unlist(purrr::map(rast_all,terra::sources))))
+      }
+
+      link_id_split<-purrr::map(rast_out,~all_points$link_id[.[[1]]])
+
+      # Calculating O target weights --------------------------------------------
+
+      n_cores_2<-n_cores
+
+      if (n_cores>1) {
+        n_cores_2<-n_cores_2-1
+        oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
+        on.exit(future::plan(oplan), add = TRUE)
+      }
 
 
-      #t1<-try(file.remove(unlist(rout)),silent=T)
-      t1<-try(file.remove(hw_o),silent=T)
-      t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
+      target_O_sub<-purrr::map(link_id_split,~dplyr::filter(target_O,link_id %in% .) %>%
+                                 dplyr::select(link_id) %>%
+                                 dplyr::mutate(unn_group=rand_id(1)))
+      splt_lst<-suppressWarnings(terra::split(target_O_sub,1:n_cores))
+      splt_lst<-splt_lst[!sapply(splt_lst,is.null)]
 
-      return(unlist(rout))
-    })
+      progressr::with_progress(enable=T,{
+        p <- progressr::progressor(steps = (length(target_O_sub)))
 
-  })
+        future_proc<-future::future({
+          hw_o_targ<-furrr::future_pmap(
+            #hw_o_targ<-purrr::pmap(
+            list(x=splt_lst,
+                 output_filename=list(output_filename),
+                 temp_dir_sub=list(temp_dir_sub),
+                 temp_dir_sub2=list(temp_dir_sub2),
+                 weighting_scheme_o=list(weighting_scheme_o),
+                 inv_function=list(inv_function),
+                 p=list(p)
+            ),
+            .options = furrr::furrr_options(globals = F),
+            carrier::crate(
+              function(x,
+                       output_filename,
+                       temp_dir_sub,
+                       temp_dir_sub2,
+                       weighting_scheme_o,
+                       inv_function,
+                       p
+              ){
+                target_S <- terra::rast(file.path(temp_dir_sub,"dem_streams_d8.tif"))
+                dem <- terra::rast(file.path(temp_dir_sub,"dem_final.tif"))
+                flow_accum <- terra::rast(file.path(temp_dir_sub,"dem_accum_d8.tif"))
 
-  utils::zip(out_zip_loc,
-      unlist(hw_o_targ),
-      flags = '-r9Xjq'
-  )
+                o_out<-purrr::map(x,function(y){
+                  temp_dir_sub_sub<-file.path(temp_dir_sub2,basename(tempfile()))
+                  dir.create(temp_dir_sub_sub)
+                  hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
+                                                 target_O = y,
+                                                 target_S = target_S,
+                                                 target_uid = paste0("unnest_group_",y$unn_group[[1]]),
+                                                 OS_combine = FALSE,
+                                                 dem=dem,
+                                                 flow_accum = flow_accum,
+                                                 weighting_scheme = weighting_scheme_o,
+                                                 inv_function = inv_function,
+                                                 clean_tempfiles=F,
+                                                 return_products = T,
+                                                 wrap_return_products=F,
+                                                 save_output=F)
 
-  t1<-try(file.remove(unlist(hw_o_targ)),silent=T)
-  tt<-file.remove(list.files(temp_dir_sub,full.names = T))
+                  for (i in hw_o) {
 
-  input$dw_dir<-out_zip_loc
+                    t1<-terra::writeRaster(
+                      i,
+                      file.path(temp_dir_sub2,paste0(names(i),"_unn_group",y$unn_group[[1]],".tif")),
+                      datatype="FLT4S",
+                      overwrite=T
+                    )
 
-  return(input)
+                  }
+
+                  rm(hw_o)
+                  t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
+                  p()
+                  return(NULL)
+
+                  #return(unlist(rout))
+                })
+
+              }))
+        })
+
+        future_proc_status <- future::futureOf(future_proc)
+
+        while(!future::resolved(future_proc_status)){
+          Sys.sleep(0.2)
+          fl_un<-list.files(temp_dir_sub2,full.names = T)
+          fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
+
+          if (length(fl_un)>0) {
+            rast_all<-purrr::map(fl_un,function(x) {
+              Sys.sleep(2)
+              x<-try(terra::rast(x),silent = T)
+              if (inherits(x,"try-error")) return(NULL)
+              ot<-x %>%
+                stars::st_as_stars() %>%
+                stars::write_stars(
+                  output_filename$outfile,
+                  driver = "GPKG",
+                  append=T,
+                  options = c("APPEND_SUBDATASET=YES",
+                              paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                  )
+                )
+              return(terra::sources(x))
+            })
+
+            rast_all<-rast_all[!sapply(rast_all,is.null)]
+
+            suppressWarnings(file.remove(unlist(rast_all)))
+
+          }
+
+        }
+
+        Sys.sleep(0.2)
+        fl_un<-list.files(temp_dir_sub2,full.names = T)
+        fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
+
+        if (length(fl_un)>0) {
+          rast_all<-purrr::map(fl_un,function(x) {
+
+            x<-try(terra::rast(x),silent = T)
+            if (inherits(x,"try-error")) return(NULL)
+
+            ot<-x %>%
+              stars::st_as_stars() %>%
+              stars::write_stars(
+                output_filename$outfile,
+                driver = "GPKG",
+                append=T,
+                options = c("APPEND_SUBDATASET=YES",
+                            paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                )
+              )
+
+            return(terra::sources(x))
+          })
+          rast_all<-rast_all[!sapply(rast_all,is.null)]
+
+          suppressWarnings(file.remove(unlist(rast_all)))
+        }
+
+        dplyr::bind_rows(target_O_sub) %>%
+          tibble::as_tibble() %>%
+          dplyr::select(link_id,unn_group) %>%
+          sf::write_sf(
+            output_filename$outfile,
+            layer="target_o_meta",
+            append=T,
+            delete_layer = F,
+            delete_dsn=F
+          )
+
+        t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
+      })
+    }
+
+
+  }
+
+
+  output<-input
+  if (output$outfile != output_filename$outfile) output<-list(outfile=output_filename$outfile)
+
+  #class(output)<-"ihydro"
+
+  if (!inherits(output,"ihydro")) output<-as.ihydro(output$outfile)
+
+  return(output)
+
 
 }
 

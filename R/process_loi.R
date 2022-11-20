@@ -1,5 +1,5 @@
 
-#' processes layers of interest (loi) for attribution of stream network
+#' Processes layers of interest (loi) for attribution of stream network
 #'
 #' @param input \code{NULL} or output from `process_hydrology()` or `process_flowdir()`. If \code{NULL}, `dem` must be specified.
 #' @param dem \code{NULL} or character (full file path with extension, e.g., "C:/Users/Administrator/Desktop/dem.tif"), \code{RasterLayer}, \code{SpatRaster}, or \code{PackedSpatRaster} of GeoTiFF type. Digital elevation model raster. If \code{NULL}, input must be specified.
@@ -16,12 +16,17 @@
 #' @export
 
 #' @importFrom carrier crate
+#' @importFrom DBI dbConnect dbDisconnect
 #' @importFrom furrr future_pmap furrr_options
+#' @importFrom future nbrOfWorkers availableCores plan tweak multisession future futureOf resolved value
 #' @importFrom hydroweight process_input
 #' @importFrom progressr with_progress progressor
 #' @importFrom purrr map pmap
+#' @importFrom RSQLite SQLite
+#' @importFrom sf st_as_sf write_sf
+#' @importFrom stars st_as_stars write_stars
 #' @importFrom terra terraOptions rast writeRaster as.polygons ext crs writeVector vect wrap split
-#' @importFrom utils unzip zip
+#' @importFrom tibble tibble
 #' @importFrom whitebox wbt_options wbt_exe_path
 
 process_loi<-function(
@@ -34,14 +39,19 @@ process_loi<-function(
     variable_names=NULL,
     return_products=F,
     temp_dir=NULL,
-    verbose=F
+    verbose=F,
+    overwrite=T
 ) {
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
 
+  if (!is.null(input)) {
+    if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
+  }
 
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
+  if (!is.logical(overwrite)) stop("'overwrite' must be logical")
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
   temp_dir<-normalizePath(temp_dir)
@@ -67,31 +77,27 @@ process_loi<-function(
     output_filename<-input$outfile
   }
   output_filename<-normalizePath(output_filename,mustWork =F)
-  if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
+  #if (!grepl("\\.zip$",output_filename)) stop("output_filename must be a character ending in '.zip'")
+  if (!grepl("\\.gpkg$",output_filename)) stop("output_filename must be a character ending in '.gpkg'")
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
   whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
-              verbose=verbose,
-              wd=temp_dir)
+                        verbose=verbose>2,
+                        wd=temp_dir)
 
-  terra::terraOptions(verbose = verbose,
+  terra::terraOptions(verbose = verbose>3,
                       tempdir = temp_dir
   )
 
   # Prepare DEM -------------------------------------------------------------
-  if (verbose) print("Preparing DEM")
+  if (verbose) message("Preparing DEM")
   if (!is.null(input)){
     zip_loc<-input$outfile
-    fl<-utils::unzip(list=T,zip_loc)
 
-    utils::unzip(zip_loc,
-          c("dem_final.tif"),
-          exdir=temp_dir,
-          overwrite=T,
-          junkpaths=T)
+    dem<-terra::rast(input$outfile,lyrs="dem_final")
+    terra::writeRaster(dem,file.path(temp_dir,"dem_final.tif"),overwrite=T,gdal="COMPRESS=NONE")
 
-    dem<-terra::rast(file.path(temp_dir,"dem_final.tif"))
   } else {
     dem<-hydroweight::process_input(dem,input_name="dem",working_dir=temp_dir)
     if (!inherits(dem,"SpatRaster")) stop("dem must be a class 'SpatRaster'")
@@ -134,181 +140,295 @@ process_loi<-function(
     lyr_variables = c(variable_names[names(num_inputs)],variable_names[names(cat_inputs)]),
     rln = as.list(c(rep("num_rast",length(num_inputs)), rep("cat_rast",length(cat_inputs)))),
     temp_dir = as.list(rep(temp_dir,length(c(num_inputs,cat_inputs)))),
+    overwrite=as.list(rep(overwrite,length(c(num_inputs,cat_inputs)))),
     output_filename = as.list(rep(output_filename,length(c(num_inputs,cat_inputs))))
   )
 
   inputs_list$lyr_variables[sapply(inputs_list$lyr_variables,is.null)]<-NA_character_
 
 
-  # inputs_list<-list(
-  #   num_rast.tif=list(lyr_nms=as.list(names(num_inputs)),
-  #                     lyr=num_inputs,
-  #                     lyr_variables=variable_names[names(num_inputs)]),
-  #   cat_rast.tif=list(lyr_nms=names(cat_inputs),
-  #                     lyr=cat_inputs,
-  #                     lyr_variables=variable_names[names(cat_inputs)])
-  # )
+  if (!file.exists(output_filename)){
+    dem_ext<-dem %>%
+      terra::ext() %>%
+      terra::as.polygons(crs=terra::crs(dem)) %>%
+      sf::st_as_sf() %>%
+      sf::write_sf(output_filename,
+                   layer="DEM_Extent",
+                   append = T,
+                   delete_layer = F,
+                   delete_dsn = F)
+  }
+
+  n_cores<-future::nbrOfWorkers()
+  if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
+  if (n_cores==0) n_cores<-1
+
+  n_cores_2<-n_cores
+
+  if (n_cores>1) {
+    n_cores_2<-n_cores_2-1
+    oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
+    on.exit(future::plan(oplan), add = TRUE)
+  }
+
+  temp_dir_save<-file.path(temp_dir,basename(tempfile()))
+  dir.create(temp_dir_save)
+
+
+  # Check if loi exists -----------------------------------------------------
+
+  # if (file.exists(output_filename)){
+  #   con<-DBI::dbConnect(RSQLite::SQLite(),output_filename)
+  #   tl<-DBI::dbListTables(con)
   #
-  # inputs_list<-map2(inputs_list,names(inputs_list),~c(.x,
-  #                                                     list(rln=as.list(rep(.y,length(.x[[1]])))),
-  #                                                     list(temp_dir=as.list(rep(temp_dir,length(.x[[1]]))))
-  # ))
+  #   tbl_lst<-dplyr::tbl(con,"gpkg_tile_matrix_set") %>%
+  #     dplyr::collect()
+  #
+  #   if (i %in% tbl_lst$table_name) {
+  #     if (overwrite) {
+  #       DBI::dbSendStatement(con, paste0("DELETE FROM gpkg_tile_matrix_set where table_name=","'",i,"'"))
+  #       DBI::dbSendStatement(con, paste0("DELETE FROM gpkg_tile_matrix where table_name=","'",i,"'"))
+  #       DBI::dbSendStatement(con, paste0("DELETE FROM gpkg_2d_gridded_tile_ancillary where tpudt_name=","'",i,"'"))
+  #       DBI::dbSendStatement(con, paste0("DELETE FROM gpkg_2d_gridded_coverage_ancillary where tile_matrix_set_name=","'",i,"'"))
+  #       DBI::dbSendStatement(con, paste0("DELETE FROM gpkg_contents where table_name=","'",i,"'"))
+  #       DBI::dbSendStatement(con, paste0("DROP TABLE ",i))
+  #
+  #     } else {
+  #       warning(paste0("Layer ",i," could not be writted to gpkg because a table with that name already exists."))
+  #       p()
+  #       return(NULL)
+  #     }
+  #   }
+  #
+  #   DBI::dbDisconnect(con)
+  # }
 
-
-
-  #browser()
-
-  #inputs_list<-inputs_list[sapply(inputs_list,function(x) length(x$lyr))>0]
 
   progressr::with_progress(enable=T,{
-    print("Processing loi")
+    message("Processing loi")
     p <- progressr::progressor(steps = (length(num_inputs) + length(cat_inputs)))
 
-    ot<-furrr::future_pmap(c(inputs_list,list(p=list(p))),
-             .options=furrr::furrr_options(globals = F),
-             carrier::crate(
-               function(lyr_nms=lyr_nms,
-                        lyr=lyr,
-                        lyr_variables=lyr_variables,
-                        gdal_arg=gdal_arg,
-                        rln=rln,
-                        temp_dir=temp_dir,
-                        output_filename=output_filename,
-                        p=p){
+    ip<-c(inputs_list,
+          list(p=rep(list(p),length(inputs_list$output_filename)),
+               temp_dir_save=rep(list(temp_dir_save),length(inputs_list$output_filename))
+          ))
 
-                 loi_fn<-function(lyr_nms,lyr,lyr_variables,gdal_arg,p,rln,temp_dir,output_filename){
-                   purrr::pmap(list(lyr_nms=lyr_nms,
-                                    lyr=lyr,
-                                    lyr_variables=lyr_variables,
-                                    rln=rln,
-                                    temp_dir=temp_dir,
-                                    output_filename=output_filename),
-                               function(lyr_nms,
-                                        lyr,
-                                        lyr_variables,
-                                        rln,
-                                        temp_dir,
-                                        output_filename){
-                                 #print(lyr)
+    future_proc<-future::future({
+      ot<-furrr::future_pmap(ip,
+                             #purrr::pmap(ip,
+                             .options=furrr::furrr_options(globals = F),
+                             carrier::crate(
+                               function(lyr_nms=lyr_nms,
+                                        lyr=lyr,
+                                        lyr_variables=lyr_variables,
+                                        gdal_arg=gdal_arg,
+                                        rln=rln,
+                                        temp_dir=temp_dir,
+                                        temp_dir_save=temp_dir_save,
+                                        output_filename=output_filename,
+                                        overwrite=overwrite,
+                                        p=p){
                                  #browser()
 
-                                 temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
-                                 dir.create(temp_temp_dir)
+                                 purrr::pmap(list(lyr_nms=lyr_nms,
+                                                  lyr=lyr,
+                                                  lyr_variables=lyr_variables,
+                                                  rln=rln,
+                                                  temp_dir=temp_dir,
+                                                  temp_dir_save=temp_dir_save,
+                                                  output_filename=output_filename),
+                                             function(lyr_nms,
+                                                      lyr,
+                                                      lyr_variables,
+                                                      rln,
+                                                      temp_dir,
+                                                      temp_dir_save,
+                                                      output_filename){
+                                               options(scipen = 999)
+                                               `%>%` <- magrittr::`%>%`
 
-                                 resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
-                                 if (all(is.na(lyr_variables))) lyr_variables<-NULL
 
-                                 output<-hydroweight::process_input(
-                                   input=unlist(lyr),
-                                   input_name = unlist(lyr_nms),
-                                   variable_name=unlist(lyr_variables),
-                                   target=file.path(temp_dir,"dem_final.tif"),
-                                   clip_region = file.path(temp_dir,"clip_region.shp"),
-                                   resample_type = resaml,
-                                   working_dir=temp_temp_dir
-                                 )
+                                               temp_temp_dir<-file.path(temp_dir,basename(tempfile()))
+                                               dir.create(temp_temp_dir)
 
-                                 #browser()
+                                               resaml<-ifelse(grepl("num_rast",rln),"bilinear","near")
 
-                                 out_files<-file.path(temp_dir,paste0(rln,"_",names(output),".tif"))
-                                 names(out_files)<-names(output)
+                                               if (all(is.na(lyr_variables))) lyr_variables<-NULL
 
-                                 output<-terra::split(output,names(output))
-                                 names(output)<-sapply(output,names)
+                                               output<-hydroweight::process_input(
+                                                 input=unlist(lyr),
+                                                 input_name = unlist(lyr_nms),
+                                                 variable_name=unlist(lyr_variables),
+                                                 target=file.path(temp_dir,"dem_final.tif"),
+                                                 clip_region = file.path(temp_dir,"clip_region.shp"),
+                                                 resample_type = resaml,
+                                                 working_dir=temp_temp_dir
+                                               )
 
-                                 for (i in names(output)){
-                                   terra::writeRaster(output[[i]],out_files[[i]],overwrite=T)
-                                 }
+                                               #browser()
 
-                                 unlink(temp_temp_dir,recursive=T,force=T)
-                                 # if (file.exists(out_file)) {
-                                 #   output<-rast(list(rast(out_file),output))
-                                 #   out_file<-file.path(temp_dir,paste0("new_",rln))
-                                 # }
-                                 #
-                                 # ot<-writeRaster(output,out_file,overwrite=T,gdal="COMPRESS=NONE")
-                                 #
-                                 # suppressWarnings(terra::tmpFiles(current = T,orphan=T,old=T,remove = T))
-                                 # suppressWarnings(file.remove(list.files(temp_temp_dir,full.names = T,recursive = T)))
-                                 # suppressWarnings(unlink(temp_temp_dir,recursive = T, force = T))
-                                 #
-                                 # if (file.exists(file.path(temp_dir,paste0("new_",rln)))){
-                                 #   suppressWarnings(file.remove(file.path(temp_dir,paste0(rln))))
-                                 #   suppressWarnings(file.rename(file.path(temp_dir,paste0("new_",rln)),
-                                 #                                file.path(temp_dir,paste0(rln))))
-                                 # }
+                                               out_files<-file.path(temp_dir,paste0(rln,"_",names(output),".tif"))
+                                               names(out_files)<-names(output)
 
-                                 p()
+                                               output<-terra::split(output,names(output))
+                                               names(output)<-sapply(output,names)
 
-                                 out<-list(
-                                   lyr_nms=lyr_nms,
-                                   lyr_variables=sapply(output,names),
-                                   rln=rln,
-                                   out_files=basename(out_files),
-                                   temp_filename=out_files,
-                                   output_filename=file.path("/vsizip",output_filename,basename(out_files))
-                                 )
+                                               for (i in names(output)){
+                                                 #terra::writeRaster(output[[i]],out_files[[i]],overwrite=T)
 
-                                 return(out)
-                               })
-                 }
 
-                 loi_fn(lyr_nms=lyr_nms,
-                        lyr=lyr,
-                        lyr_variables=lyr_variables,
-                        gdal_arg=gdal_arg,
-                        p=p,
-                        rln=rln,
-                        temp_dir=temp_dir,
-                        output_filename=output_filename)
-               }))
+                                                 # ot<-output[[i]] %>%
+                                                 #   stars::st_as_stars() %>%
+                                                 #   stars::write_stars(
+                                                 #     output_filename,
+                                                 #     driver = "GPKG",
+                                                 #     append=T,
+                                                 #     options = c("APPEND_SUBDATASET=YES",
+                                                 #                 paste0("RASTER_TABLE=",paste0(names(output[[i]])))
+                                                 #     )
+                                                 #   )
+
+                                                 t1<-terra::writeRaster(
+                                                   output[[i]],
+                                                   file.path(temp_dir_save,paste0(names(output[[i]]),".tif")),
+                                                   datatype=ifelse(resaml=="near","INT2U","FLT4S"),
+                                                   overwrite=T
+                                                 )
+                                                 #
+                                                 # terra::writeRaster(
+                                                 #   t1,
+                                                 #   output_filename,
+                                                 #   filetype = "GPKG",
+                                                 #   gdal = c("APPEND_SUBDATASET=YES",
+                                                 #            paste0("RASTER_TABLE=",names(t1),"")
+                                                 #   )
+                                                 # )
+
+                                               }
+
+                                               unlink(temp_temp_dir,recursive=T,force=T)
+
+                                               p()
+
+                                               out<-list(
+                                                 lyr_nms=lyr_nms,
+                                                 lyr_variables=sapply(output,names),
+                                                 rln=rln
+                                               )
+
+                                               return(out)
+                                             })
+
+
+
+                               }))
+    })
 
   })
 
+  future_proc_status <- future::futureOf(future_proc)
+  #browser()
+  while(!future::resolved(future_proc_status)){
+    Sys.sleep(0.5)
+    fl<-list.files(temp_dir_save,".tif",full.names = T)
+    for (x in fl) {
+      tot<-try(terra::rast(x),silent=T)
+      if (inherits(tot,"try-error")) next()
+      # tott<-terra::writeRaster(
+      #   tot,
+      #   output_filename,
+      #   filetype = "GPKG",
+      #   gdal = c("APPEND_SUBDATASET=YES",
+      #            paste0("RASTER_TABLE=",names(tot),"")
+      #   )
+      # )
+      tott<-tot %>%
+        stars::st_as_stars() %>%
+        stars::write_stars(
+          output_filename,
+          driver = "GPKG",
+          append=T,
+          options = c("APPEND_SUBDATASET=YES",
+                      paste0("RASTER_TABLE=",paste0(names(tot)))
+          )
+        )
+
+      file.remove(x)
+    }
+  }
+
+  Sys.sleep(2)
+  fl<-list.files(temp_dir_save,".tif",full.names = T)
+  for (x in fl) {
+    tot<-try(terra::rast(x),silent=T)
+    while (inherits(tot,"try-error")) {
+      sys.sleep(0.5)
+      tot<-try(terra::rast(x),silent=T)
+    }
+    # tott<-terra::writeRaster(
+    #   tot,
+    #   output_filename,
+    #   filetype = "GPKG",
+    #   gdal = c("APPEND_SUBDATASET=YES",
+    #            paste0("RASTER_TABLE=",names(tot),"")
+    #   )
+    # )
+    tott<-tot %>%
+      stars::st_as_stars() %>%
+      stars::write_stars(
+        output_filename,
+        driver = "GPKG",
+        append=T,
+        options = c("APPEND_SUBDATASET=YES",
+                    paste0("RASTER_TABLE=",paste0(names(tot)))
+        )
+      )
+
+    file.remove(x)
+  }
+
+  ot<-future::value(future_proc)
   names(ot)<-unlist(inputs_list$lyr_nms)
 
   ot<-lapply(ot,function(x) unlist(x,recursive=F))
 
-  #browser()
+  meta<-map_dfr(ot,~tibble::tibble(
+    loi_lyr_nms=.$lyr_nms,
+    loi_var_nms=.$lyr_variables,
+    loi_type=.$rln
+  ))
 
+  con<-DBI::dbConnect(RSQLite::SQLite(),output_filename)
 
-  # Generate Meta data ------------------------------------------------------
+  tmp<-copy_to(dest=con,
+               df=meta,
+               name="loi_meta",
+               overwrite =T,
+               temporary =F,
+               analyze=T,
+               in_transaction=T)
 
-  meta<-split(ot,sapply(ot,function(x) x$rln))
-  saveRDS(meta,file.path(temp_dir,"loi_meta.rds"))
+  DBI::dbDisconnect(con)
+
 
   # Generate Output ---------------------------------------------------------
-  if (verbose) print("Generating Outputs")
+  if (verbose) message("Generating Outputs")
 
-  # dist_list_out<-list(
-  #   "num_rast.tif",
-  #   "cat_rast.tif"
-  # )
-
-  dist_list_out<-c(unlist(lapply(ot,function(x) x$temp_filename)),file.path(temp_dir,"loi_meta.rds"))
-
-  # dist_list_out<-lapply(dist_list_out,function(x) file.path(temp_dir,x))
-
-  dist_list_out<-dist_list_out[sapply(dist_list_out,file.exists)]
-
-  utils::zip(output_filename,
-      unlist(dist_list_out),
-      flags = '-r9Xjq'
-  )
 
   output<-input
 
+  if (is.null(output)){
+    output<-list(outfile=output_filename)
+  }
+
   if (return_products){
 
-    ott<-purrr::map(meta,~purrr::map(.,~terra::rast(.$output_filename)))
+    ott<-purrr::map(meta %>% split(.,.$loi_type),~purrr::map(.$loi_var_nms,~terra::rast(output_filename,lyrs=.)))
     ott2<-list(
       num_inputs=terra::rast(unlist(ott["num_rast"],use.names = F)),
       cat_inputs=terra::rast(unlist(ott["cat_rast"],use.names = F))
     )
-    ott2<-lapply(ott2,terra::wrap)
-    # names(ott)[grepl("num_rast",unlist(dist_list_out))]<-"num_inputs"
-    # names(ott)[grepl("cat_rast",unlist(dist_list_out))]<-"cat_inputs"
 
     output<-c(
       ott2,
@@ -318,6 +438,7 @@ process_loi<-function(
 
   suppressWarnings(file.remove(list.files(temp_dir,full.names = T,recursive = T)))
 
+  class(output)<-"ihydro"
   return(output)
 
 }
