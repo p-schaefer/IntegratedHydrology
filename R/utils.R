@@ -206,7 +206,7 @@ target_o_fun<-function(
         dplyr::mutate(link_id=as.character(floor(as.numeric(link_id)))) %>%
         dplyr::filter(link_id %in% target_IDs$link_id) %>%
         dplyr::group_by(link_id) %>%
-        dplyr::summarize(geom=sf::st_union(geometry)) %>%
+        dplyr::summarize(geom=sf::st_union(geom)) %>%
         dplyr::ungroup()
 
     }
