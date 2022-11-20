@@ -43,10 +43,6 @@ prep_weights<-function(
   if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   if (inherits(output_filename,"ihydro")) output_filename<-output_filename$outfile
 
-  if (!file.exists(output_filename)){
-    t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
-  }
-
   n_cores<-future::nbrOfWorkers()
   if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
   if (n_cores==0) n_cores<-1
@@ -68,6 +64,11 @@ prep_weights<-function(
 
   if (is.null(output_filename) || output_filename==db_loc) {
     output_filename<-db_loc
+
+    if (!file.exists(output_filename)){
+      t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
+    }
+
   } else {
     if (!grepl("\\.gpkg$",output_filename)) stop("output_filename must be a character ending in '.gpkg'")
 
