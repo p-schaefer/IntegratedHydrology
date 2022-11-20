@@ -295,7 +295,7 @@ prep_weights<-function(
       progressr::with_progress(enable=T,{
         p <- progressr::progressor(steps = (length(target_O_sub)))
 
-        #future_proc<-future::future({
+        future_proc<-future::future({
         hw_o_targ<-furrr::future_pmap(
           #hw_o_targ<-purrr::pmap(
           list(x=splt_lst,
@@ -350,32 +350,32 @@ prep_weights<-function(
                     overwrite=T
                   )
 
-                  ot<-try(t1 %>%
-                            stars::st_as_stars() %>%
-                            stars::write_stars(
-                              output_filename$outfile,
-                              driver = "GPKG",
-                              append=T,
-                              options = c("APPEND_SUBDATASET=YES",
-                                          paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
-                              )
-                            ),
-                          silent=T)
-
-                  while(inherits(ot,"try-error")){
-                    Sys.sleep(stats::runif(1,0,15))
-                    ot<-try(t1 %>%
-                      stars::st_as_stars() %>%
-                      stars::write_stars(
-                        output_filename$outfile,
-                        driver = "GPKG",
-                        append=T,
-                        options = c("APPEND_SUBDATASET=YES",
-                                    paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
-                        )
-                      ),
-                      silent=T)
-                  }
+                  # ot<-try(t1 %>%
+                  #           stars::st_as_stars() %>%
+                  #           stars::write_stars(
+                  #             output_filename$outfile,
+                  #             driver = "GPKG",
+                  #             append=T,
+                  #             options = c("APPEND_SUBDATASET=YES",
+                  #                         paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                  #             )
+                  #           ),
+                  #         silent=T)
+                  #
+                  # while(inherits(ot,"try-error")){
+                  #   Sys.sleep(stats::runif(1,0,15))
+                  #   ot<-try(t1 %>%
+                  #     stars::st_as_stars() %>%
+                  #     stars::write_stars(
+                  #       output_filename$outfile,
+                  #       driver = "GPKG",
+                  #       append=T,
+                  #       options = c("APPEND_SUBDATASET=YES",
+                  #                   paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                  #       )
+                  #     ),
+                  #     silent=T)
+                  # }
 
 
 
@@ -383,83 +383,86 @@ prep_weights<-function(
 
                 rm(hw_o)
                 t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
-                p()
+                #p()
                 return(NULL)
 
                 #return(unlist(rout))
               })
 
             }))
-        #})
+        })
 
-        # future_proc_status <- future::futureOf(future_proc)
-        #
-        # while(!future::resolved(future_proc_status)){
-        #   Sys.sleep(0.2)
-        #   fl_un<-list.files(temp_dir_sub2,full.names = T)
-        #   fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
-        #
-        #   if (length(fl_un)>0) {
-        #     rast_all<-purrr::map(fl_un,function(x) {
-        #       Sys.sleep(2)
-        #       x<-try(terra::rast(x),silent = T)
-        #       if (inherits(x,"try-error")) return(NULL)
-        #       ot<-x %>%
-        #         stars::st_as_stars() %>%
-        #         stars::write_stars(
-        #           output_filename$outfile,
-        #           driver = "GPKG",
-        #           append=T,
-        #           options = c("APPEND_SUBDATASET=YES",
-        #                       paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
-        #           )
-        #         )
-        #       return(terra::sources(x))
-        #     })
-        #
-        #     rast_all<-rast_all[!sapply(rast_all,is.null)]
-        #
-        #     suppressWarnings(file.remove(unlist(rast_all)))
-        #
-        #   }
-        #
-        # }
-        #
-        # Sys.sleep(0.2)
-        #
-        # if (length(future_proc$result$conditions)>0){
-        #   err<-future_proc$result$conditions[[1]]$condition
-        #   if (inherits(err,"error")){
-        #     stop(err)
-        #   }
-        # }
-        #
-        # fl_un<-list.files(temp_dir_sub2,full.names = T)
-        # fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
-        #
-        # if (length(fl_un)>0) {
-        #   rast_all<-purrr::map(fl_un,function(x) {
-        #
-        #     x<-try(terra::rast(x),silent = T)
-        #     if (inherits(x,"try-error")) return(NULL)
-        #
-        #     ot<-x %>%
-        #       stars::st_as_stars() %>%
-        #       stars::write_stars(
-        #         output_filename$outfile,
-        #         driver = "GPKG",
-        #         append=T,
-        #         options = c("APPEND_SUBDATASET=YES",
-        #                     paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
-        #         )
-        #       )
-        #
-        #     return(terra::sources(x))
-        #   })
-        #   rast_all<-rast_all[!sapply(rast_all,is.null)]
-        #
-        #   suppressWarnings(file.remove(unlist(rast_all)))
-        # }
+        future_proc_status <- future::futureOf(future_proc)
+
+        while(!future::resolved(future_proc_status)){
+          Sys.sleep(0.2)
+          fl_un<-list.files(temp_dir_sub2,full.names = T)
+          fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
+
+          if (length(fl_un)>0) {
+            rast_all<-purrr::map(fl_un,function(x) {
+              Sys.sleep(2)
+              x<-try(terra::rast(x),silent = T)
+              if (inherits(x,"try-error")) return(NULL)
+              ot<-x %>%
+                stars::st_as_stars() %>%
+                stars::write_stars(
+                  output_filename$outfile,
+                  driver = "GPKG",
+                  append=T,
+                  options = c("APPEND_SUBDATASET=YES",
+                              paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                  )
+                )
+
+              p()
+              return(terra::sources(x))
+            })
+
+            rast_all<-rast_all[!sapply(rast_all,is.null)]
+
+            suppressWarnings(file.remove(unlist(rast_all)))
+
+          }
+
+        }
+
+        Sys.sleep(0.2)
+
+        if (length(future_proc$result$conditions)>0){
+          err<-future_proc$result$conditions[[1]]$condition
+          if (inherits(err,"error")){
+            stop(err)
+          }
+        }
+
+        fl_un<-list.files(temp_dir_sub2,full.names = T)
+        fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
+
+        if (length(fl_un)>0) {
+          rast_all<-purrr::map(fl_un,function(x) {
+
+            x<-try(terra::rast(x),silent = T)
+            if (inherits(x,"try-error")) return(NULL)
+
+            ot<-x %>%
+              stars::st_as_stars() %>%
+              stars::write_stars(
+                output_filename$outfile,
+                driver = "GPKG",
+                append=T,
+                options = c("APPEND_SUBDATASET=YES",
+                            paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                )
+              )
+
+            p()
+            return(terra::sources(x))
+          })
+          rast_all<-rast_all[!sapply(rast_all,is.null)]
+
+          suppressWarnings(file.remove(unlist(rast_all)))
+        }
 
         dplyr::bind_rows(target_O_sub) %>%
           tibble::as_tibble() %>%
