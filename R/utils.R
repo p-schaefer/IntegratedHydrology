@@ -197,7 +197,7 @@ target_o_fun<-function(
                             query=paste0("SELECT `link_id`, `geom` FROM `stream_lines` WHERE (`link_id` IN (",paste0("'",target_IDs$link_id,collapse = "',"),"'))")
       )
     } else {
-      if (verbose) message("Merging stream segments")
+      #if (verbose) message("Merging stream segments")
 
       target_O<-sf::read_sf(db_fp,
                             query=paste0("SELECT `link_id`, `geom` FROM `stream_lines` WHERE (`link_id` IN (",paste0("'",target_IDs$link_id,collapse = "',"),"'))")
