@@ -82,6 +82,8 @@ process_loi<-function(
 
   if (gsub(basename(output_filename),"",output_filename) == temp_dir) stop("'output_filename' should not be in the same directory as 'temp_dir'")
 
+  tt<-suppressWarnings(dir.create(gsub(basename(output_filename),"",output_filename)))
+
   whitebox::wbt_options(exe_path=whitebox::wbt_exe_path(),
                         verbose=verbose>2,
                         wd=temp_dir)
@@ -163,13 +165,13 @@ process_loi<-function(
   if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
   if (n_cores==0) n_cores<-1
 
-  n_cores_2<-n_cores
-
-  if (n_cores>1) {
-    n_cores_2<-n_cores_2-1
-    oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
-    on.exit(future::plan(oplan), add = TRUE)
-  }
+  # n_cores_2<-n_cores
+  #
+  # if (n_cores>1) {
+  #   n_cores_2<-n_cores_2-1
+  #   oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
+  #   on.exit(future::plan(oplan), add = TRUE)
+  # }
 
   temp_dir_save<-file.path(temp_dir,basename(tempfile()))
   dir.create(temp_dir_save)
@@ -213,7 +215,7 @@ process_loi<-function(
                temp_dir_save=rep(list(temp_dir_save),length(inputs_list$output_filename))
           ))
 
-    future_proc<-future::future({
+    #future_proc<-future::future({
       ot<-furrr::future_pmap(ip,
                              #purrr::pmap(ip,
                              .options=furrr::furrr_options(globals = F),
@@ -295,6 +297,34 @@ process_loi<-function(
                                                    datatype=ifelse(resaml=="near","INT2U","FLT4S"),
                                                    overwrite=T
                                                  )
+
+                                                 ot<-try(t1 %>%
+                                                           stars::st_as_stars() %>%
+                                                           stars::write_stars(
+                                                             output_filename,
+                                                             driver = "GPKG",
+                                                             append=T,
+                                                             options = c("APPEND_SUBDATASET=YES",
+                                                                         paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                                                             )
+                                                           ),
+                                                         silent=T)
+
+                                                 while(inherits(ot,"try-error")){
+                                                   Sys.sleep(stats::runif(1,0,15))
+                                                   ot<-try(t1 %>%
+                                                             stars::st_as_stars() %>%
+                                                             stars::write_stars(
+                                                               output_filename,
+                                                               driver = "GPKG",
+                                                               append=T,
+                                                               options = c("APPEND_SUBDATASET=YES",
+                                                                           paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                                                               )
+                                                             ),
+                                                           silent=T)
+                                                 }
+
                                                  #
                                                  # terra::writeRaster(
                                                  #   t1,
@@ -325,70 +355,78 @@ process_loi<-function(
                                }))
     })
 
-  })
+  #})
 
-  future_proc_status <- future::futureOf(future_proc)
-  #browser()
-  while(!future::resolved(future_proc_status)){
-    Sys.sleep(0.5)
-    fl<-list.files(temp_dir_save,".tif",full.names = T)
-    for (x in fl) {
-      tot<-try(terra::rast(x),silent=T)
-      if (inherits(tot,"try-error")) next()
-      # tott<-terra::writeRaster(
-      #   tot,
-      #   output_filename,
-      #   filetype = "GPKG",
-      #   gdal = c("APPEND_SUBDATASET=YES",
-      #            paste0("RASTER_TABLE=",names(tot),"")
-      #   )
-      # )
-      tott<-tot %>%
-        stars::st_as_stars() %>%
-        stars::write_stars(
-          output_filename,
-          driver = "GPKG",
-          append=T,
-          options = c("APPEND_SUBDATASET=YES",
-                      paste0("RASTER_TABLE=",paste0(names(tot)))
-          )
-        )
-
-      file.remove(x)
-    }
-  }
-
-  Sys.sleep(2)
-  fl<-list.files(temp_dir_save,".tif",full.names = T)
-  for (x in fl) {
-    tot<-try(terra::rast(x),silent=T)
-    while (inherits(tot,"try-error")) {
-      sys.sleep(0.5)
-      tot<-try(terra::rast(x),silent=T)
-    }
-    # tott<-terra::writeRaster(
-    #   tot,
-    #   output_filename,
-    #   filetype = "GPKG",
-    #   gdal = c("APPEND_SUBDATASET=YES",
-    #            paste0("RASTER_TABLE=",names(tot),"")
-    #   )
-    # )
-    tott<-tot %>%
-      stars::st_as_stars() %>%
-      stars::write_stars(
-        output_filename,
-        driver = "GPKG",
-        append=T,
-        options = c("APPEND_SUBDATASET=YES",
-                    paste0("RASTER_TABLE=",paste0(names(tot)))
-        )
-      )
-
-    file.remove(x)
-  }
-
-  ot<-future::value(future_proc)
+  # future_proc_status <- future::futureOf(future_proc)
+  # #browser()
+  # while(!future::resolved(future_proc_status)){
+  #   Sys.sleep(0.5)
+  #   fl<-list.files(temp_dir_save,".tif",full.names = T)
+  #   for (x in fl) {
+  #     tot<-try(terra::rast(x),silent=T)
+  #     if (inherits(tot,"try-error")) next()
+  #     # tott<-terra::writeRaster(
+  #     #   tot,
+  #     #   output_filename,
+  #     #   filetype = "GPKG",
+  #     #   gdal = c("APPEND_SUBDATASET=YES",
+  #     #            paste0("RASTER_TABLE=",names(tot),"")
+  #     #   )
+  #     # )
+  #     tott<-tot %>%
+  #       stars::st_as_stars() %>%
+  #       stars::write_stars(
+  #         output_filename,
+  #         driver = "GPKG",
+  #         append=T,
+  #         options = c("APPEND_SUBDATASET=YES",
+  #                     paste0("RASTER_TABLE=",paste0(names(tot)))
+  #         )
+  #       )
+  #
+  #     file.remove(x)
+  #   }
+  # }
+  #
+  # Sys.sleep(2)
+  #
+  # if (length(future_proc$result$conditions)>0){
+  #   err<-future_proc$result$conditions[[1]]$condition
+  #   if (inherits(err,"error")){
+  #     stop(err)
+  #   }
+  # }
+  #
+  # fl<-list.files(temp_dir_save,".tif",full.names = T)
+  # for (x in fl) {
+  #   tot<-try(terra::rast(x),silent=T)
+  #   while (inherits(tot,"try-error")) {
+  #     sys.sleep(0.5)
+  #     tot<-try(terra::rast(x),silent=T)
+  #   }
+  #   # tott<-terra::writeRaster(
+  #   #   tot,
+  #   #   output_filename,
+  #   #   filetype = "GPKG",
+  #   #   gdal = c("APPEND_SUBDATASET=YES",
+  #   #            paste0("RASTER_TABLE=",names(tot),"")
+  #   #   )
+  #   # )
+  #   tott<-tot %>%
+  #     stars::st_as_stars() %>%
+  #     stars::write_stars(
+  #       output_filename,
+  #       driver = "GPKG",
+  #       append=T,
+  #       options = c("APPEND_SUBDATASET=YES",
+  #                   paste0("RASTER_TABLE=",paste0(names(tot)))
+  #       )
+  #     )
+  #
+  #   file.remove(x)
+  # }
+  #
+  # ot<-future::value(future_proc)
   names(ot)<-unlist(inputs_list$lyr_nms)
 
   ot<-lapply(ot,function(x) unlist(x,recursive=F))
@@ -426,9 +464,11 @@ process_loi<-function(
 
     ott<-purrr::map(meta %>% split(.,.$loi_type),~purrr::map(.$loi_var_nms,~terra::rast(output_filename,lyrs=.)))
     ott2<-list(
-      num_inputs=terra::rast(unlist(ott["num_rast"],use.names = F)),
-      cat_inputs=terra::rast(unlist(ott["cat_rast"],use.names = F))
+      num_inputs=try(terra::rast(unlist(ott["num_rast"],use.names = F)),silent=T),
+      cat_inputs=try(terra::rast(unlist(ott["cat_rast"],use.names = F)),silent=T)
     )
+
+    ott2<-ott2[!sapply(ott2,function(x) inherits(x,"try-error"))]
 
     output<-c(
       ott2,
