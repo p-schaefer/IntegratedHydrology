@@ -425,7 +425,7 @@ prep_weights<-function(
                 )
 
               p()
-              return(terra::sources(x))
+              return(y)
             })
 
             rast_all<-rast_all[!sapply(rast_all,is.null)]
@@ -476,7 +476,7 @@ prep_weights<-function(
               )
 
             p()
-            return(terra::sources(x))
+            return(y)
           })
           rast_all<-rast_all[!sapply(rast_all,is.null)]
 
