@@ -1135,7 +1135,7 @@ wf<-workflow() %>%
 
 # tune_grid() can only work in parallel with the doParallel package
 plan(sequential)
-
+# 
 # library(doParallel)
 # cl <- makeCluster(8)
 # registerDoParallel(cl)
@@ -1143,7 +1143,7 @@ plan(sequential)
 
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
-                          grid=25  # Choose 50 hyper-parameter configurations
+                          grid=50  # Choose 50 hyper-parameter configurations
                ) 
 )
 
@@ -1213,7 +1213,7 @@ prediction_data<-final_attributes_all %>%
     by=c("link_id")
   ) %>% 
   mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.))) %>% 
-  tidyr::drop_na()
+  tidyr::drop_na(c(everything(),-site_id))
 
 prediction_data
 ```
@@ -1238,17 +1238,17 @@ prediction_tbl
 
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
-Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>% 
+Streams<-read_sf(hydro_out$outfile,"stream_lines") %>% 
   mutate(link_id=floor(link_id)) %>% 
   group_by(link_id) %>%              
-  summarize(geometry=st_union(geometry)) %>%
+  summarize(geom=sf::st_union(geom)) %>%
   ungroup() %>% 
   mutate(link_id=as.character(link_id)) 
 
 Streams<-Streams %>% 
   left_join(prediction_tbl)
 
-Points<-read_sf(file.path("/vsizip",hydro_out$outfile,"snapped_points.shp")) %>% 
+Points<-read_sf(hydro_out$outfile,"snapped_points") %>% 
   mutate(link_id=as.character(link_id)) %>% 
   left_join(response_table %>% select(-link_id)) %>% 
   filter(!is.na(link_id)) %>% 
@@ -1282,7 +1282,7 @@ We can also summarize the percent of stream lengths that fall within predicted v
 ```{r error=FALSE, fig.height=7, fig.width=7, message=FALSE, warning=FALSE}
 
 Streams %>% 
-  mutate(strm_len=as.numeric(st_length(geometry))) %>% 
+  mutate(strm_len=as.numeric(st_length(geom))) %>% 
   as_tibble() %>% 
   mutate(`Prediction Groups` = cut(Predicted, 
                                    breaks = c(0,2,4,6,8,10), 
