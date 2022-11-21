@@ -353,7 +353,7 @@ process_loi<-function(
           driver = "GPKG",
           append=T,
           options = c("APPEND_SUBDATASET=YES",
-                      paste0("RASTER_TABLE=",paste0(names(tot)))
+                      paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
           )
         )
 
@@ -393,7 +393,7 @@ process_loi<-function(
         driver = "GPKG",
         append=T,
         options = c("APPEND_SUBDATASET=YES",
-                    paste0("RASTER_TABLE=",paste0(names(tot)))
+                    paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
         )
       )
 

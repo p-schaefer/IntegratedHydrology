@@ -400,9 +400,9 @@ prep_weights<-function(
           fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
 
           if (length(fl_un)>0) {
-            rast_all<-purrr::map(fl_un,function(x) {
+            rast_all<-purrr::map(fl_un,function(y) {
               Sys.sleep(0.2)
-              x<-try(terra::rast(x)%>%
+              x<-try(terra::rast(y)%>%
                        stars::st_as_stars(),
                      silent = T)
               if (inherits(x,"try-error")) return(NULL)
@@ -420,7 +420,7 @@ prep_weights<-function(
                   driver = "GPKG",
                   append=T,
                   options = c("APPEND_SUBDATASET=YES",
-                              paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                              paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
                   )
                 )
 
@@ -449,13 +449,13 @@ prep_weights<-function(
         fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
 
         if (length(fl_un)>0) {
-          rast_all<-purrr::map(fl_un,function(x) {
+          rast_all<-purrr::map(fl_un,function(y) {
 
-            x<-try(terra::rast(x)%>%
+            x<-try(terra::rast(y)%>%
                      stars::st_as_stars(),silent = T)
             while (inherits(tot,"try-error")) {
               sys.sleep(0.5)
-              tot<-try(terra::rast(x)%>%
+              x<-try(terra::rast(y)%>%
                          stars::st_as_stars(),silent=T)
             }            # ot<-terra::writeRaster(
             #   x,
@@ -471,7 +471,7 @@ prep_weights<-function(
                 driver = "GPKG",
                 append=T,
                 options = c("APPEND_SUBDATASET=YES",
-                            paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(x))))
+                            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
                 )
               )
 
