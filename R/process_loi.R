@@ -336,7 +336,8 @@ process_loi<-function(
     Sys.sleep(0.5)
     fl<-list.files(temp_dir_save,".tif",full.names = T)
     for (x in fl) {
-      tot<-try(terra::rast(x),silent=T)
+      tot<-try(terra::rast(x) %>%
+                 stars::st_as_stars(),silent=T)
       if (inherits(tot,"try-error")) next()
       # tott<-terra::writeRaster(
       #   tot,
@@ -346,8 +347,7 @@ process_loi<-function(
       #            paste0("RASTER_TABLE=",names(tot),"")
       #   )
       # )
-      tott<-tot %>%
-        stars::st_as_stars() %>%
+      tott<-tot  %>%
         stars::write_stars(
           output_filename,
           driver = "GPKG",
@@ -372,10 +372,12 @@ process_loi<-function(
 
   fl<-list.files(temp_dir_save,".tif",full.names = T)
   for (x in fl) {
-    tot<-try(terra::rast(x),silent=T)
+    tot<-try(terra::rast(x)%>%
+               stars::st_as_stars(),silent=T)
     while (inherits(tot,"try-error")) {
       sys.sleep(0.5)
-      tot<-try(terra::rast(x),silent=T)
+      tot<-try(terra::rast(x)%>%
+                 stars::st_as_stars(),silent=T)
     }
     # tott<-terra::writeRaster(
     #   tot,
@@ -386,7 +388,6 @@ process_loi<-function(
     #   )
     # )
     tott<-tot %>%
-      stars::st_as_stars() %>%
       stars::write_stars(
         output_filename,
         driver = "GPKG",

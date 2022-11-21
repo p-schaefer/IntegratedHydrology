@@ -402,7 +402,9 @@ prep_weights<-function(
           if (length(fl_un)>0) {
             rast_all<-purrr::map(fl_un,function(x) {
               Sys.sleep(0.2)
-              x<-try(terra::rast(x),silent = T)
+              x<-try(terra::rast(x)%>%
+                       stars::st_as_stars(),
+                     silent = T)
               if (inherits(x,"try-error")) return(NULL)
               # ot<-terra::writeRaster(
               #     x,
@@ -413,7 +415,6 @@ prep_weights<-function(
               #     )
               # )
               ot<-x %>%
-                stars::st_as_stars() %>%
                 stars::write_stars(
                   output_filename$outfile,
                   driver = "GPKG",
@@ -450,9 +451,13 @@ prep_weights<-function(
         if (length(fl_un)>0) {
           rast_all<-purrr::map(fl_un,function(x) {
 
-            x<-try(terra::rast(x),silent = T)
-            if (inherits(x,"try-error")) return(NULL)
-            # ot<-terra::writeRaster(
+            x<-try(terra::rast(x)%>%
+                     stars::st_as_stars(),silent = T)
+            while (inherits(tot,"try-error")) {
+              sys.sleep(0.5)
+              tot<-try(terra::rast(x)%>%
+                         stars::st_as_stars(),silent=T)
+            }            # ot<-terra::writeRaster(
             #   x,
             #   output_filename$outfile,
             #   filetype = "GPKG",
@@ -461,7 +466,6 @@ prep_weights<-function(
             #   )
             # )
             ot<-x %>%
-              stars::st_as_stars() %>%
               stars::write_stars(
                 output_filename$outfile,
                 driver = "GPKG",
