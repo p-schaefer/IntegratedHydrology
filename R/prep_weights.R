@@ -453,7 +453,7 @@ prep_weights<-function(
 
             x<-try(terra::rast(y)%>%
                      stars::st_as_stars(),silent = T)
-            while (inherits(tot,"try-error")) {
+            while (inherits(x,"try-error")) {
               sys.sleep(0.5)
               x<-try(terra::rast(y)%>%
                          stars::st_as_stars(),silent=T)
