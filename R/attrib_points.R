@@ -158,7 +158,7 @@ attrib_points<-function(
       dplyr::ungroup() %>%
       dplyr::mutate(
         attr=furrr::future_pmap(
-        #  attr=purrr::pmap(
+          #  attr=purrr::pmap(
           list(
             x=data,
             p=list(p),
@@ -215,47 +215,53 @@ attrib_points<-function(
 
                   catch<-ihydro::get_catchment(input,link_id =yy)
 
-                  hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
-                                               target_S = target_S,
-                                               target_O = y,
-                                               target_uid = yy,
-                                               OS_combine = OS_combine,
-                                               dem=dem,
-                                               flow_accum = flow_accum,
-                                               clip_region=catch,
-                                               weighting_scheme = weighting_scheme,
-                                               inv_function = inv_function,
-                                               return_products=return_products,
-                                               wrap_return_products = T,
-                                               save_output = T,
-                                               clean_tempfiles = T)
+                  suppressMessages(
+                    hw<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
+                                                 target_S = target_S,
+                                                 target_O = y,
+                                                 target_uid = yy,
+                                                 OS_combine = OS_combine,
+                                                 dem=dem,
+                                                 flow_accum = flow_accum,
+                                                 clip_region=catch,
+                                                 weighting_scheme = weighting_scheme,
+                                                 inv_function = inv_function,
+                                                 return_products=return_products,
+                                                 wrap_return_products = T,
+                                                 save_output = T,
+                                                 clean_tempfiles = T)
+                  )
 
                   hw_attr_num<-NULL
                   hw_attr_cat<-NULL
                   if (any(loi_meta$loi_type=="num_rast")) {
-                    hw_attr_num<-hydroweight::hydroweight_attributes(loi=terra::rast(loi_file$outfile,lyrs=loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"]),
-                                                                     loi_columns = loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"],
-                                                                     loi_numeric=T,
-                                                                     loi_numeric_stats = loi_numeric_stats,
-                                                                     roi = NULL,
-                                                                     roi_uid=yy,
-                                                                     roi_uid_col = "pour_point_ID",
-                                                                     distance_weights=file.path(temp_dir_sub_sub,paste0(yy,"_inv_distances.zip")),
-                                                                     remove_region = clip_region,
-                                                                     return_products = return_products)
+                    suppressMessages(
+                      hw_attr_num<-hydroweight::hydroweight_attributes(loi=terra::rast(loi_file$outfile,lyrs=loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"]),
+                                                                       loi_columns = loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"],
+                                                                       loi_numeric=T,
+                                                                       loi_numeric_stats = loi_numeric_stats,
+                                                                       roi = NULL,
+                                                                       roi_uid=yy,
+                                                                       roi_uid_col = "pour_point_ID",
+                                                                       distance_weights=file.path(temp_dir_sub_sub,paste0(yy,"_inv_distances.zip")),
+                                                                       remove_region = clip_region,
+                                                                       return_products = return_products)
+                    )
                   }
 
                   if (any(loi_meta$loi_type=="cat_rast")) {
-                    hw_attr_cat<-hydroweight::hydroweight_attributes(loi=terra::rast(loi_file$outfile,lyrs=loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"]),
-                                                                     loi_columns = loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"],
-                                                                     loi_numeric=F,
-                                                                     loi_numeric_stats = loi_numeric_stats,
-                                                                     roi = NULL,
-                                                                     roi_uid=yy,
-                                                                     roi_uid_col = "pour_point_ID",
-                                                                     distance_weights=file.path(temp_dir_sub_sub,paste0(yy,"_inv_distances.zip")),
-                                                                     remove_region = clip_region,
-                                                                     return_products = return_products)
+                    suppressMessages(
+                      hw_attr_cat<-hydroweight::hydroweight_attributes(loi=terra::rast(loi_file$outfile,lyrs=loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"]),
+                                                                       loi_columns = loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"],
+                                                                       loi_numeric=F,
+                                                                       loi_numeric_stats = loi_numeric_stats,
+                                                                       roi = NULL,
+                                                                       roi_uid=yy,
+                                                                       roi_uid_col = "pour_point_ID",
+                                                                       distance_weights=file.path(temp_dir_sub_sub,paste0(yy,"_inv_distances.zip")),
+                                                                       remove_region = clip_region,
+                                                                       return_products = return_products)
+                    )
                   }
 
                   p()

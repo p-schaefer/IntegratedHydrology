@@ -258,14 +258,16 @@ process_loi<-function(
 
                                                if (all(is.na(lyr_variables))) lyr_variables<-NULL
 
-                                               output<-hydroweight::process_input(
-                                                 input=unlist(lyr),
-                                                 input_name = unlist(lyr_nms),
-                                                 variable_name=unlist(lyr_variables),
-                                                 target=file.path(temp_dir,"dem_final.tif"),
-                                                 clip_region = file.path(temp_dir,"clip_region.shp"),
-                                                 resample_type = resaml,
-                                                 working_dir=temp_temp_dir
+                                               suppressMessages(
+                                                 output<-hydroweight::process_input(
+                                                   input=unlist(lyr),
+                                                   input_name = unlist(lyr_nms),
+                                                   variable_name=unlist(lyr_variables),
+                                                   target=file.path(temp_dir,"dem_final.tif"),
+                                                   clip_region = file.path(temp_dir,"clip_region.shp"),
+                                                   resample_type = resaml,
+                                                   working_dir=temp_temp_dir
+                                                 )
                                                )
 
                                                #browser()
@@ -335,6 +337,11 @@ process_loi<-function(
   while(!future::resolved(future_proc_status)){
     Sys.sleep(0.5)
     fl<-list.files(temp_dir_save,".tif",full.names = T)
+
+    fl_un_time<-file.mtime(fl)
+    fl<-fl[fl_un_time<Sys.time()-60]
+
+
     for (x in fl) {
       tot<-try(terra::rast(x) %>%
                  stars::st_as_stars(),silent=T)
@@ -347,7 +354,7 @@ process_loi<-function(
       #            paste0("RASTER_TABLE=",names(tot),"")
       #   )
       # )
-      tott<-tot  %>%
+      tott<- tot  %>%
         stars::write_stars(
           output_filename,
           driver = "GPKG",
