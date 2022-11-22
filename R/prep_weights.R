@@ -295,7 +295,7 @@ prep_weights<-function(
       splt_lst<-splt_lst[!sapply(splt_lst,is.null)]
 
       progressr::with_progress(enable=T,{
-        p <- progressr::progressor(steps = (length(splt_lst)*length(weighting_scheme_o)))
+        p <- progressr::progressor(steps = (length(target_O_sub)*length(weighting_scheme_o)))
 
         future_proc<-future::future({
           hw_o_targ<-furrr::future_pmap(

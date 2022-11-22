@@ -368,7 +368,7 @@ process_loi<-function(
     }
   }
 
-  Sys.sleep(2)
+  Sys.sleep(60)
 
   if (length(future_proc$result$conditions)>0){
     err<-future_proc$result$conditions[[1]]$condition
