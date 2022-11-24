@@ -7,11 +7,9 @@
 #' @return input with table 'fcon_pwise_dist' and 'funcon_pwise_dist' added to the database
 #' @export
 
-#' @importFrom data.table fread
 #' @importFrom DBI dbConnect dbExecute dbDisconnect
-#' @importFrom dbplyr window_order
-#' @importFrom dplyr tbl filter select rename left_join group_by mutate ungroup summarize case_when copy_to full_join anti_join
-#' @importFrom rlang sym
+#' @importFrom dbplyr sql window_order
+#' @importFrom dplyr collect tbl filter select rename left_join group_by mutate ungroup summarize case_when compute full_join anti_join
 #' @importFrom RSQLite SQLite
 
 generate_pdist<-function(
@@ -19,6 +17,7 @@ generate_pdist<-function(
     verbose=F,
     pwise_all_links=F
 ) {
+  if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
   if (!is.logical(pwise_all_links)) stop("'pwise_all_links' must be logical")
   options(future.rng.onMisuse="ignore")
@@ -26,20 +25,23 @@ generate_pdist<-function(
 
   if (pwise_all_links) message("Using pwise_all_links=T can be very slow for large datasets")
 
-  zip_loc<-input$outfile
-  db_loc<-input$db_loc
+  db_loc<-db_fp<-zip_loc<-input$outfile
+  #db_loc<-input$db_loc
 
-  site_id_col<-paste0(data.table::fread(cmd=paste("unzip -p ",zip_loc,"site_id_col.csv")))
+  con <- DBI::dbConnect(RSQLite::SQLite(), db_fp)
+
+  site_id_col<-dplyr::collect(dplyr::tbl(con,"site_id_col"))$site_id_col
+
   if (pwise_all_links) site_id_col<-"link_id"
 
-  con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
+  #con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
 
   #browser()
   # DS directed path-lengths
   DBI::dbExecute(con,"DROP TABLE IF EXISTS fcon_pwise_dist")
 
-  if (verbose) print("Calculating Flow Connected Distances")
-  flowconn_out<-dplyr::tbl(con,"stream_links") %>%
+  if (verbose) message("Calculating Flow Connected Distances")
+  flowconn_out<-dplyr::tbl(con,"stream_links_attr") %>%
     dplyr::filter(!is.na(dbplyr::sql(site_id_col))) %>%
     dplyr::select(link_id) %>%
     dplyr::rename(origin_link_id=link_id) %>%
@@ -48,7 +50,7 @@ generate_pdist<-function(
       by=c("origin_link_id")
     ) %>%
     dplyr::left_join(
-      dplyr::tbl(con,"stream_links") %>%
+      dplyr::tbl(con,"stream_links_attr") %>%
         dplyr::select(link_id,link_lngth,USChnLn_Fr,sbbsn_area),
       by=c("destination_link_id"="link_id")
     ) %>%
@@ -63,7 +65,7 @@ generate_pdist<-function(
     dplyr::left_join(
       dplyr::tbl(con,"us_flowpaths") %>%
         dplyr::left_join(
-          dplyr::tbl(con,"stream_links") %>%
+          dplyr::tbl(con,"stream_links_attr") %>%
             dplyr::select(link_id,sbbsn_area),
           by=c("origin_link_id"="link_id")
         ) %>%
@@ -75,7 +77,7 @@ generate_pdist<-function(
     dplyr::left_join(
       dplyr::tbl(con,"us_flowpaths") %>%
         dplyr::left_join(
-          dplyr::tbl(con,"stream_links") %>%
+          dplyr::tbl(con,"stream_links_attr") %>%
             dplyr::select(link_id,sbbsn_area),
           by=c("origin_link_id"="link_id")
         ) %>%
@@ -104,7 +106,7 @@ generate_pdist<-function(
   DBI::dbExecute(con,"DROP TABLE IF EXISTS funcon_pwise_dist")
 
   if (pwise_all_links) {
-    if (verbose) print("Calculating Flow Unconnected Distances")
+    if (verbose) message("Calculating Flow Unconnected Distances")
 
     flowUNconn_out<-dplyr::full_join(dplyr::tbl(con,"fcon_pwise_dist") %>%
                                        dplyr::select(midpoint=destination,origin_p1=origin,directed_path_length_p1=directed_path_length),
@@ -120,11 +122,11 @@ generate_pdist<-function(
         dplyr::tbl(con,"ds_flowpaths") %>% dplyr::select(origin_p1=destination_link_id,origin_p2=origin_link_id),
         by = c("origin_p1", "origin_p2")
       ) %>%
-    dplyr::mutate(undirected_path_length=as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2)) %>%
+      dplyr::mutate(undirected_path_length=as.numeric(directed_path_length_p1)+as.numeric(directed_path_length_p2)) %>%
       dplyr::select(origin=origin_p1,destination=origin_p2,undirected_path_length) %>%
       dplyr::mutate(directed_path_length=0,
-             prop_shared_catchment=0,
-             prop_shared_logcatchment=0)%>%
+                    prop_shared_catchment=0,
+                    prop_shared_logcatchment=0)%>%
       dplyr::compute(name = "funcon_pwise_dist",
                      temporary = F,
                      overwrite=T,
@@ -136,6 +138,7 @@ generate_pdist<-function(
 
   DBI::dbDisconnect(con)
 
+  class(input)<-"ihydro"
   return(input)
 
 }

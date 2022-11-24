@@ -6,10 +6,11 @@
 \usage{
 prep_weights(
   input,
+  output_filename = NULL,
   sample_points = NULL,
   link_id = NULL,
   target_o_type = c("point", "segment_point", "segment_whole"),
-  weighting_scheme = c("iEucS", "iFLS", "HAiFLS", "iEucO", "iFLO", "HAiFLO"),
+  weighting_scheme = c("iFLS", "HAiFLS", "iFLO", "HAiFLO"),
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
@@ -18,7 +19,7 @@ prep_weights(
 )
 }
 \arguments{
-\item{input}{output from \code{process_hydrology()} (if \code{process_loi()} was not run on \code{process_hydrology()}, \code{loi_file} must be specified)}
+\item{input}{an object of class ihydro.}
 
 \item{sample_points}{character or NULL. IDs of unique station identifiers priveded in 'site_id_col' of \code{generate_vectors()}}
 

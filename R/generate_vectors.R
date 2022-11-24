@@ -36,6 +36,7 @@ generate_vectors<-function(
     compress=F,
     verbose=F
 ) {
+  if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   options(future.rng.onMisuse="ignore")
   if (!is.logical(return_products)) stop("'return_products' must be logical")
   if (!is.logical(verbose)) stop("'verbose' must be logical")
@@ -55,7 +56,7 @@ generate_vectors<-function(
 
   hydro_out<-input
 
-  if (verbose) print("Attribute Streamlines")
+  if (verbose) message("Attribute Streamlines")
   hydro_out<-attrib_streamline(
     input=hydro_out,
     extra_attr=extra_attr,
@@ -69,7 +70,7 @@ generate_vectors<-function(
     verbose=verbose
   )
 
-  if (verbose) print("Generate Subbasins")
+  if (verbose) message("Generate Subbasins")
   hydro_out<-generate_subbasins(
     input=hydro_out,
     points=points,
@@ -79,6 +80,6 @@ generate_vectors<-function(
     verbose=verbose
   )
 
-
+  class(hydro_out)<-"ihydro"
   return(hydro_out)
 }

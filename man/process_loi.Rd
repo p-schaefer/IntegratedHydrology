@@ -2,7 +2,7 @@
 % Please edit documentation in R/process_loi.R
 \name{process_loi}
 \alias{process_loi}
-\title{processes layers of interest (loi) for attribution of stream network}
+\title{Processes layers of interest (loi) for attribution of stream network}
 \usage{
 process_loi(
   input = NULL,
@@ -14,7 +14,8 @@ process_loi(
   variable_names = NULL,
   return_products = F,
   temp_dir = NULL,
-  verbose = F
+  verbose = F,
+  overwrite = T
 )
 }
 \arguments{
@@ -42,5 +43,5 @@ process_loi(
 If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 }
 \description{
-processes layers of interest (loi) for attribution of stream network
+Processes layers of interest (loi) for attribution of stream network
 }

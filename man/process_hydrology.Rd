@@ -12,7 +12,6 @@ process_hydrology(
   burn_depth = 5,
   min_length = NULL,
   depression_corr = c(NULL, "fill", "breach"),
-  calc_catch = c("all", "none", "sample_points"),
   extra_attr = c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack",
     "StOrd_Str", "StOrd_Hort", "StOrd_Shr"),
   points = NULL,
@@ -41,8 +40,6 @@ process_hydrology(
 \item{min_length}{numeric. Minimum tributary length, shorter 1st order tributaries are removed.}
 
 \item{depression_corr}{NULL or character. One of c("fill","breach"), specifying whether depressions should be filled or breached. NULL will perform neither, if DEM is already corrected.}
-
-\item{calc_catch}{character. One of "none", "sample_points", or "all" indicating which if any catchments should be calculated and included in the zip output}
 
 \item{extra_attr}{character. One or more of c("link_slope", "cont_slope", "USChnLn_To", "Elevation", "StOrd_Hack", "StOrd_Str", "StOrd_Hort", "StOrd_Shr"). Optional attributes to add to stream vector outputs.}
 

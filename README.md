@@ -1,56 +1,73 @@
 ihydro: Integrated hydrology tools for environmental science
 ================
 
--   <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
--   <a href="#2-system-setup-and-installation"
+  - <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
+  - <a href="#2-system-setup-and-installation"
     id="toc-2-system-setup-and-installation">2 System setup and
     installation</a>
--   <a href="#3-prepare-dem-and-sampling-points-for-analysis"
+  - <a href="#3-prepare-dem-and-sampling-points-for-analysis"
     id="toc-3-prepare-dem-and-sampling-points-for-analysis">3 Prepare DEM
     and Sampling Points for analysis</a>
-    -   <a href="#31-generate-toy-terrain-dataset-and-sampling-points"
-        id="toc-31-generate-toy-terrain-dataset-and-sampling-points">3.1
-        Generate toy terrain dataset and sampling points</a>
-    -   <a href="#32-generate-layers-of-interest"
-        id="toc-32-generate-layers-of-interest">3.2 Generate layers of
-        interest</a>
--   <a href="#4-generate-geospatial-analysis-products"
-    id="toc-4-generate-geospatial-analysis-products">4 Generate geospatial
-    analysis products</a>
-    -   <a href="#41-method-1-with-individual-functions"
-        id="toc-41-method-1-with-individual-functions">4.1 METHOD 1: With
-        individual functions</a>
-    -   <a href="#42-method-2-with-a-single-function"
-        id="toc-42-method-2-with-a-single-function">4.2 METHOD 2: With a single
-        function</a>
--   <a
-    href="#5-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi"
-    id="toc-5-add-layers-of-interest-to-geospatial-analysis-products-with-process_loi">5
-    Add layers of interest to geospatial analysis products with
-    <code>process_loi()</code></a>
--   <a href="#6-calculate-weighted-spatial-summaries"
+    - <a href="#31-generate-toy-terrain-dataset-and-sampling-points"
+      id="toc-31-generate-toy-terrain-dataset-and-sampling-points">3.1
+      Generate toy terrain dataset and sampling points</a>
+    - <a
+      href="#32-generate-flow-directionaccumulation-geospatial-analysis-products-with-process_flowdir"
+      id="toc-32-generate-flow-directionaccumulation-geospatial-analysis-products-with-process_flowdir">3.2
+      Generate flow direction/accumulation geospatial analysis products with
+      <code>process_flowdir()</code></a>
+    - <a
+      href="#33-generate-vector-geospatial-analysis-products-with-generate_vectors"
+      id="toc-33-generate-vector-geospatial-analysis-products-with-generate_vectors">3.3
+      Generate vector geospatial analysis products with
+      <code>generate_vectors()</code></a>
+    - <a
+      href="#34-create-lookup-tables-of-flow-directions-with-trace_flowpaths"
+      id="toc-34-create-lookup-tables-of-flow-directions-with-trace_flowpaths">3.4
+      Create lookup tables of flow-directions with
+      <code>trace_flowpaths()</code></a>
+    - <a
+      href="#35-generate-complete-upstream-catchment-areas-with-get_catchment"
+      id="toc-35-generate-complete-upstream-catchment-areas-with-get_catchment">3.5
+      Generate complete upstream catchment areas with
+      <code>get_catchment()</code></a>
+    - <a href="#36-generate-entire-hydrology-workflow-in-one-step"
+      id="toc-36-generate-entire-hydrology-workflow-in-one-step">3.6 Generate
+      entire hydrology workflow in one step.</a>
+  - <a href="#4-examining-pairwise-instream-distances"
+    id="toc-4-examining-pairwise-instream-distances">4 Examining Pairwise
+    Instream Distances</a>
+  - <a href="#5-process-layers-of-interest"
+    id="toc-5-process-layers-of-interest">5 Process layers of interest</a>
+    - <a href="#51-separate-from-hydrology-products"
+      id="toc-51-separate-from-hydrology-products">5.1 Separate from hydrology
+      products</a>
+    - <a href="#52-together-with-hydrology-products"
+      id="toc-52-together-with-hydrology-products">5.2 Together with hydrology
+      products</a>
+  - <a href="#6-calculate-weighted-spatial-summaries"
     id="toc-6-calculate-weighted-spatial-summaries">6 Calculate (weighted)
     spatial summaries:</a>
-    -   <a href="#61-at-specific-sampling-points-with-site-specific-attributes"
-        id="toc-61-at-specific-sampling-points-with-site-specific-attributes">6.1
-        At specific sampling points with site specific attributes</a>
-    -   <a
-        href="#62-at-all-sampled-points-comparing-attrib_points-and-fasttrib_points"
-        id="toc-62-at-all-sampled-points-comparing-attrib_points-and-fasttrib_points">6.2
-        At all sampled points, comparing <code>attrib_points()</code> and
-        <code>fasttrib_points()</code></a>
-    -   <a href="#63-across-entire-study-area-fasttrib_points"
-        id="toc-63-across-entire-study-area-fasttrib_points">6.3 Across entire
-        study area <code>fasttrib_points()</code></a>
--   <a href="#7-example-modelling" id="toc-7-example-modelling">7 Example
+    - <a href="#61-at-specific-sampling-points"
+      id="toc-61-at-specific-sampling-points">6.1 At specific sampling
+      points</a>
+    - <a href="#62-at-all-sampled-points"
+      id="toc-62-at-all-sampled-points">6.2 At all sampled points</a>
+    - <a href="#63-across-entire-study-area-fasttrib_points"
+      id="toc-63-across-entire-study-area-fasttrib_points">6.3 Across entire
+      study area <code>fasttrib_points()</code></a>
+  - <a href="#7-example-modelling" id="toc-7-example-modelling">7 Example
     Modelling</a>
-    -   <a href="#71-train-a-random-forest-model"
-        id="toc-71-train-a-random-forest-model">7.1 Train a Random Forest
-        Model</a>
--   <a href="#8-future-plans" id="toc-8-future-plans">8 Future Plans</a>
--   <a href="#9-references" id="toc-9-references">9 References</a>
+    - <a href="#71-train-a-random-forest-model"
+      id="toc-71-train-a-random-forest-model">7.1 Train a Random Forest
+      Model</a>
+  - <a href="#8-future-plans" id="toc-8-future-plans">8 Future Plans</a>
+  - <a href="#9-references" id="toc-9-references">9 References</a>
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+<img src="man/figures/logo.png" align="right" width=280 />
+
 <!-- badges: start -->
 
 [![Lifecycle:
@@ -58,8 +75,6 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 <!-- badges: end -->
 
 ## 1 Introduction
-
-<img src="man/figures/README-unnamed-chunk-23-1.png" width="100%" style="display: block; margin: auto;" />
 
 Aquatic environmental scientists are often interested in relating
 landscape features to observed responses (e.g., fish size, water
@@ -115,12 +130,11 @@ contribute much flow to the larger stream. Using in-stream distances
 alone may misrepresent this pattern.
 
 ***ihydro*** stores its geospatial products in a zip file for ease of
-retrieval and extraction in external software (i.e. QGIS). Due to the
-compression involved, generating, and adding results to the zip file can
-be time consuming, however, many ***ihydro*** function can be run in
-parallel for increased speed (if enough memory is available). The
-functions are also quick at removing internal intermediate files to keep
-hard drives from filling up too fast.
+retrieval and extraction in external software (i.e. QGIS). Many
+***ihydro*** function can be run in parallel for increased speed (if
+enough memory is available). The functions are also quick at removing
+internal intermediate files to keep hard drives from filling up too
+fast.
 
 [Back to top](#1-introduction)
 
@@ -166,11 +180,11 @@ if (F){
 
 ### 3.1 Generate toy terrain dataset and sampling points
 
-Begin by bringing in the digital elevation model and using it to
-generate terrain products.
+Begin by bringing in the digital elevation model.
 
 ``` r
 ## Load libraries
+# remotes::install_github("p-schaefer/ihydro)
 library(ihydro)
 library(tmap)
 library(furrr)
@@ -185,7 +199,7 @@ library(purrr)
 
 # Parallelization is done through the future package, so all parallel backends
 # should be supported i.e.,:
-plan(multisession(workers=8))
+plan(multisession(workers=4))
 
 ## Generate save_dir as a temporary directory
 save_dir <- tempdir()
@@ -217,94 +231,16 @@ plot(toy_dem,main="Elevation")
 
 [Back to top](#1-introduction)
 
-### 3.2 Generate layers of interest
-
-``` r
-
-## Predictors from openSTARS
-system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS") %>% 
-  rast() %>% 
-  setNames("LC") %>% 
-  writeRaster(file.path(save_dir, "LC.tif"),overwrite=T)
-
-landuse_r_path <-file.path(save_dir, "LC.tif") 
-geology_path<-system.file("extdata", "nc", "geology.shp", package = "openSTARS")
-pointsources_path<-system.file("extdata", "nc", "pointsources.shp", package = "openSTARS")
-
-read_sf(pointsources_path) %>% 
-  mutate(pointsource="pontsrc") %>% 
-  st_buffer(60) %>% 
-  write_sf(file.path(save_dir, "pointsources.shp"),overwrite=T)
-
-pointsources_path<-file.path(save_dir, "pointsources.shp")
-
-
-# Numeric Raster
-
-wbt_slope(
-  dem = file.path(save_dir, "toy_dem.tif"),
-  output = file.path(save_dir, "slope.tif")
-)
-
-# Combine loi layers
-output_filename_loi<-file.path(save_dir,"Processed_loi.zip")
-
-# This function standardizes numeric and categorical loi layers.
-
-loi_combined<-process_loi(
-  dem=toy_dem,
-  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    slope=file.path(save_dir, "slope.tif")
-  ),
-  cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-    landcover=landuse_r_path,
-    geology=geology_path,
-    pointsources=pointsources_path
-  ),
-  variable_names=list( # any unlisted inputs will be used in their entirety
-    geology="GEO_NAME", # names listed here will subset those attributes or layers from the inputs
-    pointsources="pontsrc"
-  ),
-  output_filename=output_filename_loi,
-  return_products=T,
-  temp_dir=NULL,
-  verbose=T
-)
-#> [1] "Preparing DEM"
-#> [1] "Processing loi"
-#> [1] "Generating Outputs"
-```
-
-``` r
-
-# All layers have been transformed to rasters with 1 indicating presence, and NA for absence
-plot(rast(loi_combined$cat_inputs),type="classes",col="darkgreen")
-```
-
-<img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
-
-``` r
-# Numeric Rasters
-plot(rast(loi_combined$num_inputs),type="continuous")
-```
-
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
-
-[Back to top](#1-introduction)
-
-## 4 Generate geospatial analysis products
-
-### 4.1 METHOD 1: With individual functions
-
-#### 4.1.1 Generate flow direction/accumulation geospatial analysis products with `process_flowdir()`
+### 3.2 Generate flow direction/accumulation geospatial analysis products with `process_flowdir()`
 
 The DEM must be processed in a way to remove depressions. Whitebox
 offers methods for breaching and filling DEMs to remove depressions.
+These may be applied before had, or through the `depression_corr`
+argument in `process_flowdir()`.
 
-Another factor to consider at this step is whether to burn stream
-vectors into the DEM; ***ihydro*** impliments a simplified stream
-burning method that lowers the levation along the DEM by `burn_depth`
-meters. See
+Another factor to consider at this step is whether to burn a stream
+vector into the DEM; ***ihydro*** implements a simplified stream burning
+method that lowers the evation along the DEM by `burn_depth` meters. See
 [here](https://proceedings.esri.com/library/userconf/proc99/proceed/papers/pap802/p802.htm#Trois)
 for more detailed approaches.
 
@@ -313,7 +249,7 @@ for more detailed approaches.
 # Outputs of all functions are always saved to output_filename by default,
 # but can be included in function return with return_products=T (note this can
 # be very slow for large regions)
-output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.zip")
+output_filename_hydro<-file.path(save_dir,"Processed_Hydrology.gpkg")
 
 # Generates d8 flow direction and accumulation, extracts streams at a specified 
 # flow accumulation threshold
@@ -327,10 +263,22 @@ hydro_out<-process_flowdir(
   return_products=T,
   output_filename=output_filename_hydro,
   temp_dir=NULL, 
-  verbose=F
+  verbose=T
 )
 
-# hydro_out$outfile # -> This is the full file path of the resulting .zip file
+# List files present in gpkg
+ihydro_layers(hydro_out)
+#> # A tibble: 6 × 3
+#>   layer_name       data_type data_group
+#>   <chr>            <chr>     <chr>     
+#> 1 DEM_Extent       Polygon   meta      
+#> 2 dem_final        Raster    hydro     
+#> 3 dem_d8           Raster    hydro     
+#> 4 dem_accum_d8     Raster    hydro     
+#> 5 dem_accum_d8_sca Raster    hydro     
+#> 6 dem_streams_d8   Raster    hydro
+
+# hydro_out$outfile # -> This is the full file path of the resulting geopackage (gpkg) file
 
 # remaining outputs only present when `return_products` == T
 # hydro_out$dem_final.tif # -> final dem after stream burning and depression correction 
@@ -339,75 +287,92 @@ hydro_out<-process_flowdir(
 # hydro_out$dem_accum_d8_sca.tif # -> d8 flow accumulation (specific catchment areas)
 # hydro_out$dem_streams_d8.tif # -> extracted streams at specified `threshold`
 
-# if `return_products` == F, all produces are only available in the .zip file.
-# Terra and sf allow access to files directly in the .zip file, whitebox
+# if `return_products` == F, all produces are only available in the gpkg file.
+# terra and sf allow access to files directly in the gpkg file, whitebox
 # requires them to be extracted to a folder
 
-# List files present in .zip
-fl<-unzip(list=T, # when list==T, contents are listed only, if F, they are extracted
-          hydro_out$outfile)
-
-fl
-#>                   Name  Length                Date
-#> 1        dem_final.tif 1804212 2022-11-05 14:11:00
-#> 2           dem_d8.tif  454212 2022-11-05 14:11:00
-#> 3     dem_accum_d8.tif  904212 2022-11-05 14:11:00
-#> 4 dem_accum_d8_sca.tif  904212 2022-11-05 14:11:00
-#> 5   dem_streams_d8.tif  904212 2022-11-05 14:11:00
-
-flow_accum_path<-file.path("/vsizip", # "/vsizip" allows terra and sf functions to read from .zip files
-                           hydro_out$outfile, # Then specify the full path to the zip file
-                           fl$Name[grepl("dem_accum_d8.tif",fl$Name)] # finally specify the file to extract
-)
-
-flow_accum_path
-#> [1] "/vsizip/C:\\Users\\ecopu\\AppData\\Local\\Temp\\RtmpiIxHom\\Processed_Hydrology.zip/dem_accum_d8.tif"
-
-flow_accum<-rast(flow_accum_path)
+flow_accum<-rast(hydro_out$outfile,"dem_accum_d8")
 
 plot(log10(flow_accum))
 ```
 
-<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-4-1.png" width="100%" />
+
+To create an ihydro object from an existing geopackage (i.e., created
+from a previous R run):
+
+``` r
+
+hydro_out_new<-as.ihydro(output_filename_hydro)
+ihydro_layers(hydro_out_new)
+#> # A tibble: 6 × 3
+#>   layer_name       data_type data_group
+#>   <chr>            <chr>     <chr>     
+#> 1 DEM_Extent       Polygon   meta      
+#> 2 dem_final        Raster    hydro     
+#> 3 dem_d8           Raster    hydro     
+#> 4 dem_accum_d8     Raster    hydro     
+#> 5 dem_accum_d8_sca Raster    hydro     
+#> 6 dem_streams_d8   Raster    hydro
+```
 
 [Back to top](#1-introduction)
 
-#### 4.1.2 Generate vector geospatial analysis products with `generate_vectors()`
+### 3.3 Generate vector geospatial analysis products with `generate_vectors()`
 
 This function combines `generate_subbasins()` and `attrib_streamline()`
-to produce a number of vector layers.
+to produce subcatchment polygons, stream lines, stream links (downstream
+most points along each subcatchment), stream points (stream line
+represented as individual points).
 
 Typically, observed responses are measured at discrete sampling
 locations along the stream network. If the location information is to be
 preserved (i.e., if samples are upstream and downstream of a particular
-effluent outflow), they must be incorporated into the network. This is
-done by splitting stream lines and catchments at these points.
+effluent outflow), the sampling points must be incorporated into the
+network. This is done by splitting stream lines and subcatchments at
+these points.
 
 ``` r
 
-
-# generates vector layers, including subbasins, stream lines, and links representing
-# pour-points for each subbasin
 hydro_out<-generate_vectors(
   input=hydro_out,
-  points=file.path(save_dir, "sites.shp"), # These are optional
+  points=file.path(save_dir, "sites.shp"), # These are optional sampling locations
   site_id_col="site_id", # Column name in points layer that corresponds to 
   #                      # unique IDs that will be available in data products
   snap_distance=100L, # points that are more than 100m from closest stream are excluded
   break_on_noSnap =F, # default is to stop when any points don't snap, this will ignore that
   return_products=T,
   temp_dir=NULL,
-  verbose=F
+  verbose=T
 ) 
-#> [1] "Snapping Points"
-#> [1] "Splitting Subbasins"
+
+ihydro_layers(hydro_out)
+#> # A tibble: 15 × 3
+#>    layer_name         data_type data_group   
+#>    <chr>              <chr>     <chr>        
+#>  1 stream_lines       Line      hydro        
+#>  2 stream_points      Point     hydro        
+#>  3 stream_links       Point     hydro        
+#>  4 snapped_points     Point     sample_points
+#>  5 original_points    Point     sample_points
+#>  6 Subbasins_poly     Polygon   hydro        
+#>  7 DEM_Extent         Polygon   meta         
+#>  8 dem_final          Raster    hydro        
+#>  9 dem_d8             Raster    hydro        
+#> 10 dem_accum_d8       Raster    hydro        
+#> 11 dem_accum_d8_sca   Raster    hydro        
+#> 12 dem_streams_d8     Raster    hydro        
+#> 13 stream_points_attr Table     hydro        
+#> 14 stream_links_attr  Table     hydro        
+#> 15 site_id_col        Table     meta
 
 # Several important columns are used throughout the vector layers:
 # `link_id` - identifies reaches/segments (steam between two confluences)
 # `trib_id` - identifies streams/tributaries, with the shortest channel getting
 #           # a new trib_id at a confluence, and longest channel retaining the original ID
 # `uslink_id` and `dslink_id`  - columns identify upstream and downstream links
-# `ustrib_id` and `dstrib_id`  - columns identify upstream and downstream tributaries
+# `ustrib_id` and `dstrib_id`  - columns identify upstream and downstream tributaries (longest
+#  continuous flow-paths)
 
 # If 'points' are provided, this function modifies the vector outputs by inserting
 # links, and splitting lines/subbasins at `points`. Inserted points are given "link_id'
@@ -416,32 +381,25 @@ hydro_out<-generate_vectors(
 # sample points in an upstream direction). 
 
 # New layers added by `generate_vectors()`
-# hydro_out$db_loc       # -> sqlite database file path containing tables:
-#                        #    "stream_links", "stream_points"
-# hydro_out$subbasins # -> polygon subbasins attributed with `link_id` and reach
-#                     #    contributing area (in m^2)
-# hydro_out$stream_lines # -> line vectors attributed with `link_id`, `trib_id`, upstream
-#                        #    and downstream link and trib IDS and a number of extra attributes
-# hydro_out$points # -> point vectors along lines identifying 'nodes' (confluence
-#                  #     points), vs 'links' segments joining 'nodes', and also
-#                  #     attributed with `link_id`, `trib_id`, upstream
-#                  #     and downstream link and trib IDS and a number of extra attributes
-# hydro_out$links # -> point vector representing pour-points for subbasins,
-#                 #   attributed with `link_id` and extra attributes
+# hydro_out$subbasins      # -> polygon subbasins attributed with `link_id` and reach
+#                          #  contributing area (in m^2)
+# hydro_out$stream_lines   # -> line vectors attributed with `link_id`
+# hydro_out$points         # -> point vectors along lines identifying 'nodes' (confluence
+#                          #  points), vs 'links' segments joining 'nodes', and also
+#                          #  attributed with `link_id`, `trib_id`, upstream
+#                          #  and downstream link and trib IDS and a number of extra attributes
+# hydro_out$links          # -> point vector representing pour-points for subbasins,
+#                          #  attributed with `link_id` and extra attributes
 # hydro_out$snapped_points # -> provided points snapped to nearest segment. Any points 
-#                          #   beyond snap distance are removed, with a warning if
-#                          #   break_on_noSnap == F. 
+#                          #  beyond snap distance are removed, with a warning if
+#                          #  break_on_noSnap == F. 
 
 tm_shape(hydro_out$subbasins) + tm_polygons(col="link_id",palette = "viridis",alpha =0.2,legend.show=F) +
   tm_shape(hydro_out$stream_lines) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
   tm_shape(hydro_out$links) + tm_dots(col="yellow",legend.show=F,size=0.15,border.col="black",border.alpha=1)
 ```
 
-<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
-
-[Back to top](#1-introduction)
-
-#### 4.1.3 Split vector geospatial analysis products at sampling points `generate_vectors()`
+<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
 
 ``` r
 
@@ -456,42 +414,51 @@ tm_shape(rast(hydro_out$dem_final.tif)) + tm_raster(palette = "cividis",legend.s
   tm_dots(col="black",legend.show=F,size=0.35,border.col="black",border.alpha=1,border.lwd=1)
 ```
 
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-7-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
-#### 4.1.4 Create lookup table of flow-directions with `trace_flowpaths()`
+### 3.4 Create lookup tables of flow-directions with `trace_flowpaths()`
 
 To more efficiently generate catchments, look-ups are created that
-identify the upstream and downstream links from each link. If
-`insert_points()` was run previously, inserted points are also included
-in lookups.
+identify all upstream and downstream links originating from each link.
 
 ``` r
 
-# Creates lookup tables of upstream and downstream flow paths
 hydro_out<-trace_flowpaths(
   input=hydro_out,
   return_products=T,
-  calc_catch="all",
-  pwise_dist=T,
+  pwise_dist=T, # This will calculate all downstream flow-connected pairwise distances
+  pwise_all_links=F, # This will calculate all flow un-connected pairwise distances (can be very time consuming)
   temp_dir=NULL,
-  verbose=F
+  verbose=T
 )
 
-# New layers added by `trace_flowpaths()`
-# hydro_out$db_loc       # -> sqlite database file path with added tables:
-#                        #    "us_flowpaths", "ds_flowpaths", "fcon_pwise_dist",
-#                        #    and "funcon_pwise_dist"
-#                        #    
-# hydro_out$catchments   # -> Catchment polygons by link_id
+ihydro_layers(hydro_out)
+#> # A tibble: 18 × 3
+#>    layer_name         data_type data_group   
+#>    <chr>              <chr>     <chr>        
+#>  1 stream_lines       Line      hydro        
+#>  2 stream_points      Point     hydro        
+#>  3 stream_links       Point     hydro        
+#>  4 snapped_points     Point     sample_points
+#>  5 original_points    Point     sample_points
+#>  6 Subbasins_poly     Polygon   hydro        
+#>  7 DEM_Extent         Polygon   meta         
+#>  8 dem_final          Raster    hydro        
+#>  9 dem_d8             Raster    hydro        
+#> 10 dem_accum_d8       Raster    hydro        
+#> 11 dem_accum_d8_sca   Raster    hydro        
+#> 12 dem_streams_d8     Raster    hydro        
+#> 13 ds_flowpaths       Table     flow_path    
+#> 14 us_flowpaths       Table     flow_path    
+#> 15 stream_points_attr Table     hydro        
+#> 16 stream_links_attr  Table     hydro        
+#> 17 site_id_col        Table     meta         
+#> 18 fcon_pwise_dist    Table     pwise_dist
 
-
-con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
-DBI::dbListTables(con)
-#> [1] "ds_flowpaths"      "fcon_pwise_dist"   "link_id_cellstats"
-#> [4] "sqlite_stat1"      "sqlite_stat4"      "stream_links"     
-#> [7] "stream_points"     "us_flowpaths"
+# We will add these upstream and downstream lookup tables to the output below
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$outfile)
 
 hydro_out$us_flowpaths <-collect(tbl(con,"us_flowpaths"))
 hydro_out$ds_flowpaths <-collect(tbl(con,"ds_flowpaths"))
@@ -520,49 +487,51 @@ head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
 #> 5 1000                1107.1        
 #> 6 1000                1107
 
-us_790<-hydro_out$us_flowpaths %>%
-  filter(pour_point_id == "790") # get all upstream link_ids from link_id 790
-ds_145.1<-hydro_out$ds_flowpaths %>%
-  filter(origin_link_id == "145.1") # get all downstream link_ids from 
+# Below we demonstrate how to extract the upstream and downstream flowpaths for specific points
+
+us_647<-hydro_out$us_flowpaths %>%
+  filter(pour_point_id == "647") # get all upstream link_ids from link_id 790
+ds_1071.1<-hydro_out$ds_flowpaths %>%
+  filter(origin_link_id == "1071.1") # get all downstream link_ids from 
 #                                   # link_id 145.1 (this corresponds with site_id = 29)
 
 lines_out<-hydro_out$stream_lines %>% 
-  filter(link_id %in% us_790$origin_link_id | 
-           link_id %in% ds_145.1$destination_link_id  
+  filter(link_id %in% us_647$origin_link_id | 
+           link_id %in% ds_1071.1$destination_link_id  
   )
 sub_out<-hydro_out$subbasins %>% 
-  filter(link_id %in% us_790$origin_link_id | 
-           link_id %in% ds_145.1$destination_link_id 
+  filter(link_id %in% us_647$origin_link_id | 
+           link_id %in% ds_1071.1$destination_link_id 
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$links %>% filter(link_id %in% c("790","145.1"))) +
-  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("647","1071.1"))) +
+  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1) + 
+  tm_layout(frame = FALSE)
 ```
 
-<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-8-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
-#### 4.1.5 Generate complete upstream catchment areas with `get_catchment()`
+### 3.5 Generate complete upstream catchment areas with `get_catchment()`
+
+Once lookups are established, catchments can easily be retrieved
 
 ``` r
 
-# Once lookup tables are calculated (not necessarily returned, can be return_products = F),
-# catchments can easily be retrieved:
 
 subbasin_catchments<-get_catchment( # retrieve catchment for an arbitrary reach
   input=hydro_out,
-  site_id_col=NULL,
-  target_points=c("838") 
+  sample_points=NULL,
+  link_id="838"
 )
 
-point_catchments<-get_catchment( # retrieve sampling point catchments
+point_catchments<-get_catchment( # retrieve catchments at specified sampling points
   input=hydro_out,
-  site_id_col="site_id",
-  # target_points = hydro_out$snapped_points$site_id
-  target_points=c("1","25")
+  sample_points=c("1","25"),
+  link_id=NULL
 )
 
 tm_shape(bind_rows(subbasin_catchments,point_catchments)) + 
@@ -571,20 +540,85 @@ tm_shape(bind_rows(subbasin_catchments,point_catchments)) +
   tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =2)  
 ```
 
-<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
-#### 4.1.6 Examine pairwise distances
+### 3.6 Generate entire hydrology workflow in one step.
+
+The entire workflow above can be accomplished with a single function:
+
+``` r
+
+output_filename_hydro_sparse<-file.path(save_dir,"Processed_Hydrology_sparse.gpkg")
+
+# In this case we will use a higher stream initiation threshold to speed up calculation.
+
+hydro_out_sparse<-process_hydrology(
+  dem=toy_dem,
+  output_filename=output_filename_hydro_sparse,
+  # burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
+  burn_depth=5,
+  depression_corr="breach",
+  threshold=500L,
+  points=hydro_out$snapped_points,
+  site_id_col="site_id",
+  snap_distance = 1L,
+  break_on_noSnap=F, 
+  pwise_dist=T,
+  pwise_all_links=F,
+  return_products=F,
+  temp_dir=NULL,
+  verbose=F
+)
+
+ihydro_layers(hydro_out_sparse)
+#> # A tibble: 18 × 3
+#>    layer_name         data_type data_group   
+#>    <chr>              <chr>     <chr>        
+#>  1 stream_lines       Line      hydro        
+#>  2 stream_points      Point     hydro        
+#>  3 stream_links       Point     hydro        
+#>  4 snapped_points     Point     sample_points
+#>  5 original_points    Point     sample_points
+#>  6 Subbasins_poly     Polygon   hydro        
+#>  7 DEM_Extent         Polygon   meta         
+#>  8 dem_final          Raster    hydro        
+#>  9 dem_d8             Raster    hydro        
+#> 10 dem_accum_d8       Raster    hydro        
+#> 11 dem_accum_d8_sca   Raster    hydro        
+#> 12 dem_streams_d8     Raster    hydro        
+#> 13 ds_flowpaths       Table     flow_path    
+#> 14 us_flowpaths       Table     flow_path    
+#> 15 stream_points_attr Table     hydro        
+#> 16 stream_links_attr  Table     hydro        
+#> 17 site_id_col        Table     meta         
+#> 18 fcon_pwise_dist    Table     pwise_dist
+
+# Since we didn't return the products, we'll verify the outputs exist in the gpkg file
+
+tm_shape(read_sf(hydro_out_sparse$outfile,"Subbasins_poly")) + 
+  tm_polygons(col="white",alpha =0.2,legend.show=F) +
+  tm_shape(read_sf(hydro_out_sparse$outfile,"stream_lines")) +
+  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
+  tm_shape(read_sf(hydro_out_sparse$outfile,"stream_links")) +
+  tm_dots(legend.show=F,size=0.2,border.col="black",border.alpha=1,border.lwd=1)
+```
+
+<img src="man/figures/README-unnamed-chunk-10-1.png" width="100%" />
+
+[Back to top](#1-introduction)
+
+## 4 Examining Pairwise Instream Distances
 
 For more complete and thorough treatment on spatial autocorrelation in
 stream systems, see [Zimmerman and Hoef
 (2007)](https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgegramForFluvialVariography.pdf).
 
-Below we calculate pairwise distances between sampled areas. We take
-these distances and visualize them as heatmaps to illustrate how
-pairwise distance matrices can be used to represent spatial
-relationships among sites.
+In case we didn’t request pairwise distances in `trace_flowpaths()`, we
+can calculate them separately with `generate_pdist()`. Below we
+calculate a table that summaries relevant pairwise distance measures
+between reaches.
 
 ``` r
 
@@ -597,19 +631,39 @@ hydro_out<-generate_pdist(
   #                 #  which can be very slow for dense stream networks
 )
 
-# New data available in `pairwise_dist`
-# pairwise_dist # -> tables of downstream path lengths between each pair of link_ids,
+# New data available in `fcon_pwise_dist` and 'funcon_pwise_dist'
+# *_pwise_dist # -> tables of downstream path lengths between each pair of link_ids,
 #                   #    with flow-connected in-stream distances (directed_path_length),
 #                   #    flow-unconnected in-stream distances (undirected_path_length),
 #                   #    and proportions of shared catchments (prop_shared_catchment)
 #                   #    and log-transformed catchment proportions (prop_shared_logcatchment)
 
 
-con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$db_loc)
-DBI::dbListTables(con)
-#> [1] "ds_flowpaths"      "fcon_pwise_dist"   "funcon_pwise_dist"
-#> [4] "link_id_cellstats" "sqlite_stat1"      "sqlite_stat4"     
-#> [7] "stream_links"      "stream_points"     "us_flowpaths"
+con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$outfile)
+ihydro_layers(hydro_out)
+#> # A tibble: 20 × 3
+#>    layer_name         data_type data_group   
+#>    <chr>              <chr>     <chr>        
+#>  1 stream_lines       Line      hydro        
+#>  2 stream_points      Point     hydro        
+#>  3 stream_links       Point     hydro        
+#>  4 snapped_points     Point     sample_points
+#>  5 original_points    Point     sample_points
+#>  6 Subbasins_poly     Polygon   hydro        
+#>  7 Catchment_poly     Polygon   hydro        
+#>  8 DEM_Extent         Polygon   meta         
+#>  9 dem_final          Raster    hydro        
+#> 10 dem_d8             Raster    hydro        
+#> 11 dem_accum_d8       Raster    hydro        
+#> 12 dem_accum_d8_sca   Raster    hydro        
+#> 13 dem_streams_d8     Raster    hydro        
+#> 14 ds_flowpaths       Table     flow_path    
+#> 15 us_flowpaths       Table     flow_path    
+#> 16 stream_points_attr Table     hydro        
+#> 17 stream_links_attr  Table     hydro        
+#> 18 site_id_col        Table     meta         
+#> 19 fcon_pwise_dist    Table     pwise_dist   
+#> 20 funcon_pwise_dist  Table     pwise_dist
 
 # funcon_pwise_dist is only available if pwise_all_links==T
 
@@ -648,22 +702,27 @@ p1<-hydro_out$stream_lines %>%
 p2<-hydro_out$stream_lines %>% 
   mutate(link_id=as.character(link_id)) %>% 
   left_join(hydro_out$pwise_dist %>% 
-              filter(origin=="1048") %>%
+              filter(origin=="99") %>%
               filter(dist_type=="Flow Unconnected") %>% 
               mutate(undirected_path_length=log(undirected_path_length)),  
-            by=c("link_id"="destination")) %>% 
+            by=c("link_id"="destination"),
+            multiple="all") %>% 
   tm_shape() +
   tm_lines(col="undirected_path_length",alpha =1,legend.show=T,lwd =2,palette = "viridis",style="cont")+
-  tm_shape(hydro_out$links %>% filter(link_id=="1048"))+
+  tm_shape(hydro_out$links %>% filter(link_id=="99"))+
   tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)+
-  tm_layout(main.title = "Flow Unconnected path log-length from 1048",legend.outside = TRUE)
+  tm_layout(main.title = "Flow Unconnected path log-length from 99",legend.outside = TRUE)
 
 
 # Verify upstream and downstream distances make sense
 tmap_arrange(p1,p2,ncol=1)
 ```
 
-<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-11-1.png" width="100%" />
+
+Below. we take these distances and visualize them as heatmaps to
+illustrate how pairwise distance matrices can be used to represent
+spatial relationships among sites.
 
 ``` r
 
@@ -748,7 +807,7 @@ head(dmat2)
   heatmap()
 ```
 
-<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-12-1.png" width="100%" />
 
 Using these relationships, we can perform a clustering analysis to
 identify groups of sites with potentially high spatial autocorrelation.
@@ -778,7 +837,7 @@ tm_shape(hydro_out$subbasins) + tm_polygons(col="white",alpha =0.2,legend.show=F
   tm_layout(legend.outside = TRUE)
 ```
 
-<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-13-1.png" width="100%" />
 
 Finally, we’ll examine relationships among our response variable in
 terms of in-stream distances, contrasting flow connected sites vs, flow
@@ -851,7 +910,7 @@ ggplot(dmat %>% filter(dist_type %in% c("directed_path_length","undirected_path_
   facet_wrap(~`Distance Type`)
 ```
 
-<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-14-1.png" width="100%" />
 
 Finally, we’ll do a similar comparison but using percent of shared
 catchments. Here we expect pairwise differences to decrease as the
@@ -873,92 +932,122 @@ ggplot(dmat %>%
   facet_wrap(~`Distance Type`,scales ="free_x")
 ```
 
-<img src="man/figures/README-unnamed-chunk-16-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-15-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
-### 4.2 METHOD 2: With a single function
+## 5 Process layers of interest
 
-#### 4.2.1 `process_hydrology()`
+### 5.1 Separate from hydrology products
 
-The entire workflow above can be accomplished with a single function:
+Layers of interest (loi) represent the features on the landscape we are
+interested in relating to the observed responses in the stream. These
+can include: land-cover, climate, geology, soils, NDVI, slope, etc.
 
 ``` r
 
-output_filename_hydro_sparse<-file.path(save_dir,"Processed_Hydrology_sparse.zip")
+## Predictors from openSTARS
+system.file("extdata", "nc", "landuse_r.tif", package = "openSTARS") %>% 
+  rast() %>% 
+  setNames("LC") %>% 
+  writeRaster(file.path(save_dir, "LC.tif"),overwrite=T)
 
-# In this case we could use a higher stream initiation threshold.
-# We could use this layer to more quickly make predictions across the landscape.
+landuse_r_path <-file.path(save_dir, "LC.tif") 
+geology_path<-system.file("extdata", "nc", "geology.shp", package = "openSTARS")
+pointsources_path<-system.file("extdata", "nc", "pointsources.shp", package = "openSTARS")
 
-hydro_out_sparse<-process_hydrology(
-  dem=toy_dem,
-  output_filename=output_filename_hydro_sparse,
-  # burn_streams=system.file("extdata", "nc", "streams.shp", package = "openSTARS"),
-  burn_depth=5,
-  depression_corr="breach",
-  threshold=500L,
-  # points=hydro_out$snapped_points, 
-  # site_id_col="site_id",
-  # snap_distance = 1L, 
-  break_on_noSnap=F, 
-  return_products=F,
-  temp_dir=NULL,
-  verbose=F
+read_sf(pointsources_path) %>% 
+  mutate(pointsource="pontsrc") %>% 
+  st_buffer(60) %>% 
+  write_sf(file.path(save_dir, "pointsources.shp"),overwrite=T)
+
+pointsources_path<-file.path(save_dir, "pointsources.shp")
+
+
+# Numeric Raster
+
+wbt_slope(
+  dem = file.path(save_dir, "toy_dem.tif"),
+  output = file.path(save_dir, "slope.tif")
 )
 
-# Since we didn't return the products, we'll verify the outputs exist in the .zip file
-unzip(list=T,hydro_out_sparse$outfile)
-#>                    Name  Length                Date
-#> 1         dem_final.tif 1804212 2022-11-05 14:13:00
-#> 2            dem_d8.tif  454212 2022-11-05 14:13:00
-#> 3      dem_accum_d8.tif  904212 2022-11-05 14:13:00
-#> 4  dem_accum_d8_sca.tif  904212 2022-11-05 14:13:00
-#> 5    dem_streams_d8.tif  904212 2022-11-05 14:13:00
-#> 6       site_id_col.csv      22 2022-11-05 14:13:00
-#> 7      stream_links.dbf   18372 2022-11-05 14:13:00
-#> 8      stream_links.prj     503 2022-11-05 14:13:00
-#> 9      stream_links.shp    6428 2022-11-05 14:13:00
-#> 10     stream_links.shx    1908 2022-11-05 14:13:00
-#> 11     stream_lines.dbf    5691 2022-11-05 14:13:00
-#> 12     stream_lines.prj     503 2022-11-05 14:13:00
-#> 13     stream_lines.shp   70924 2022-11-05 14:13:00
-#> 14     stream_lines.shx    1900 2022-11-05 14:13:00
-#> 15    stream_points.dbf  145016 2022-11-05 14:13:00
-#> 16    stream_points.prj     503 2022-11-05 14:13:00
-#> 17    stream_points.shp  162444 2022-11-05 14:13:00
-#> 18    stream_points.shx   46484 2022-11-05 14:13:00
-#> 19   Subbasins_poly.dbf    7782 2022-11-05 14:13:00
-#> 20   Subbasins_poly.prj     503 2022-11-05 14:13:00
-#> 21   Subbasins_poly.shp  380032 2022-11-05 14:13:00
-#> 22   Subbasins_poly.shx    1908 2022-11-05 14:13:00
-#> 23   Catchment_poly.dbf   18372 2022-11-05 14:14:00
-#> 24   Catchment_poly.prj     503 2022-11-05 14:14:00
-#> 25   Catchment_poly.shp  997812 2022-11-05 14:14:00
-#> 26   Catchment_poly.shx    1908 2022-11-05 14:14:00
+# Combine loi layers
+output_filename_loi<-file.path(save_dir,"Processed_loi.gpkg")
 
-tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"Subbasins_poly.shp"))) + 
-  tm_polygons(col="white",alpha =0.2,legend.show=F) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_lines.shp"))) +
-  tm_lines(col="blue",alpha =0.3,legend.show=F,lwd =2) +
-  tm_shape(read_sf(file.path("/vsizip",hydro_out_sparse$outfile,"stream_links.shp"))) +
-  tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1)
+# This function standardizes numeric and categorical loi layers.
+
+loi_combined<-process_loi(
+  dem=toy_dem,
+  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+    slope=file.path(save_dir, "slope.tif")
+  ),
+  cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+    landcover=landuse_r_path,
+    geology=geology_path,
+    pointsources=pointsources_path
+  ),
+  variable_names=list( # any unlisted inputs will be used in their entirety
+    geology="GEO_NAME", # names listed here will subset those attributes or layers from the inputs
+    pointsources="pontsrc"
+  ),
+  output_filename=output_filename_loi,
+  return_products=T,
+  temp_dir=NULL,
+  verbose=T
+)
+
+ihydro_layers(loi_combined)
+#> # A tibble: 19 × 3
+#>    layer_name      data_type data_group
+#>    <chr>           <chr>     <chr>     
+#>  1 DEM_Extent      Polygon   meta      
+#>  2 slope           Raster    loi       
+#>  3 LC_1            Raster    loi       
+#>  4 LC_2            Raster    loi       
+#>  5 LC_3            Raster    loi       
+#>  6 LC_4            Raster    loi       
+#>  7 LC_5            Raster    loi       
+#>  8 LC_6            Raster    loi       
+#>  9 LC_7            Raster    loi       
+#> 10 pontsrc_pontsrc Raster    loi       
+#> 11 GEO_NAME_CZam   Raster    loi       
+#> 12 GEO_NAME_CZbg   Raster    loi       
+#> 13 GEO_NAME_CZfg   Raster    loi       
+#> 14 GEO_NAME_CZg    Raster    loi       
+#> 15 GEO_NAME_CZig   Raster    loi       
+#> 16 GEO_NAME_CZlg   Raster    loi       
+#> 17 GEO_NAME_CZve   Raster    loi       
+#> 18 GEO_NAME_Km     Raster    loi       
+#> 19 loi_meta        Table     meta
+```
+
+All categorical layers have been transformed to rasters with 1
+indicating presence, and NA for absence. The layers have been rescaled
+and projected to match the DEM
+
+``` r
+
+plot(loi_combined$cat_inputs,type="classes",col="darkgreen")
 ```
 
 <img src="man/figures/README-unnamed-chunk-17-1.png" width="100%" />
 
+All numeric layers have been rescaled and projected to match the DEM.
+
+``` r
+
+plot(loi_combined$num_inputs,type="continuous")
+```
+
+<img src="man/figures/README-unnamed-chunk-18-1.png" width="100%" />
+
 [Back to top](#1-introduction)
 
-## 5 Add layers of interest to geospatial analysis products with `process_loi()`
-
-Layers of interest (loi) represent the features on the landscape we are
-interested in relating to the observed responses in the stream. These
-can include land-cover, climate, geology, soils, NDVI, slope, etc.
+### 5.2 Together with hydrology products
 
 Instead of processing the loi separately (as was done above), they can
 instead be added to the completed workflow, and added to the existing
-.zip file for convenient file storage/organization. If run separately
-(as above), “num_rast.tif” and/or “cat_rast.tif” can manually be added
-to the .zip file as well.
+gpkg file for convenient file storage/organization.
 
 ``` r
 
@@ -966,26 +1055,65 @@ to the .zip file as well.
 # is run with an input parameter specified, the loi rasters will be added to the
 # output. This can make for convenient data storage.
 
-if (F) {
-  hydro_out<-process_loi(
-    input=hydro_out,
-    num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-      slope=file.path(save_dir, "slope.tif")
-    ),
-    cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
-      landcover=landuse_r_path,
-      geology=geology_path,
-      pointsources=pointsources_path
-    ),
-    variable_names=list( # any unlisted inputs will be used in their entirety
-      geology="GEO_NAME",
-      pointsources="pontsrc"
-    ),
-    return_products=T, # these layers can get large, and it is generally not advised to return them into R 
-    temp_dir=NULL,
-    verbose=F
-  )
-}
+hydro_out_sparse<-process_loi(
+  input=hydro_out_sparse,
+  num_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+    slope=file.path(save_dir, "slope.tif")
+  ),
+  cat_inputs=list(# Can be given as a mixture of input types (file paths, or any sf or terra format)
+    landcover=landuse_r_path,
+    geology=geology_path,
+    pointsources=pointsources_path
+  ),
+  variable_names=list( # any unlisted inputs will be used in their entirety
+    geology="GEO_NAME", # names listed here will subset those attributes or layers from the inputs
+    pointsources="pontsrc"
+  ),
+  return_products=F, # these layers can get large, and it is generally not advised to return them into R 
+  temp_dir=NULL,
+  verbose=F
+)
+
+print(ihydro_layers(hydro_out_sparse),n=40)
+#> # A tibble: 36 × 3
+#>    layer_name         data_type data_group   
+#>    <chr>              <chr>     <chr>        
+#>  1 stream_lines       Line      hydro        
+#>  2 stream_points      Point     hydro        
+#>  3 stream_links       Point     hydro        
+#>  4 snapped_points     Point     sample_points
+#>  5 original_points    Point     sample_points
+#>  6 Subbasins_poly     Polygon   hydro        
+#>  7 DEM_Extent         Polygon   meta         
+#>  8 dem_final          Raster    hydro        
+#>  9 dem_d8             Raster    hydro        
+#> 10 dem_accum_d8       Raster    hydro        
+#> 11 dem_accum_d8_sca   Raster    hydro        
+#> 12 dem_streams_d8     Raster    hydro        
+#> 13 slope              Raster    loi          
+#> 14 LC_1               Raster    loi          
+#> 15 LC_2               Raster    loi          
+#> 16 LC_3               Raster    loi          
+#> 17 LC_4               Raster    loi          
+#> 18 LC_5               Raster    loi          
+#> 19 LC_6               Raster    loi          
+#> 20 LC_7               Raster    loi          
+#> 21 pontsrc_pontsrc    Raster    loi          
+#> 22 GEO_NAME_CZam      Raster    loi          
+#> 23 GEO_NAME_CZbg      Raster    loi          
+#> 24 GEO_NAME_CZfg      Raster    loi          
+#> 25 GEO_NAME_CZg       Raster    loi          
+#> 26 GEO_NAME_CZig      Raster    loi          
+#> 27 GEO_NAME_CZlg      Raster    loi          
+#> 28 GEO_NAME_CZve      Raster    loi          
+#> 29 GEO_NAME_Km        Raster    loi          
+#> 30 ds_flowpaths       Table     flow_path    
+#> 31 us_flowpaths       Table     flow_path    
+#> 32 stream_points_attr Table     hydro        
+#> 33 stream_links_attr  Table     hydro        
+#> 34 site_id_col        Table     meta         
+#> 35 loi_meta           Table     meta         
+#> 36 fcon_pwise_dist    Table     pwise_dist
 ```
 
 [Back to top](#1-introduction)
@@ -1007,69 +1135,53 @@ distance-weighted loi layers. However, `attrib_points()` is very slow,
 so `fasttrib_points()` is available for improved performance for larger
 datasets.
 
-### 6.1 At specific sampling points with site specific attributes
+### 6.1 At specific sampling points
 
-The `attrib_points()` function can be run with a specification table to
-specify at which sites loi summaries should be calculated for, which loi
-to summarize, and type of numeric summary to use for those particular
-loi.
+The `attrib_points()` function uses the
+[hydroweight](https://github.com/bkielstr/hydroweight) package and can
+calculate and return weighted attributes for any points identified
+either through supplied sampling points and/or arbitrary link_ids. The
+returned products can be helpful in visualizing how the final weighted
+attributes are derived.
 
 ``` r
-
-# This retrieves loi names
-loi<-list(numb=rast(loi_combined$num_inputs),
-          cat=rast(loi_combined$cat_inputs))
-
-loi_names<-lapply(loi,names) %>% unlist()
-names(loi_names)<-loi_names
-
-# Here we assign which summaries we would like calculated for each loi layer
-loi_names<-map(loi_names,~c("distwtd_mean",  "mean", "distwtd_sd","sd",  "min", "max"))
-
-# A 'spec' table can be given to calculate attributes at only select sampling points,
-# and/or to only calculate a subset of attributes from select sampling points
-specification_table<-tibble(
-  site_id=c("1","25","80"),
-  loi=list(loi_names)
-)
-specification_table$loi[[2]]<-specification_table$loi[[2]][c(1:2)]
-specification_table$loi[[2]][[1]]<-specification_table$loi[[2]][[1]][c(1:2)]
 
 attrib_points_time_small<-system.time(
   final_attributes_sub_slow<-attrib_points(
     input=hydro_out,
-    loi_file=output_filename_loi, #output file path from process_loi()
-    spec=specification_table,
-    weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-    OS_combine=F,
-    target_streamseg=F, # This will set the target_o parameter as the sampling point
-    inv_function = function(x) { # Function used by hydroweight to calculate
-      # spatial weights across the landscape
+    out_filename=file.path(tempdir(),"attrib_points1.csv"),
+    loi_file=output_filename_loi,
+    loi_cols=NULL,
+    sample_points=c("1","25","80"),
+    link_id=NULL,
+    clip_region=NULL,
+    target_o_type=c("point"),
+    weighting_scheme = c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count"),
+    inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
-    remove_region=NULL,
-    return_products=T,
     temp_dir=NULL,
-    verbose=F
+    return_products=T,
+    verbose=T
   )
 )
 
 
-# Site 25 should only contain mean and distwtd_mean variables for slope
-final_attributes_sub_slow %>%
-  select(site_id,contains("slope"))
-#> # A tibble: 3 × 13
-#>   site_id slope_lumped…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷ slope…⁸
-#>     <dbl>          <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1       1           2.97   1.47    0.203   10.2     3.09   1.51     2.41   1.54 
-#> 2      25           3.48  NA      NA       NA       3.36  NA        1.50  NA    
-#> 3      80           2.23   0.837   0.400    4.34    2.28   0.881    1.77   0.714
-#> # … with 4 more variables: slope_iFLS_distwtd_mean <dbl>,
-#> #   slope_iFLS_distwtd_sd <dbl>, slope_HAiFLS_distwtd_mean <dbl>,
-#> #   slope_HAiFLS_distwtd_sd <dbl>, and abbreviated variable names
-#> #   ¹​slope_lumped_mean, ²​slope_lumped_sd, ³​slope_lumped_min, ⁴​slope_lumped_max,
-#> #   ⁵​slope_iFLO_distwtd_mean, ⁶​slope_iFLO_distwtd_sd,
-#> #   ⁷​slope_HAiFLO_distwtd_mean, ⁸​slope_HAiFLO_distwtd_sd
+final_attributes_sub_slow 
+#> # A tibble: 3 × 134
+#>   link_id site_id products     slope_l…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>   <chr>   <chr>   <list>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1107.1  1       <named list>      2.96   1.49     2.83 0.203     10.2    3613.
+#> 2 1050.1  25      <named list>      3.48   2.23     3.10 0.00216   22.8  257020.
+#> 3 555.1   80      <named list>      2.23   0.837    2.16 0.400      4.34    353.
+#> # … with 125 more variables: slope_lumped_cell_count <dbl>,
+#> #   slope_iEucO_distwtd_mean <dbl>, slope_iEucO_distwtd_sd <dbl>,
+#> #   slope_iEucS_distwtd_mean <dbl>, slope_iEucS_distwtd_sd <dbl>,
+#> #   slope_iFLO_distwtd_mean <dbl>, slope_iFLO_distwtd_sd <dbl>,
+#> #   slope_iFLS_distwtd_mean <dbl>, slope_iFLS_distwtd_sd <dbl>,
+#> #   slope_HAiFLO_distwtd_mean <dbl>, slope_HAiFLO_distwtd_sd <dbl>,
+#> #   slope_HAiFLS_distwtd_mean <dbl>, slope_HAiFLS_distwtd_sd <dbl>, …
 ```
 
 We can access the weighting layers and weighted attribute layers (if
@@ -1080,15 +1192,13 @@ return_products==T) of the `attrib_points()` output.
 plot(
   rast(
     list(
-      rast(final_attributes_sub_slow$distance_weights[[2]]$iFLS)%>%
+      rast(final_attributes_sub_slow$products[[2]]$iFLS)%>%
         setNames("iFLS Weighting"),
-      log10(rast(final_attributes_sub_slow$distance_weights[[2]]$HAiFLO))%>%
+      log10(rast(final_attributes_sub_slow$products[[2]]$HAiFLO))%>%
         setNames("log10-HAiFLO Weighting"),
-      rast(final_attributes_sub_slow$weighted_attr[[2]][[8]]) %>%
-        project(rast(final_attributes_sub_slow$distance_weights[[2]][[1]])) %>%
+      rast(final_attributes_sub_slow$products[[2]]$iFLS_num) %>%
         setNames("iFLS Weighted Slope"),
-      log10(rast(final_attributes_sub_slow$weighted_attr[[2]][[2]])) %>%
-        project(rast(final_attributes_sub_slow$distance_weights[[2]][[1]])) %>%
+      log10(rast(final_attributes_sub_slow$products[[2]]$HAiFLO_cat)[[1]]) %>%
         setNames("log10-HAiFLO Weighted Landcover Class 1")
     )
   ),
@@ -1097,99 +1207,97 @@ plot(
 )
 ```
 
-<img src="man/figures/README-unnamed-chunk-20-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
-The `fasttrib_points()` function is a bit less flexible in its inputs,
-but is considerably faster for larger data sets, more loi, and more
-sampling points. For very small datasets `attrib_points()` may be
-faster.
+The `fasttrib_points()` function faster for larger data sets, more loi,
+and more sampling points. For very small datasets `attrib_points()` may
+be faster. It also allows faster iterative runs by saving and reusing
+intermediate ‘raw_file’.
 
 ``` r
 
 fasttrib_points_time_small<-system.time(
   final_attributes_sub<-fasttrib_points(
     input=hydro_out,
-    loi_file=output_filename_loi,
+    out_filename="sample_points_wgtattr.csv",
+    loi_file=output_filename_loi, # specify loi file, if NULL, function will look for loi in 'input'
+    loi_cols=NULL,                # Specify loi columns to use, if NULL, all will be used
+    iDW_file=NULL, # Leaving this as NULL will look for iDW in 'input' and calculate any not available
+    store_iDW=T,   # This will save the distance weights to the input or iDW_file if it is specified
+    raw_file=file.path(tempdir(),"raw_data.db"), # file to save raw data to (this allows faster calculations in the fuutre)
     sample_points=c("1","25","80"),
-    out_filename="subsample_points_wgtattr.csv",
     link_id=NULL,
-    weighting_scheme = c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-    loi_numeric_stats = c("mean", "sd",  "min", "max"),
+    target_o_type=c("point"),
+    weighting_scheme =  c("lumped",  "iFLS", "HAiFLS","iFLO",  "HAiFLO"),
+    loi_numeric_stats = c("mean", "sd", "median", "min", "max", "sum"),
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
     temp_dir=NULL,
-    verbose=F
+    verbose=T
   )
 )
 
-# Verify database
+ihydro_layers(hydro_out)
+#> # A tibble: 20 × 3
+#>    layer_name                   data_type data_group   
+#>    <chr>                        <chr>     <chr>        
+#>  1 stream_lines                 Line      hydro        
+#>  2 stream_points                Point     hydro        
+#>  3 stream_links                 Point     hydro        
+#>  4 snapped_points               Point     sample_points
+#>  5 original_points              Point     sample_points
+#>  6 Subbasins_poly               Polygon   hydro        
+#>  7 Catchment_poly               Polygon   hydro        
+#>  8 DEM_Extent                   Polygon   meta         
+#>  9 dem_final                    Raster    hydro        
+#> 10 dem_d8                       Raster    hydro        
+#> 11 dem_accum_d8                 Raster    hydro        
+#> 12 dem_accum_d8_sca             Raster    hydro        
+#> 13 dem_streams_d8               Raster    hydro        
+#> 14 iFLS                         Raster    iDW          
+#> 15 HAiFLS                       Raster    iDW          
+#> 16 HAiFLO_unn_group5hUzmFduXWLo Raster    iDW          
+#> 17 iFLO_unn_group5hUzmFduXWLo   Raster    iDW          
+#> 18 HAiFLO_unn_groupI1oYLoAl3EAD Raster    iDW          
+#> 19 iFLO_unn_groupI1oYLoAl3EAD   Raster    iDW          
+#> 20 target_o_meta                Table     meta
 
-trg_id<-"1118.1" #this correponds to sample point 1
-
-con_attr<-DBI::dbConnect(RSQLite::SQLite(),
-                         gsub(basename(hydro_out$db_loc),gsub(".db","_Attr.db",basename(hydro_out$db_loc)),hydro_out$db_loc))
-
-DBI::dbListTables(con_attr)
-#>  [1] "attrib_tbl"        "ds_flowpaths"      "fcon_pwise_dist"  
-#>  [4] "funcon_pwise_dist" "link_id_cellstats" "o_target_weights" 
-#>  [7] "s_target_weights"  "sqlite_stat1"      "sqlite_stat4"     
-#> [10] "stream_links"      "stream_points"     "subb_sum"         
-#> [13] "us_flowpaths"
-
-# This creates a table of all raster values from the database
-dd<-tbl(con_attr,"us_flowpaths") %>% 
-  filter(pour_point_id  %in% local(trg_id)) %>% 
-  rename(subb_link_id=origin_link_id ) %>% 
-  left_join(tbl(con_attr,"link_id_cellstats"),
-            by=c("subb_link_id")) %>% 
-  left_join(tbl(con_attr,"attrib_tbl"),
-            by=c("subb_link_id","cell_number")) %>% 
-  left_join(tbl(con_attr,"s_target_weights"),
-            by=c("subb_link_id","cell_number")) %>% 
-  left_join(tbl(con_attr,"o_target_weights") %>% 
-              filter(catch_link_id %in% local(trg_id)),
-            by=c("pour_point_id"="catch_link_id","cell_number")) %>% 
-  collect()
-
-DBI::dbDisconnect(con_attr)
-
-outline<-hydro_out$catchments %>% 
-  filter(link_id %in% trg_id) %>% 
-  vect()
-
-r1<-dd %>% 
-  select(row,col,attr=iFLO) %>% 
-  pivot_wider(id_cols=row,names_from=col,values_from=attr) %>%
-  arrange(row) %>% 
-  data.frame(check.names = F) %>% 
-  tibble::column_to_rownames("row") %>% 
-  .[order(as.numeric(rownames(.))),order(as.numeric(colnames(.)))] %>% 
-  as.matrix() %>% 
-  rast(crs=crs(toy_dem),extent=ext(outline))
-
-plot(r1)
-plot(outline,add=T)
+final_attributes_sub
+#> # A tibble: 3 × 96
+#>   link_id site_id slope_iFLS_m…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
+#>   <chr>   <chr>            <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1107.1  1                 3.08    2.79    3.13    2.41    3.02    2.71    2.60
+#> 2 1050.1  25                3.56    3.30    3.37    1.50    3.51    2.16    3.23
+#> 3 555.1   80                2.37    1.86    2.37    1.77    2.34    1.61    1.64
+#> # … with 87 more variables: slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>,
+#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
+#> #   slope_lumped_median <dbl>, slope_lumped_sum <dbl>, LC_1_iFLS_prop <dbl>,
+#> #   LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>,
+#> #   LC_1_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
+#> #   LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>,
+#> #   LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, …
 ```
-
-<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
 [Back to top](#1-introduction)
 
-### 6.2 At all sampled points, comparing `attrib_points()` and `fasttrib_points()`
+### 6.2 At all sampled points
 
 ``` r
 
-
-
 final_attributes<-fasttrib_points(
   input=hydro_out,
-  loi_file=output_filename_loi,
-  sample_points=hydro_out$snapped_points$site_id, # here we generate summaries for all sampled points
   out_filename="sample_points_wgtattr.csv",
+  loi_file=output_filename_loi,
+  loi_cols=NULL,
+  iDW_file=NULL,
+  store_iDW=T,
+  raw_file=file.path(tempdir(),"raw_data.db"), # since we have a raw file available, calculations will be faster
+  sample_points=hydro_out$snapped_points$site_id, # here we specify all sampling points
   link_id=NULL,
-  weighting_scheme =  c("lumped", "iFLS", "HAiFLS","iFLO","HAiFLO"), 
-  loi_numeric_stats = c("mean", "sd",  "min", "max"), 
+  target_o_type=c("point"),
+  weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
+  loi_numeric_stats = c("mean", "sd", "min", "max"),
   inv_function = function(x) {
     (x * 0.001 + 1)^-1
   },
@@ -1198,29 +1306,27 @@ final_attributes<-fasttrib_points(
 )
 
 
-
-
 final_attributes
 #> # A tibble: 45 × 94
-#>    link_id site_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷
+#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
 #>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1118.1  41              0.672       0 1.28e-1  0.107   0.0924       0       0
-#>  2 1107.1  1               0.290       0 7.36e-4  0.0665  0.643        0       0
-#>  3 101.1   62              0.706       0 1.44e-1  0       0.150        0       0
-#>  4 142.1   26              0.413       0 0        0.131   0.456        0       0
-#>  5 1086.1  4               0.174       0 4.91e-2  0.0437  0.734        0       0
-#>  6 1053.1  7               0.495       0 6.90e-2  0.0254  0.411        0       0
-#>  7 1048.1  5               0.594       0 8.35e-2  0.0118  0.311        0       0
-#>  8 1074.1  8               0.263       0 5.18e-2  0.0390  0.645        0       0
-#>  9 1080.1  66              0.667       0 5.05e-2  0       0.283        0       0
-#> 10 1093.1  28              0.462       0 1.96e-2  0.0900  0.428        0       0
-#> # … with 35 more rows, 85 more variables: GEO_NAME_CZam_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZbg_iFLS_prop <dbl>, GEO_NAME_CZfg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZg_iFLS_prop <dbl>, GEO_NAME_CZig_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZlg_iFLS_prop <dbl>, GEO_NAME_CZve_iFLS_prop <dbl>,
-#> #   GEO_NAME_Km_iFLS_prop <dbl>, pontsrc_pontsrc_iFLS_prop <dbl>,
-#> #   slope_iFLS_mean <dbl>, LC_1_HAiFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
-#> #   LC_3_HAiFLS_prop <dbl>, LC_4_HAiFLS_prop <dbl>, LC_5_HAiFLS_prop <dbl>, …
+#>  1 1118.1  41               2.46    2.31    2.57    2.10    2.43    2.52    2.45
+#>  2 1107.1  1                3.08    2.79    3.13    2.41    3.02    2.71    2.60
+#>  3 101.1   62               3.19    3.05    3.35    2.85    3.13    3.03    2.79
+#>  4 142.1   26               2.86    2.53    2.90    2.14    2.82    2.21    2.39
+#>  5 1086.1  4                3.42    3.10    3.49    2.27    3.37    2.75    2.91
+#>  6 1053.1  7                2.84    2.79    2.88    2.13    2.75    2.35    2.83
+#>  7 1048.1  5                2.57    2.53    2.57    2.13    2.52    2.30    2.49
+#>  8 1074.1  8                3.29    3.05    3.35    2.35    3.23    3.16    2.97
+#>  9 1080.1  66               4.06    3.53    4.24    2.49    3.97    2.62    3.30
+#> 10 1093.1  28               3.38    3.14    3.53    2.39    3.33    2.71    2.90
+#> # … with 35 more rows, 85 more variables: slope_iFLO_sd <dbl>,
+#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
+#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
+#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
+#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
+#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
 ```
 
 [Back to top](#1-introduction)
@@ -1239,127 +1345,106 @@ across the length of the whole reach.
 
 ``` r
 
-# This function is optional. It will save the hydroweight rasters in the output zip file.
+# This function is optional. It will save the hydroweight rasters in either a separate gpkp,
+# or the input pkg.
+
 # These can be large and take up a lot of room, so consider whether they are needed before storing.
 # Having the raster available does increase the computation time of fasttrib_points().
 
 dw_time<-system.time(
-  hydro_out<-prep_weights(
+  Processed_HW<-prep_weights(
     input=hydro_out,
-    sample_points=NULL,
-    link_id=NULL,
-    target_o_type=c("segment_whole"),
-    weighting_scheme =  c( "iFLS", "HAiFLS","iFLO",  "HAiFLO"),
-    inv_function = function(x) {
-      (x * 0.001 + 1)^-1
-    },
-    temp_dir=NULL,
-    verbose=F
+    output_filename=file.path(tempfile(),"Processed_HW_out.gpkg")
   )
 )
 
 
 fasttrib_points_time_big<-system.time(
   final_attributes_all<-fasttrib_points(
-    input=hydro_out, # We could use our sparse 'hydro_out_sparse', but with fasttrib_points(), we run all reaches
-    loi_file=output_filename_loi,
-    sample_points=NULL, 
-    link_id=NULL,
-    target_o_type="segment_whole",
-    out_filename="all_points_wgtattr.csv",
+    input=hydro_out,
+    out_filename="sample_points_wgtattr.csv",
+    loi_file=output_filename_loi, 
+    loi_cols=NULL,
+    iDW_file=file.path(tempfile(),"iDW_temp.gpkg"),
+    store_iDW=T,
+    raw_file=NULL, # We will set this to NULL to allow fair comparison with  `attrib_points()`
+    sample_points=NULL, # by specifying neither sample_points nor link_id
+    link_id=NULL,       #   we get all reaches
+    target_o_type=c("segment_point"),
     weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-    loi_numeric_stats = c("mean", "sd", "max","min"),
+    loi_numeric_stats = c("mean", "sd", "min", "max"),
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
-    use_existing_attr =F, # Setting this to TRUE will attempt to use previous distance weights
-    #                     # and attributes to recalculate summaries
-    store_hw=F, # Setting this to TRUE will save the resulting hydroweight rasters, as if running prep_weights(). 
-    #           # This adds to the size of the zip file, and increases the computation time.
-    use_exising_hw=F, # This will attempt to use existing hydroweights when available, 
-    #                 # we'll keep it FALSE to make a fair comparison with attrib_points()
-    subb_per_core=10000, # we don't need to worry about running out of memory with this dataset
-    #                    # but if it were an issue, this allows you to lower the amount of data held in memory
-    catch_per_core=2000,
-    temp_dir=NULL,
-    verbose=T
-  )
-)
-#> [1] "Reading in data"
-#> [1] "Merging stream segments"
-#> [1] "Generating Stream Targeted Weights"
-#> [1] "Writing S-targeted weights to attributes database"
-#> [1] "Generating Site Targeted Weights"
-#> [1] "Unnesting Basins"
-#> [1] "Writing O-targeted weights to attributes database"
-#> [1] "Writing LOI to attributes database"
-#> [1] "Writing subbasin summaries to database"
-#> [1] "Calculating lumped and s-targeted Attributes"
-#> [1] "Calculating o-targeted Attributes"
-
-final_attributes_all
-#> # A tibble: 1,196 × 93
-#>    link_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷ GEO_N…⁸
-#>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 6              0            0  0       0.429    0.571 0        0       0     
-#>  2 5              0            0  0       0.0828   0.917 0        0       0     
-#>  3 1202           0.0584       0  0.0896  0.0799   0.772 0        0       0     
-#>  4 1210           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
-#>  5 1208           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
-#>  6 1              0.0641       0  0.659   0.120    0.157 0        0       0.0487
-#>  7 1199           0.253        0  0.304   0.0704   0.373 0        0       0     
-#>  8 2              0.760        0  0.0396  0        0.200 0        0       0     
-#>  9 1200           0.285        0  0.428   0.104    0.167 0.0162   0       0     
-#> 10 33             0.319        0  0.0354  0.138    0.508 0        0       0     
-#> # … with 1,186 more rows, 84 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZfg_iFLS_prop <dbl>, GEO_NAME_CZg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZig_iFLS_prop <dbl>, GEO_NAME_CZlg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZve_iFLS_prop <dbl>, GEO_NAME_Km_iFLS_prop <dbl>,
-#> #   pontsrc_pontsrc_iFLS_prop <dbl>, slope_iFLS_mean <dbl>,
-#> #   LC_1_HAiFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>,
-#> #   LC_4_HAiFLS_prop <dbl>, LC_5_HAiFLS_prop <dbl>, LC_6_HAiFLS_prop <dbl>, …
-
-attrib_points_time_big<-system.time(
-  final_attributes_slow<-attrib_points(
-    input=hydro_out,
-    loi_file=output_filename_loi, #output file path from process_loi()
-    spec=NULL, # attrib_points() can be run without a spec table to calculate attributes across all reaches
-    weighting_scheme =  c("lumped", "iFLS", "iFLO",  "HAiFLO",  "HAiFLS"),
-    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "min", "max"),
-    OS_combine=F,
-    all_reaches=T,
-    target_streamseg=T,
-    inv_function = function(x) { 
-      (x * 0.001 + 1)^-1
-    },
-    remove_region=NULL,
-    return_products=F,
     temp_dir=NULL,
     verbose=F
   )
 )
 
+final_attributes_all
+#> # A tibble: 1,382 × 94
+#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
+#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 6       <NA>             3.97    3.25    3.97    2.57    3.93    2.68    2.97
+#>  2 5       <NA>             4.85    4.56    4.85    4.22    4.73    4.10    4.12
+#>  3 1202    <NA>             4.03    3.89    4.05    2.04    3.97    2.34    3.42
+#>  4 1210    <NA>             4.15    3.92    4.36    2.42    4.09    2.80    3.70
+#>  5 1208    <NA>             3.65    3.46    3.80    3.22    3.58    3.61    3.41
+#>  6 1       <NA>             4.44    4.04    4.44    3.52    4.40    3.57    3.74
+#>  7 1199    <NA>             3.75    3.62    3.85    3.40    3.65    3.85    3.40
+#>  8 2       <NA>             3.55    3.57    3.55    3.46    3.46    3.40    3.12
+#>  9 1200    <NA>             4.45    3.92    4.68    3.78    4.33    4.37    3.76
+#> 10 33      <NA>             4.79    4.48    4.79    3.93    4.64    4.27    4.16
+#> # … with 1,372 more rows, 85 more variables: slope_iFLO_sd <dbl>,
+#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
+#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
+#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
+#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
+#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
+
+attrib_points_time_big<-system.time(
+  final_attributes_slow<-attrib_points(
+    input=hydro_out,
+    out_filename=file.path(tempdir(),"attrib_points1.csv"),
+    loi_file=output_filename_loi,
+    loi_cols=NULL,
+    sample_points=NULL,
+    link_id=NULL,
+    clip_region=NULL,
+    target_o_type=c("segment_point"),
+    weighting_scheme = c("lumped","iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "min", "max"),
+    inv_function = function(x) {
+      (x * 0.001 + 1)^-1
+    },
+    temp_dir=NULL,
+    return_products=T,
+    verbose=F
+  )
+)
+
 final_attributes_slow
-#> # A tibble: 1,196 × 95
-#>    link_id distance_we…¹ weigh…² LC_1_…³ LC_1_…⁴ LC_1_…⁵ LC_1_…⁶ LC_1_…⁷ LC_2_…⁸
-#>      <dbl> <list>        <list>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1       1 <NULL>        <NULL>   0.0909 0.0205   0.118   0.110   0.0370       0
-#>  2       2 <NULL>        <NULL>   0.740  0.794    0.769   0.753   0.705        0
-#>  3       3 <NULL>        <NULL>   0.569  0.780    0.567   0.575   0.627        0
-#>  4       4 <NULL>        <NULL>   0.843  0.896    0.851   0.841   0.844        0
-#>  5       5 <NULL>        <NULL>   0      0        0       0       0            0
-#>  6       6 <NULL>        <NULL>   0      0        0       0       0            0
-#>  7       7 <NULL>        <NULL>   0      0        0       0       0            0
-#>  8       8 <NULL>        <NULL>   0.132  0.0250   0.147   0.126   0.0614       0
-#>  9       9 <NULL>        <NULL>   0.228  0.371    0.220   0.230   0.288        0
-#> 10      10 <NULL>        <NULL>   0.0624 0.00902  0.0650  0.0650  0.0115       0
-#> # … with 1,186 more rows, 86 more variables: LC_2_HAiFLO_prop <dbl>,
-#> #   LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
-#> #   LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, LC_3_lumped_prop <dbl>,
-#> #   LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, LC_4_iFLO_prop <dbl>,
-#> #   LC_4_HAiFLO_prop <dbl>, LC_4_lumped_prop <dbl>, LC_4_iFLS_prop <dbl>,
-#> #   LC_4_HAiFLS_prop <dbl>, LC_5_iFLO_prop <dbl>, LC_5_HAiFLO_prop <dbl>,
-#> #   LC_5_lumped_prop <dbl>, LC_5_iFLS_prop <dbl>, LC_5_HAiFLS_prop <dbl>, …
+#> # A tibble: 1,241 × 95
+#>    link_id site_id products     slope_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>    <chr>   <chr>   <list>          <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 6       <NA>    <named list>     3.73    1.91  0.100     8.26    3.89    1.92
+#>  2 5       <NA>    <named list>     4.20    2.40  0.356    10.4     4.60    2.51
+#>  3 1202    <NA>    <named list>     3.86    1.92  0.0656   12.7     4.01    1.91
+#>  4 1210    <NA>    <named list>     3.99    2.34  0.119    16.6     4.33    2.40
+#>  5 1208    <NA>    <named list>     3.46    2.21  0.0485   14.5     3.76    2.37
+#>  6 1       <NA>    <named list>     4.28    2.39  0.330    10.2     4.32    2.35
+#>  7 1199    <NA>    <named list>     3.44    2.15  0.117    12.9     3.79    2.26
+#>  8 2       <NA>    <named list>     3.18    1.75  0.0870    8.18    3.40    1.78
+#>  9 1200    <NA>    <named list>     4.20    2.60  0.162    17.8     4.60    2.75
+#> 10 33      <NA>    <named list>     4.44    2.77  0.0765   15.0     4.71    2.86
+#> # … with 1,231 more rows, 86 more variables: slope_iFLS_distwtd_mean <dbl>,
+#> #   slope_iFLS_distwtd_sd <dbl>, slope_HAiFLO_distwtd_mean <dbl>,
+#> #   slope_HAiFLO_distwtd_sd <dbl>, slope_HAiFLS_distwtd_mean <dbl>,
+#> #   slope_HAiFLS_distwtd_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_2_lumped_prop <dbl>, LC_3_lumped_prop <dbl>, LC_4_lumped_prop <dbl>,
+#> #   LC_5_lumped_prop <dbl>, LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>,
+#> #   GEO_NAME_CZam_lumped_prop <dbl>, GEO_NAME_CZbg_lumped_prop <dbl>, …
 
 pmap(
   list(
@@ -1370,13 +1455,13 @@ pmap(
          attrib_points_time_big,
          fasttrib_points_time_big),
     list(final_attributes_sub_slow %>%
-           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
          final_attributes_sub%>%
-           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
          final_attributes_slow %>%
-           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
          final_attributes_all%>%
-           select(-any_of("distance_weights"),-any_of("weighted_attr"),-any_of("link_id"),-any_of("site_id"))
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"))
     )),
   function(.z,.x,.y) paste0(.z," took ",
                             round(.x[[3]]/60,2),
@@ -1387,23 +1472,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.26 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 1.36 min to calculate for 3 reaches with 131 attributes using 4 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 0.94 min to calculate for 3 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 0.25 min to calculate for 3 reaches with 94 attributes using 4 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 44.42 min to calculate for 1196 reaches with 92 attributes using 8 cores."
+#> [1] "attrib_points() took 27.6 min to calculate for 1241 reaches with 92 attributes using 4 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 15.39 min to calculate for 1196 reaches with 92 attributes using 8 cores."
+#> [1] "fasttrib_points() took 6.08 min to calculate for 1382 reaches with 92 attributes using 4 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "1.63 min to calculate distance weights for 1196 reaches using 8 cores."
+#> [1] "1.65 min to calculate distance weights for 1382 reaches using 4 cores."
 ```
 
 [Back to top](#1-introduction)
@@ -1506,21 +1591,21 @@ comb_data<-response_table %>%
 
 head(comb_data)
 #> # A tibble: 6 × 337
-#>   site_id value link_id LC_1_i…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷
+#>   site_id value link_id slope_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
 #>   <chr>   <dbl> <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1           1 1107.1     0.290       0 7.36e-4  0.0665   0.643       0       0
-#> 2 4           1 1086.1     0.174       0 4.91e-2  0.0437   0.734       0       0
-#> 3 5           1 1048.1     0.594       0 8.35e-2  0.0118   0.311       0       0
-#> 4 7           1 1053.1     0.495       0 6.90e-2  0.0254   0.411       0       0
-#> 5 8           1 1074.1     0.263       0 5.18e-2  0.0390   0.645       0       0
-#> 6 11          2 1037.1     0.252       0 4.53e-2  0.0666   0.636       0       0
-#> # … with 327 more variables: GEO_NAME_CZam_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZbg_iFLS_prop <dbl>, GEO_NAME_CZfg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZg_iFLS_prop <dbl>, GEO_NAME_CZig_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZlg_iFLS_prop <dbl>, GEO_NAME_CZve_iFLS_prop <dbl>,
-#> #   GEO_NAME_Km_iFLS_prop <dbl>, pontsrc_pontsrc_iFLS_prop <dbl>,
-#> #   slope_iFLS_mean <dbl>, LC_1_HAiFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
-#> #   LC_3_HAiFLS_prop <dbl>, LC_4_HAiFLS_prop <dbl>, LC_5_HAiFLS_prop <dbl>, …
+#> 1 1           1 1107.1      3.08    2.79    3.13    2.41    3.02    2.71    2.60
+#> 2 4           1 1086.1      3.42    3.10    3.49    2.27    3.37    2.75    2.91
+#> 3 5           1 1048.1      2.57    2.53    2.57    2.13    2.52    2.30    2.49
+#> 4 7           1 1053.1      2.84    2.79    2.88    2.13    2.75    2.35    2.83
+#> 5 8           1 1074.1      3.29    3.05    3.35    2.35    3.23    3.16    2.97
+#> 6 11          2 1037.1      3.49    3.17    3.63    3.38    3.42    4.17    3.13
+#> # … with 327 more variables: slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>,
+#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
+#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
+#> #   LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
+#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
+#> #   LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>,
+#> #   LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, LC_3_lumped_prop <dbl>, …
 ```
 
 Then, we’ll follow the tidymodels workflow from here:
@@ -1544,7 +1629,7 @@ rf_mod <- rand_forest(trees = tune(),
              keep.inbag=TRUE,
              quantreg=TRUE,
              splitrule="extratrees", # for generally improved accuracy
-             num.random.splits = 5
+             num.random.splits = 10
   ) %>% 
   set_mode("regression")
 
@@ -1552,7 +1637,8 @@ rf_mod <- rand_forest(trees = tune(),
 recip<-recipe(x=comb_data %>%
                 select(-starts_with("CLUST_"),
                        -contains("site_id"),
-                       -contains('link_id'))
+                       -contains('link_id'),
+                       -contains('pour_point_id'))
 ) %>% 
   update_role(c(everything()),new_role="predictor") %>% 
   update_role(value,new_role="outcome") %>% 
@@ -1590,7 +1676,7 @@ standard_cv<-map2(cv_strats$standard$splits,1:length(cv_strats$standard$splits),
 tmap_arrange(c(spatial_cv,standard_cv),ncol=5)
 ```
 
-<img src="man/figures/README-unnamed-chunk-25-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
 We see the spatial-cross validation hold-out sites cluster nicely
 together, whereas the standard cross-validation are randomly distributed
@@ -1608,11 +1694,11 @@ wf<-workflow() %>%
 
 # tune_grid() can only work in parallel with the doParallel package
 plan(sequential)
-
-library(doParallel)
-cl <- makeCluster(8)
-registerDoParallel(cl)
-set.seed(1234)
+# 
+# library(doParallel)
+# cl <- makeCluster(8)
+# registerDoParallel(cl)
+# set.seed(1234)
 
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
@@ -1620,7 +1706,8 @@ final_out<-map(cv_strats,
                ) 
 )
 
-stopCluster(cl)
+# stopCluster(cl)
+
 # We expect the standard cross-validation to have higher accuracy than spatial
 # cross-validation because the spatial autocorrelation variables should allow more accurate
 # predictions from nearby sites. Conversely, the spatial cross-validation models
@@ -1631,32 +1718,32 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard          132   359    24 rmse    standa…  2.89     5   0.151 Prepro…
-#>  2 standard          129   259    25 rmse    standa…  2.91     5   0.152 Prepro…
-#>  3 standard           66   524    23 rmse    standa…  2.92     5   0.136 Prepro…
-#>  4 standard            8  1720     3 rmse    standa…  2.92     5   0.149 Prepro…
-#>  5 standard           68   288    26 rmse    standa…  2.93     5   0.136 Prepro…
-#>  6 spatial           126   685    26 rmse    standa…  2.80     5   0.243 Prepro…
-#>  7 spatial           116   136    27 rmse    standa…  2.83     5   0.250 Prepro…
-#>  8 spatial            96  1729    28 rmse    standa…  2.83     5   0.253 Prepro…
-#>  9 spatial            88  1879    27 rmse    standa…  2.84     5   0.255 Prepro…
-#> 10 spatial           134  1813    23 rmse    standa…  2.84     5   0.237 Prepro…
+#>  1 standard            7   852     3 rmse    standa…  2.96     5  0.165  Prepro…
+#>  2 standard            2  1891    16 rmse    standa…  2.99     5  0.0943 Prepro…
+#>  3 standard          116   540     7 rmse    standa…  2.99     5  0.253  Prepro…
+#>  4 standard           12  1756    28 rmse    standa…  3.00     5  0.104  Prepro…
+#>  5 standard          112    86    10 rmse    standa…  3.00     5  0.179  Prepro…
+#>  6 spatial            49  1407    36 rmse    standa…  2.95     5  0.338  Prepro…
+#>  7 spatial            42  1953    40 rmse    standa…  2.95     5  0.348  Prepro…
+#>  8 spatial            25  1378    38 rmse    standa…  2.97     5  0.339  Prepro…
+#>  9 spatial            52  1631    37 rmse    standa…  2.98     5  0.333  Prepro…
+#> 10 spatial             8   760    34 rmse    standa…  2.98     5  0.312  Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 
 map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
-#>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
-#>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            2   827    18 rsq     standa… 0.228     5  0.0970 Prepro…
-#>  2 standard            5   981    30 rsq     standa… 0.212     5  0.0768 Prepro…
-#>  3 standard            8  1720     3 rsq     standa… 0.208     5  0.0801 Prepro…
-#>  4 standard           66   524    23 rsq     standa… 0.205     5  0.0717 Prepro…
-#>  5 standard          132   359    24 rsq     standa… 0.204     5  0.0691 Prepro…
-#>  6 spatial           114  1284    36 rsq     standa… 0.195     2  0.122  Prepro…
-#>  7 spatial           127   909    35 rsq     standa… 0.121     4  0.0607 Prepro…
-#>  8 spatial           126   685    26 rsq     standa… 0.117     5  0.0406 Prepro…
-#>  9 spatial            83   735    34 rsq     standa… 0.112     4  0.0641 Prepro…
-#> 10 spatial            96  1729    28 rsq     standa… 0.101     5  0.0433 Prepro…
+#>    Cross-valida…¹  mtry trees min_n .metric .esti…²   mean     n std_err .config
+#>    <chr>          <int> <int> <int> <chr>   <chr>    <dbl> <int>   <dbl> <chr>  
+#>  1 standard         116   540     7 rsq     standa… 0.229      5  0.0902 Prepro…
+#>  2 standard           2  1891    16 rsq     standa… 0.222      5  0.108  Prepro…
+#>  3 standard           7   852     3 rsq     standa… 0.212      5  0.0887 Prepro…
+#>  4 standard         136  1221     8 rsq     standa… 0.210      5  0.0816 Prepro…
+#>  5 standard           4   238     6 rsq     standa… 0.205      5  0.110  Prepro…
+#>  6 spatial            1  1763     5 rsq     standa… 0.109      5  0.0565 Prepro…
+#>  7 spatial           49  1407    36 rsq     standa… 0.0646     2  0.0645 Prepro…
+#>  8 spatial           97    49    31 rsq     standa… 0.0589     2  0.0586 Prepro…
+#>  9 spatial            6  1721     9 rsq     standa… 0.0467     5  0.0131 Prepro…
+#> 10 spatial          101   168    35 rsq     standa… 0.0466     4  0.0323 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1671,20 +1758,20 @@ in this data, it is difficult to evaluate that aspect of the model.
 # We will use rmse to select best metrics overall as it is better suited
 # for model selection in this context than r^2
 
-best_tunes<-map(final_out,select_by_pct_loss,1,metric = "rmse")
+best_tunes<-map(final_out,select_best,1,metric = "rmse")
 
 best_tunes
 #> $standard
-#> # A tibble: 1 × 11
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    48  1190    26 rmse    standard    2.95     5   0.115 Preproce…  2.89  1.90
+#> # A tibble: 1 × 4
+#>    mtry trees min_n .config              
+#>   <int> <int> <int> <chr>                
+#> 1     7   852     3 Preprocessor1_Model40
 #> 
 #> $spatial
-#> # A tibble: 1 × 11
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1   126   685    26 rmse    standard    2.80     5   0.243 Preproce…  2.80     0
+#> # A tibble: 1 × 4
+#>    mtry trees min_n .config              
+#>   <int> <int> <int> <chr>                
+#> 1    49  1407    36 Preprocessor1_Model13
 
 # Final ranger results
 final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
@@ -1706,7 +1793,7 @@ tibble(
   theme_bw()
 ```
 
-<img src="man/figures/README-unnamed-chunk-27-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-28-1.png" width="100%" />
 
 Finally, we will use the model to predict across the whole landscape.
 First we’ll assemble a table to predict from:
@@ -1729,29 +1816,29 @@ prediction_data<-final_attributes_all %>%
     by=c("link_id")
   ) %>% 
   mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.))) %>% 
-  tidyr::drop_na()
+  tidyr::drop_na(c(everything(),-site_id))
 
 prediction_data
-#> # A tibble: 1,196 × 138
-#>    link_id LC_1_iFLS_p…¹ LC_2_…² LC_3_…³ LC_4_…⁴ LC_5_…⁵ LC_6_…⁶ LC_7_…⁷ GEO_N…⁸
-#>    <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 6              0            0  0       0.429    0.571 0        0       0     
-#>  2 5              0            0  0       0.0828   0.917 0        0       0     
-#>  3 1202           0.0584       0  0.0896  0.0799   0.772 0        0       0     
-#>  4 1210           0.179        0  0.0540  0.0903   0.677 0        0       0.0112
-#>  5 1208           0.0946       0  0.290   0.0729   0.521 0.00754  0.0136  0.101 
-#>  6 1              0.0641       0  0.659   0.120    0.157 0        0       0.0487
-#>  7 1199           0.253        0  0.304   0.0704   0.373 0        0       0     
-#>  8 2              0.760        0  0.0396  0        0.200 0        0       0     
-#>  9 1200           0.285        0  0.428   0.104    0.167 0.0162   0       0     
-#> 10 33             0.319        0  0.0354  0.138    0.508 0        0       0     
-#> # … with 1,186 more rows, 129 more variables: GEO_NAME_CZbg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZfg_iFLS_prop <dbl>, GEO_NAME_CZg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZig_iFLS_prop <dbl>, GEO_NAME_CZlg_iFLS_prop <dbl>,
-#> #   GEO_NAME_CZve_iFLS_prop <dbl>, GEO_NAME_Km_iFLS_prop <dbl>,
-#> #   pontsrc_pontsrc_iFLS_prop <dbl>, slope_iFLS_mean <dbl>,
-#> #   LC_1_HAiFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>,
-#> #   LC_4_HAiFLS_prop <dbl>, LC_5_HAiFLS_prop <dbl>, LC_6_HAiFLS_prop <dbl>, …
+#> # A tibble: 1,249 × 139
+#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
+#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 6       <NA>             3.97    3.25    3.97    2.57    3.93    2.68    2.97
+#>  2 5       <NA>             4.85    4.56    4.85    4.22    4.73    4.10    4.12
+#>  3 1202    <NA>             4.03    3.89    4.05    2.04    3.97    2.34    3.42
+#>  4 1210    <NA>             4.15    3.92    4.36    2.42    4.09    2.80    3.70
+#>  5 1208    <NA>             3.65    3.46    3.80    3.22    3.58    3.61    3.41
+#>  6 1       <NA>             4.44    4.04    4.44    3.52    4.40    3.57    3.74
+#>  7 1199    <NA>             3.75    3.62    3.85    3.40    3.65    3.85    3.40
+#>  8 2       <NA>             3.55    3.57    3.55    3.46    3.46    3.40    3.12
+#>  9 1200    <NA>             4.45    3.92    4.68    3.78    4.33    4.37    3.76
+#> 10 33      <NA>             4.79    4.48    4.79    3.93    4.64    4.27    4.16
+#> # … with 1,239 more rows, 130 more variables: slope_iFLO_sd <dbl>,
+#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
+#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
+#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
+#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
+#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
 ```
 
 And finally, we can predict across the landscape. We’ll use the range of
@@ -1776,34 +1863,34 @@ prediction_tbl<-tibble(
          `Predicted`=p50) 
 
 prediction_tbl
-#> # A tibble: 1,196 × 6
+#> # A tibble: 1,249 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
 #>  1 6           1     2     4           3         2
-#>  2 5           1     3     5           4         3
+#>  2 5           2     3     4           2         3
 #>  3 1202        1     1     3           2         1
 #>  4 1210        1     1     3           2         1
-#>  5 1208        1     4     6           5         4
-#>  6 1           3     5     8           5         5
-#>  7 1199        2     4     8           6         4
-#>  8 2           3     7     8           5         7
-#>  9 1200        3     5     8           5         5
-#> 10 33          1     3     6           5         3
-#> # … with 1,186 more rows
+#>  5 1208        2     4     6           4         4
+#>  6 1           3     4     8           5         4
+#>  7 1199        2     3     6           4         3
+#>  8 2           1     8     8           7         8
+#>  9 1200        3     4     8           5         4
+#> 10 33          3     3     6           3         3
+#> # … with 1,239 more rows
 
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
-Streams<-read_sf(file.path("/vsizip",hydro_out$outfile,"stream_lines.shp")) %>% 
+Streams<-read_sf(hydro_out$outfile,"stream_lines") %>% 
   mutate(link_id=floor(link_id)) %>% 
   group_by(link_id) %>%              
-  summarize(geometry=st_union(geometry)) %>%
+  summarize(geom=sf::st_union(geom)) %>%
   ungroup() %>% 
   mutate(link_id=as.character(link_id)) 
 
 Streams<-Streams %>% 
   left_join(prediction_tbl)
 
-Points<-read_sf(file.path("/vsizip",hydro_out$outfile,"snapped_points.shp")) %>% 
+Points<-read_sf(hydro_out$outfile,"snapped_points") %>% 
   mutate(link_id=as.character(link_id)) %>% 
   left_join(response_table %>% select(-link_id)) %>% 
   filter(!is.na(link_id)) %>% 
@@ -1831,7 +1918,7 @@ tm_shape(Streams) +
   tm_layout(legend.outside = TRUE)
 ```
 
-<img src="man/figures/README-unnamed-chunk-29-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-30-1.png" width="100%" />
 
 We can also summarize the percent of stream lengths that fall within
 predicted value classes:
@@ -1839,7 +1926,7 @@ predicted value classes:
 ``` r
 
 Streams %>% 
-  mutate(strm_len=as.numeric(st_length(geometry))) %>% 
+  mutate(strm_len=as.numeric(st_length(geom))) %>% 
   as_tibble() %>% 
   mutate(`Prediction Groups` = cut(Predicted, 
                                    breaks = c(0,2,4,6,8,10), 
@@ -1856,7 +1943,7 @@ Streams %>%
   theme_bw()
 ```
 
-<img src="man/figures/README-unnamed-chunk-30-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-31-1.png" width="100%" />
 
 ## 8 Future Plans
 
@@ -1864,10 +1951,10 @@ This package is considered in early alpha, and bugs are expected. There
 is lots of room for improvements in many of the functions. The core
 functions may still change as the package develops and matures.
 
--   One big area of improvement will be the handling of the output .zip
-    file structure.
--   output .zip may be replaced by a spatialite database file.
--   Many functions can be cleaned and optimized further.
+- One big area of improvement will be the handling of the output gpkg
+  file structure.
+- output gpkg may be replaced by a spatialite/rasterlite database file.
+- Many functions can be cleaned and optimized further.
 
 ## 9 References
 

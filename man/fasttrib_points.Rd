@@ -6,61 +6,52 @@
 \usage{
 fasttrib_points(
   input,
+  out_filename,
   loi_file = NULL,
   loi_cols = NULL,
+  iDW_file = NULL,
+  store_iDW = F,
+  raw_file = NULL,
   sample_points = NULL,
   link_id = NULL,
   target_o_type = c("point", "segment_point", "segment_whole"),
-  weighting_scheme = c("lumped", "iEucS", "iFLS", "HAiFLS", "iEucO", "iFLO", "HAiFLO"),
+  weighting_scheme = c("lumped", "iFLS", "HAiFLS", "iFLO", "HAiFLO"),
   loi_numeric_stats = c("mean", "sd", "median", "min", "max", "sum"),
   inv_function = function(x) {
      (x * 0.001 + 1)^-1
  },
-  use_exising_hw = F,
-  use_existing_attr = F,
-  store_hw = F,
-  out_filename = NULL,
-  subb_per_core = 1000,
-  catch_per_core = 8,
   temp_dir = NULL,
-  unzip_arg = "internal",
   verbose = F
 )
 }
 \arguments{
 \item{input}{output from \code{process_hydrology()} (if \code{process_loi()} was not run on \code{process_hydrology()}, \code{loi_file} must be specified)}
 
-\item{loi_file}{filepath of \code{process_loi()} output (optional, will overwrite data in \code{process_hydrology()} output if present).}
+\item{out_filename}{Output file name, ending in '.csv'.}
+
+\item{loi_file}{filepath of \code{process_loi()} output (optional, will search for loi layers in 'input' if not specified).}
 
 \item{loi_cols}{character or NULL. Names of loi layers to include in summary. If NULL, all layers used.}
 
-\item{sample_points}{character or NULL. IDs of unique station identifiers priveded in 'site_id_col' of \code{generate_vectors()}}
+\item{iDW_file}{filepath of \code{prep_weights()} output (optional, will search for weight layers in 'input' if not specified).}
+
+\item{store_iDW}{logical, if 'iDW_file' is NULL, weights will be added to 'input'}
+
+\item{raw_file}{Optional, file path to store intermediate SQL table, if file doesn't exist, it will be created at the specified path, if it does exist it will be queried first, and only extra data that is needed will be added.}
+
+\item{sample_points}{character or NULL. IDs of unique station identifiers provided in 'site_id_col' of \code{generate_vectors()} to calculate attributes for.}
 
 \item{link_id}{character or NULL. 'link_id's of reaches to calculate attributes for.}
 
-\item{target_o_type}{character. One of: c("point","segment_point","segment_whole"). Target for iEucO" "iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.}
+\item{target_o_type}{character. One of: c("point","segment_point","segment_whole"). Target for"iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.}
 
-\item{weighting_scheme}{character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")}
+\item{weighting_scheme}{character. One or more weighting schemes: c("lumped","iFLO", "iFLS", "HAiFLO", "HAiFLS")}
 
 \item{loi_numeric_stats}{character. One or more of c("mean", "sd", "median", "min", "max", "sum"). Only distance-weighted versions of mean and SD are returned for all weighting schemes except lumped.}
 
 \item{inv_function}{function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.}
 
-\item{use_exising_hw}{logical. Should the function look for existing hydroweight layers in the zip file?}
-
-\item{use_existing_attr}{logical. Should the function look for existing attribute layers in the database file?}
-
-\item{store_hw}{logical. Should hydroweight layer be stored and added to the zip file?}
-
-\item{out_filename}{Output file name.}
-
-\item{subb_per_core}{numeric, number of subbasins to evaluate per core cycle}
-
-\item{catch_per_core}{numeric, number of catchments to evaluate per core cycle}
-
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
-
-\item{unzip_arg}{character. Arguments passed to unzip. In Unix systems, may need to set to unzip_arg = "/usr/bin/unzip" to avoid warning about corrupted zip file.}
 
 \item{verbose}{logical.}
 }

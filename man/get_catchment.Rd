@@ -2,22 +2,22 @@
 % Please edit documentation in R/get_catchment.R
 \name{get_catchment}
 \alias{get_catchment}
-\title{Generate upstream catchment areas for target points}
+\title{Generate upstream catchment areas for points}
 \usage{
-get_catchment(input, site_id_col = NULL, target_points, temp_dir = NULL)
+get_catchment(input, sample_points = NULL, link_id = NULL, temp_dir = NULL)
 }
 \arguments{
 \item{input}{output of \code{process_hydrology()} or one containing \code{generate_subbasins()} and \code{trace_flowpaths()}}
 
-\item{site_id_col}{\code{NULL} or character. If Character, must match \code{site_id_col} from \code{insert_points()}}
+\item{sample_points}{character or NULL. IDs of unique station identifiers provided in 'site_id_col' of \code{generate_vectors()} to calculate catchments for.}
 
-\item{target_points}{character. Unique site identifier(s) from \code{site_id_col}, or \code{link_id} values corresponding to specific reaches.}
+\item{link_id}{character or NULL. 'link_id's of reaches to calculate catchments for.}
 
 \item{temp_dir}{character. File path for temporary file storage, If \code{NULL}, \code{tempfile()} will be used}
 }
 \value{
-polygon of upstream catchments at \code{target_points}
+sf polygon of upstream catchments
 }
 \description{
-Generate upstream catchment areas for target points
+Catchments are automatically added to Catchment_poly layer in the geopackage for easier future retrieval
 }
