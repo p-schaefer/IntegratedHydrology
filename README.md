@@ -129,7 +129,7 @@ Hence, autocorrelation should be low because the tributary does not
 contribute much flow to the larger stream. Using in-stream distances
 alone may misrepresent this pattern.
 
-***ihydro*** stores its geospatial products in a zip file for ease of
+***ihydro*** stores its geospatial products in a geopackage file for ease of
 retrieval and extraction in external software (i.e. QGIS). Many
 ***ihydro*** function can be run in parallel for increased speed (if
 enough memory is available). The functions are also quick at removing
