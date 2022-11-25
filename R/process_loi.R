@@ -164,7 +164,11 @@ process_loi<-function(
     output_filename = as.list(rep(output_filename,length(c(num_inputs,cat_inputs))))
   )
 
-  inputs_list$lyr_variables[sapply(inputs_list$lyr_variables,is.null)]<-NA_character_
+  if (!is.null(inputs_list$lyr_variables[sapply(inputs_list$lyr_variables,is.null)])){
+    inputs_list$lyr_variables[sapply(inputs_list$lyr_variables,is.null)]<-NA_character_
+  } else {
+    inputs_list$lyr_variables<-rep(list(NA_character_),length(inputs_list$lyr_nms))
+  }
 
 
   if (!file.exists(output_filename)){
