@@ -124,15 +124,33 @@ process_loi<-function(
 
   num_inputs<-purrr::map(num_inputs,function(x){
     if (inherits(x,"character")) return(x)
-    if (inherits(x,c("sf","sfc","sfg"))) return(terra::wrap(terra::vect(x)))
-    if (inherits(x,c("SpatRaster","SpatVector"))) return(terra::wrap(x))
+    if (inherits(x,c("sf","sfc","sfg","SpatVector"))) {
+      fp<-file.path(temp_dir,paste0(basename(tempfile()),".shp"))
+      if (inherits(x,"SpatVector")) x<-sf::st_as_sf(x)
+      sf::write_sf(x,fp)
+      #return(terra::wrap(terra::vect(x)))
+      }
+    if (inherits(x,c("SpatRaster"))) {
+      fp<-file.path(temp_dir,paste0(basename(tempfile()),".tif"))
+      terra::writeRaster(x,fp)
+    #return(terra::wrap(x))
+      }
     return(x)
   })
 
   cat_inputs<-purrr::map(cat_inputs,function(x){
     if (inherits(x,"character")) return(x)
-    if (inherits(x,c("sf","sfc","sfg"))) return(terra::wrap(terra::vect(x)))
-    if (inherits(x,c("SpatRaster","SpatVector"))) return(terra::wrap(x))
+    if (inherits(x,c("sf","sfc","sfg","SpatVector"))) {
+      fp<-file.path(temp_dir,paste0(basename(tempfile()),".shp"))
+      if (inherits(x,"SpatVector")) x<-sf::st_as_sf(x)
+      sf::write_sf(x,fp)
+      #return(terra::wrap(terra::vect(x)))
+    }
+    if (inherits(x,c("SpatRaster"))) {
+      fp<-file.path(temp_dir,paste0(basename(tempfile()),".tif"))
+      terra::writeRaster(x,fp)
+      #return(terra::wrap(x))
+    }
     return(x)
   })
 
