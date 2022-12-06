@@ -354,6 +354,8 @@ process_loi<-function(
 
   })
 
+  if (verbose) message("Generating Outputs")
+
   future_proc_status <- future::futureOf(future_proc)
   #browser()
   while(!future::resolved(future_proc_status)){
@@ -367,6 +369,8 @@ process_loi<-function(
     for (x in fl) {
       tot<-try(terra::rast(x),silent=T)
       if (inherits(tot,"try-error")) next()
+      if (verbose) message(paste0("Writing: ",names(tot)))
+
       tott<-terra::writeRaster(
         tot,
         output_filename,
@@ -405,6 +409,8 @@ process_loi<-function(
       sys.sleep(0.5)
       tot<-try(terra::rast(x),silent=T)
     }
+    if (verbose) message(paste0("Writing: ",names(tot)))
+
     tott<-terra::writeRaster(
       tot,
       output_filename,
@@ -451,7 +457,6 @@ process_loi<-function(
 
 
   # Generate Output ---------------------------------------------------------
-  if (verbose) message("Generating Outputs")
 
 
   output<-input
