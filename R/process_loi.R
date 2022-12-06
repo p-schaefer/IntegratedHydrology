@@ -318,7 +318,7 @@ process_loi<-function(
                                                  t1<-terra::writeRaster(
                                                    output[[i]],
                                                    file.path(temp_dir_save,paste0(names(output[[i]]),".tif")),
-                                                   datatype=ifelse(resaml=="near","INT2U","FLT4S"),
+                                                   datatype="FLT4S",
                                                    overwrite=T
                                                  )
 
