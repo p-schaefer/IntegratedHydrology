@@ -2,6 +2,7 @@
 
 export("%>%")
 export(as.ihydro)
+export(as_ihydro)
 export(attrib_points)
 export(attrib_streamline)
 export(fasttrib_points)

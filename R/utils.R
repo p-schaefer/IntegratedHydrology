@@ -21,6 +21,9 @@ as.ihydro<-function(file){
   return(out)
 }
 
+#' @export
+as_ihydro<-function(...) as.ihydro(...)
+
 # print.ihydro<-function(x){
 #   ihydro_layers(x)
 # }
@@ -62,9 +65,11 @@ ihydro_layers<-function(input) {
 
   DBI::dbDisconnect(con)
 
+  lyr<-suppressWarnings(sf::st_layers(input$outfile))
+
   vect_lyrs<-tibble::tibble(
-    layer_name=unlist(suppressWarnings(sf::st_layers(input$outfile))[[1]]),
-    data_type=unlist(suppressWarnings(sf::st_layers(input$outfile))[[2]])
+    layer_name=unlist(lyr[[1]]),
+    data_type=unlist(lyr[[2]])
   ) %>%
     dplyr::mutate(data_type=dplyr::case_when(
       grepl("Polygon",data_type) ~ "Polygon",
