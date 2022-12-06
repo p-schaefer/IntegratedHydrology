@@ -129,12 +129,12 @@ process_loi<-function(
       if (inherits(x,"SpatVector")) x<-sf::st_as_sf(x)
       sf::write_sf(x,fp)
       #return(terra::wrap(terra::vect(x)))
-      }
+    }
     if (inherits(x,c("SpatRaster"))) {
       fp<-file.path(temp_dir,paste0(basename(tempfile()),".tif"))
       terra::writeRaster(x,fp)
-    #return(terra::wrap(x))
-      }
+      #return(terra::wrap(x))
+    }
     return(x)
   })
 
@@ -371,14 +371,27 @@ process_loi<-function(
       if (inherits(tot,"try-error")) next()
       if (verbose) message(paste0("Writing: ",names(tot)))
 
-      tott<-terra::writeRaster(
+      tott<-try(terra::writeRaster(
         tot,
         output_filename,
         filetype = "GPKG",
         gdal = c("APPEND_SUBDATASET=YES",
                  paste0("RASTER_TABLE=",names(tot),"")
         )
-      )
+      ),slent=T)
+
+      if (inherits(tott,"try-error")) {
+        if (attr(tott,"condition")$message != "stoi"){
+          tott<-terra::writeRaster(
+            tot,
+            output_filename,
+            filetype = "GPKG",
+            gdal = c("APPEND_SUBDATASET=YES",
+                     paste0("RASTER_TABLE=",names(tot),"")
+            ))
+        }
+      }
+
       # tott<- tot  %>%
       #   stars::write_stars(
       #     output_filename,
@@ -411,14 +424,26 @@ process_loi<-function(
     }
     if (verbose) message(paste0("Writing: ",names(tot)))
 
-    tott<-terra::writeRaster(
+    tott<-try(terra::writeRaster(
       tot,
       output_filename,
       filetype = "GPKG",
       gdal = c("APPEND_SUBDATASET=YES",
                paste0("RASTER_TABLE=",names(tot),"")
       )
-    )
+    ),slent=T)
+
+    if (inherits(tott,"try-error")) {
+      if (attr(tott,"condition")$message != "stoi"){
+        tott<-terra::writeRaster(
+          tot,
+          output_filename,
+          filetype = "GPKG",
+          gdal = c("APPEND_SUBDATASET=YES",
+                   paste0("RASTER_TABLE=",names(tot),"")
+          ))
+      }
+    }
     # tott<-tot %>%
     #   stars::write_stars(
     #     output_filename,
