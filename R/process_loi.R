@@ -361,26 +361,25 @@ process_loi<-function(
 
 
     for (x in fl) {
-      tot<-try(terra::rast(x) %>%
-                 stars::st_as_stars(),silent=T)
+      tot<-try(terra::rast(x),silent=T)
       if (inherits(tot,"try-error")) next()
-      # tott<-terra::writeRaster(
-      #   tot,
-      #   output_filename,
-      #   filetype = "GPKG",
-      #   gdal = c("APPEND_SUBDATASET=YES",
-      #            paste0("RASTER_TABLE=",names(tot),"")
-      #   )
-      # )
-      tott<- tot  %>%
-        stars::write_stars(
-          output_filename,
-          driver = "GPKG",
-          append=T,
-          options = c("APPEND_SUBDATASET=YES",
-                      paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
-          )
+      tott<-terra::writeRaster(
+        tot,
+        output_filename,
+        filetype = "GPKG",
+        gdal = c("APPEND_SUBDATASET=YES",
+                 paste0("RASTER_TABLE=",names(tot),"")
         )
+      )
+      # tott<- tot  %>%
+      #   stars::write_stars(
+      #     output_filename,
+      #     driver = "GPKG",
+      #     append=T,
+      #     options = c("APPEND_SUBDATASET=YES",
+      #                 paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
+      #     )
+      #   )
 
       file.remove(x)
     }
@@ -397,30 +396,28 @@ process_loi<-function(
 
   fl<-list.files(temp_dir_save,".tif",full.names = T)
   for (x in fl) {
-    tot<-try(terra::rast(x)%>%
-               stars::st_as_stars(),silent=T)
+    tot<-try(terra::rast(x),silent=T)
     while (inherits(tot,"try-error")) {
       sys.sleep(0.5)
-      tot<-try(terra::rast(x)%>%
-                 stars::st_as_stars(),silent=T)
+      tot<-try(terra::rast(x),silent=T)
     }
-    # tott<-terra::writeRaster(
-    #   tot,
-    #   output_filename,
-    #   filetype = "GPKG",
-    #   gdal = c("APPEND_SUBDATASET=YES",
-    #            paste0("RASTER_TABLE=",names(tot),"")
-    #   )
-    # )
-    tott<-tot %>%
-      stars::write_stars(
-        output_filename,
-        driver = "GPKG",
-        append=T,
-        options = c("APPEND_SUBDATASET=YES",
-                    paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
-        )
+    tott<-terra::writeRaster(
+      tot,
+      output_filename,
+      filetype = "GPKG",
+      gdal = c("APPEND_SUBDATASET=YES",
+               paste0("RASTER_TABLE=",names(tot),"")
       )
+    )
+    # tott<-tot %>%
+    #   stars::write_stars(
+    #     output_filename,
+    #     driver = "GPKG",
+    #     append=T,
+    #     options = c("APPEND_SUBDATASET=YES",
+    #                 paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
+    #     )
+    #   )
 
     file.remove(x)
   }

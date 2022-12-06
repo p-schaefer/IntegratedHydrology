@@ -61,6 +61,9 @@ process_flowdir<-function(
   if (!grepl("\\.gpkg$",output_filename)) stop("'output_filename' must be a file path ending in '.gpkg'")
   if (file.exists(output_filename)) stop("'output_filename' already exists")
 
+  out_file<-output_filename
+  out_dir<-gsub(basename(out_file),"",out_file)
+  if (!dir.exists(out_dir)) dir.create(out_dir)
 
   depression_corr<-match.arg(depression_corr)
 
@@ -225,31 +228,34 @@ process_flowdir<-function(
   for (i in dist_list_out){
     tmp<-terra::rast(unlist(i))
 
-    ot<-tmp %>%
-      stars::st_as_stars() %>%
-      stars::write_stars(
-        out_file,
-        driver = "GPKG",
-        append=T,
-        options = c("APPEND_SUBDATASET=YES",
-                    paste0("RASTER_TABLE=",names(tmp))
-        )
-      )
-    # t1<-terra::writeRaster(
-    #   tmp,
-    #   file.path(temp_dir,"temp.tif"),
-    #   datatype="FLT4S",
-    #   overwrite=T
-    # )
-    #
-    # terra::writeRaster(
-    #   t1,
-    #   out_file,
-    #   filetype = "GPKG",
-    #   gdal = c("APPEND_SUBDATASET=YES",
-    #            paste0("RASTER_TABLE=",names(tmp),"")
+    if (verbose) message(paste0("Writing: ",names(tmp)))
+
+    # ot<-tmp %>%
+    #   stars::st_as_stars() %>%
+    #   stars::write_stars(
+    #     out_file,
+    #     driver = "GPKG",
+    #     append=T,
+    #     type="Float32",
+    #     options = c("APPEND_SUBDATASET=YES",
+    #                 paste0("RASTER_TABLE=",names(tmp))
+    #     )
     #   )
-    # )
+    t1<-terra::writeRaster(
+      tmp,
+      file.path(temp_dir,"temp.tif"),
+      datatype="FLT4S",
+      overwrite=T
+    )
+
+    terra::writeRaster(
+      t1,
+      out_file,
+      filetype = "GPKG",
+      gdal = c("APPEND_SUBDATASET=YES",
+               paste0("RASTER_TABLE=",names(tmp),"")
+      )
+    )
   }
 
   # utils::zip(out_file,

@@ -409,31 +409,29 @@ prep_weights<-function(
           if (length(fl_un)>0) {
             rast_all<-purrr::map(fl_un,function(y) {
               Sys.sleep(0.2)
-              x<-try(terra::rast(y)%>%
-                       stars::st_as_stars(),
+              x<-try(terra::rast(y),
                      silent = T)
               # x<-try(terra::rast(y),
               #        silent = T)
 
               if (inherits(x,"try-error")) return(NULL)
-              # ot<-try(terra::writeRaster(
-              #   x,
-              #   output_filename$outfile,
-              #   filetype = "GPKG",
-              #   gdal = c("APPEND_SUBDATASET=YES",
-              #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
-              #   )
-              # ),
-              # silent=T)
-              ot<-x %>%
-                stars::write_stars(
-                  output_filename$outfile,
-                  driver = "GPKG",
-                  append=T,
-                  options = c("APPEND_SUBDATASET=YES",
-                              paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
-                  )
+              ot<-terra::writeRaster(
+                x,
+                output_filename$outfile,
+                filetype = "GPKG",
+                gdal = c("APPEND_SUBDATASET=YES",
+                         paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
                 )
+              )
+              # ot<-x %>%
+              #   stars::write_stars(
+              #     output_filename$outfile,
+              #     driver = "GPKG",
+              #     append=T,
+              #     options = c("APPEND_SUBDATASET=YES",
+              #                 paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
+              #     )
+              #   )
 
 
               p()
@@ -463,34 +461,31 @@ prep_weights<-function(
         if (length(fl_un)>0) {
           rast_all<-purrr::map(fl_un,function(y) {
 
-            x<-try(terra::rast(y)%>%
-                     stars::st_as_stars(),silent = T)
+            x<-try(terra::rast(y),silent = T)
             # x<-try(terra::rast(y),silent = T)
 
             while (inherits(x,"try-error")) {
               sys.sleep(0.5)
               # x<-try(terra::rast(y),silent = T)
-              x<-try(terra::rast(y)%>%
-                       stars::st_as_stars(),silent=T)
+              x<-try(terra::rast(y),silent=T)
             }
-            # ot<-try(terra::writeRaster(
-            #   x,
-            #   output_filename$outfile,
-            #   filetype = "GPKG",
-            #   gdal = c("APPEND_SUBDATASET=YES",
-            #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+            ot<-terra::writeRaster(
+              x,
+              output_filename$outfile,
+              filetype = "GPKG",
+              gdal = c("APPEND_SUBDATASET=YES",
+                       paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+              )
+            )
+            # ot<-x %>%
+            #   stars::write_stars(
+            #     output_filename$outfile,
+            #     driver = "GPKG",
+            #     append=T,
+            #     options = c("APPEND_SUBDATASET=YES",
+            #                 paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
+            #     )
             #   )
-            # ),
-            # silent=T)
-            ot<-x %>%
-                      stars::write_stars(
-                        output_filename$outfile,
-                        driver = "GPKG",
-                        append=T,
-                        options = c("APPEND_SUBDATASET=YES",
-                                    paste0("RASTER_TABLE=",gsub(".tif","",basename(y)))
-                        )
-                      )
 
 
             p()
