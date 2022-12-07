@@ -378,7 +378,7 @@ process_loi<-function(
         gdal = c("APPEND_SUBDATASET=YES",
                  paste0("RASTER_TABLE=",names(tot),"")
         )
-      ),slent=T)
+      ),silent=T)
 
       if (inherits(tott,"try-error")) {
         if (attr(tott,"condition")$message != "stoi"){
@@ -431,7 +431,7 @@ process_loi<-function(
       gdal = c("APPEND_SUBDATASET=YES",
                paste0("RASTER_TABLE=",names(tot),"")
       )
-    ),slent=T)
+    ),silent=T)
 
     if (inherits(tott,"try-error")) {
       if (attr(tott,"condition")$message != "stoi"){
