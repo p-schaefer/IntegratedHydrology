@@ -415,14 +415,36 @@ prep_weights<-function(
               #        silent = T)
 
               if (inherits(x,"try-error")) return(NULL)
-              ot<-terra::writeRaster(
+
+              ot<-try(terra::writeRaster(
                 x,
                 output_filename$outfile,
                 filetype = "GPKG",
                 gdal = c("APPEND_SUBDATASET=YES",
                          paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
                 )
-              )
+              ),silent=T)
+
+              if (inherits(ot,"try-error")) {
+                if (attr(ot,"condition")$message != "stoi"){
+                  ot<-terra::writeRaster(
+                    x,
+                    output_filename$outfile,
+                    filetype = "GPKG",
+                    gdal = c("APPEND_SUBDATASET=YES",
+                             paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+                    ))
+                }
+              }
+
+              # ot<-terra::writeRaster(
+              #   x,
+              #   output_filename$outfile,
+              #   filetype = "GPKG",
+              #   gdal = c("APPEND_SUBDATASET=YES",
+              #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+              #   )
+              # )
               # ot<-x %>%
               #   stars::write_stars(
               #     output_filename$outfile,
@@ -469,14 +491,35 @@ prep_weights<-function(
               # x<-try(terra::rast(y),silent = T)
               x<-try(terra::rast(y),silent=T)
             }
-            ot<-terra::writeRaster(
+            ot<-try(terra::writeRaster(
               x,
               output_filename$outfile,
               filetype = "GPKG",
               gdal = c("APPEND_SUBDATASET=YES",
                        paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
               )
-            )
+            ),silent=T)
+
+            if (inherits(ot,"try-error")) {
+              if (attr(ot,"condition")$message != "stoi"){
+                ot<-terra::writeRaster(
+                  x,
+                  output_filename$outfile,
+                  filetype = "GPKG",
+                  gdal = c("APPEND_SUBDATASET=YES",
+                           paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+                  ))
+              }
+            }
+
+            # ot<-terra::writeRaster(
+            #   x,
+            #   output_filename$outfile,
+            #   filetype = "GPKG",
+            #   gdal = c("APPEND_SUBDATASET=YES",
+            #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+            #   )
+            # )
             # ot<-x %>%
             #   stars::write_stars(
             #     output_filename$outfile,
