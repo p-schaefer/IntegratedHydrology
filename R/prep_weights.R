@@ -415,9 +415,11 @@ prep_weights<-function(
               #        silent = T)
 
               if (inherits(x,"try-error")) return(NULL)
+              x[is.na(x)]<-(-9999)
 
               ot<-try(terra::writeRaster(
                 x,
+                NAflag=-9999,
                 output_filename$outfile,
                 filetype = "GPKG",
                 gdal = c("APPEND_SUBDATASET=YES",
@@ -429,6 +431,7 @@ prep_weights<-function(
                 if (attr(ot,"condition")$message != "stoi"){
                   ot<-terra::writeRaster(
                     x,
+                    NAflag=-9999,
                     output_filename$outfile,
                     filetype = "GPKG",
                     gdal = c("APPEND_SUBDATASET=YES",
@@ -491,8 +494,12 @@ prep_weights<-function(
               # x<-try(terra::rast(y),silent = T)
               x<-try(terra::rast(y),silent=T)
             }
+
+            x[is.na(x)]<-(-9999)
+
             ot<-try(terra::writeRaster(
               x,
+              NAflag=-9999,
               output_filename$outfile,
               filetype = "GPKG",
               gdal = c("APPEND_SUBDATASET=YES",
@@ -504,6 +511,7 @@ prep_weights<-function(
               if (attr(ot,"condition")$message != "stoi"){
                 ot<-terra::writeRaster(
                   x,
+                  NAflag=-9999,
                   output_filename$outfile,
                   filetype = "GPKG",
                   gdal = c("APPEND_SUBDATASET=YES",

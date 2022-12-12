@@ -248,8 +248,11 @@ process_flowdir<-function(
       overwrite=T
     )
 
+    t1[is.na(t1)]<-(-9999)
+
     terra::writeRaster(
       t1,
+      NAflag=-9999,
       out_file,
       filetype = "GPKG",
       gdal = c("APPEND_SUBDATASET=YES",
