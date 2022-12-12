@@ -133,7 +133,8 @@ prep_weights<-function(
               "dem_d8")) {
     terra::writeRaster(
       terra::rast(zip_loc,i),
-      file.path(temp_dir_sub,paste0(i,".tif"))
+      file.path(temp_dir_sub,paste0(i,".tif")),
+      overwrite=T
     )
   }
 
@@ -173,9 +174,12 @@ prep_weights<-function(
         overwrite=T
       )
 
+      t1[is.na(t1)]<-(-9999)
+
       terra::writeRaster(
         t1,
         output_filename$outfile,
+        NAflag=-9999,
         filetype = "GPKG",
         gdal = c("APPEND_SUBDATASET=YES",
                  paste0("RASTER_TABLE=",gsub("_inv","",names(t1)),"")
