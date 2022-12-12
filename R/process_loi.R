@@ -368,9 +368,9 @@ process_loi<-function(
 
     for (x in fl) {
       tot<-try(terra::rast(x),silent=T)
-      tot[is.na(tot)]<-(-9999)
       if (inherits(tot,"try-error")) next()
       if (verbose) message(paste0("Writing: ",names(tot)))
+      tot[is.na(tot)]<-(-9999)
 
       tott<-try(terra::writeRaster(
         tot,
