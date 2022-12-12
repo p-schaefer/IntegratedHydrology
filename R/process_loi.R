@@ -334,6 +334,7 @@ process_loi<-function(
 
                                                }
 
+                                               file.remove(list.files(temp_temp_dir,recursive=T,full.names = T))
                                                unlink(temp_temp_dir,recursive=T,force=T)
 
                                                p()

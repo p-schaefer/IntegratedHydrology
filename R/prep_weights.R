@@ -283,123 +283,123 @@ prep_weights<-function(
 
       # Calculating O target weights --------------------------------------------
 
-      # n_cores_2<-n_cores
-      #
-      # if (n_cores>1) {
-      #   n_cores_2<-n_cores_2-1
-      #   oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
-      #   on.exit(future::plan(oplan), add = TRUE)
-      # }
+      n_cores_2<-n_cores
 
+      if (n_cores>1) {
+        n_cores_2<-n_cores_2-1
+        oplan <- future::plan(list(future::tweak(future::multisession, workers = 2), future::tweak(future::multisession, workers = n_cores_2)))
+        on.exit(future::plan(oplan), add = TRUE)
+      }
 
       target_O_sub<-purrr::map(link_id_split,~dplyr::filter(target_O,link_id %in% .) %>%
                                  dplyr::select(link_id) %>%
                                  dplyr::mutate(unn_group=rand_id(1)))
-      splt_lst<-suppressWarnings(terra::split(target_O_sub,1:n_cores))
+      splt_lst<-suppressWarnings(terra::split(target_O_sub,1:n_cores_2))
       splt_lst<-splt_lst[!sapply(splt_lst,is.null)]
+
+
+      future_proc<-future::future({
+        hw_o_targ<-furrr::future_pmap(
+          #hw_o_targ<-purrr::pmap(
+          list(x=splt_lst,
+               output_filename=list(output_filename),
+               temp_dir_sub=list(temp_dir_sub),
+               temp_dir_sub2=list(temp_dir_sub2),
+               weighting_scheme_o=list(weighting_scheme_o),
+               inv_function=list(inv_function),
+               p=list(p)
+          ),
+          .options = furrr::furrr_options(globals = F),
+          carrier::crate(
+            function(x,
+                     output_filename,
+                     temp_dir_sub,
+                     temp_dir_sub2,
+                     weighting_scheme_o,
+                     inv_function,
+                     p
+            ){
+              options(dplyr.summarise.inform = FALSE)
+              options(scipen = 999)
+              `%>%` <- magrittr::`%>%`
+
+              target_S <- terra::rast(file.path(temp_dir_sub,"dem_streams_d8.tif"))
+              dem <- terra::rast(file.path(temp_dir_sub,"dem_final.tif"))
+              flow_accum <- terra::rast(file.path(temp_dir_sub,"dem_accum_d8.tif"))
+
+              o_out<-purrr::map(x,function(y){
+                temp_dir_sub_sub<-file.path(temp_dir_sub2,basename(tempfile()))
+                dir.create(temp_dir_sub_sub)
+                suppressMessages(
+                  hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
+                                                 target_O = y,
+                                                 target_S = target_S,
+                                                 target_uid = paste0("unnest_group_",y$unn_group[[1]]),
+                                                 OS_combine = FALSE,
+                                                 dem=dem,
+                                                 flow_accum = flow_accum,
+                                                 weighting_scheme = weighting_scheme_o,
+                                                 inv_function = inv_function,
+                                                 clean_tempfiles=F,
+                                                 return_products = T,
+                                                 wrap_return_products=F,
+                                                 save_output=F)
+                )
+
+                for (i in hw_o) {
+
+                  t1<-terra::writeRaster(
+                    i,
+                    file.path(temp_dir_sub2,paste0(names(i),"_unn_group",y$unn_group[[1]],".tif")),
+                    datatype="FLT4S",
+                    overwrite=T
+                  )
+
+                  # ot<-try(t1 %>%
+                  #           stars::st_as_stars() %>%
+                  #           stars::write_stars(
+                  #             output_filename$outfile,
+                  #             driver = "GPKG",
+                  #             append=T,
+                  #             options = c("APPEND_SUBDATASET=YES",
+                  #                         paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                  #             )
+                  #           ),
+                  #         silent=T)
+                  #
+                  # while(inherits(ot,"try-error")){
+                  #   Sys.sleep(stats::runif(1,0,15))
+                  #   ot<-try(t1 %>%
+                  #     stars::st_as_stars() %>%
+                  #     stars::write_stars(
+                  #       output_filename$outfile,
+                  #       driver = "GPKG",
+                  #       append=T,
+                  #       options = c("APPEND_SUBDATASET=YES",
+                  #                   paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
+                  #       )
+                  #     ),
+                  #     silent=T)
+                  # }
+
+
+
+                }
+
+                rm(hw_o)
+                file.remove(list.files(temp_dir_sub_sub,recursive=T,full.names = T))
+                t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
+                #p()
+                return(NULL)
+
+                #return(unlist(rout))
+              })
+
+            }))
+      })
 
       progressr::with_progress(enable=T,{
         p <- progressr::progressor(steps = (length(target_O_sub)*length(weighting_scheme_o)))
-
-        future_proc<-future::future({
-          hw_o_targ<-furrr::future_pmap(
-            #hw_o_targ<-purrr::pmap(
-            list(x=splt_lst,
-                 output_filename=list(output_filename),
-                 temp_dir_sub=list(temp_dir_sub),
-                 temp_dir_sub2=list(temp_dir_sub2),
-                 weighting_scheme_o=list(weighting_scheme_o),
-                 inv_function=list(inv_function),
-                 p=list(p)
-            ),
-            .options = furrr::furrr_options(globals = F),
-            carrier::crate(
-              function(x,
-                       output_filename,
-                       temp_dir_sub,
-                       temp_dir_sub2,
-                       weighting_scheme_o,
-                       inv_function,
-                       p
-              ){
-                options(dplyr.summarise.inform = FALSE)
-                options(scipen = 999)
-                `%>%` <- magrittr::`%>%`
-
-                target_S <- terra::rast(file.path(temp_dir_sub,"dem_streams_d8.tif"))
-                dem <- terra::rast(file.path(temp_dir_sub,"dem_final.tif"))
-                flow_accum <- terra::rast(file.path(temp_dir_sub,"dem_accum_d8.tif"))
-
-                o_out<-purrr::map(x,function(y){
-                  temp_dir_sub_sub<-file.path(temp_dir_sub2,basename(tempfile()))
-                  dir.create(temp_dir_sub_sub)
-                  suppressMessages(
-                    hw_o<-hydroweight::hydroweight(hydroweight_dir=temp_dir_sub_sub,
-                                                   target_O = y,
-                                                   target_S = target_S,
-                                                   target_uid = paste0("unnest_group_",y$unn_group[[1]]),
-                                                   OS_combine = FALSE,
-                                                   dem=dem,
-                                                   flow_accum = flow_accum,
-                                                   weighting_scheme = weighting_scheme_o,
-                                                   inv_function = inv_function,
-                                                   clean_tempfiles=T,
-                                                   return_products = T,
-                                                   wrap_return_products=F,
-                                                   save_output=F)
-                  )
-
-                  for (i in hw_o) {
-
-                    t1<-terra::writeRaster(
-                      i,
-                      file.path(temp_dir_sub2,paste0(names(i),"_unn_group",y$unn_group[[1]],".tif")),
-                      datatype="FLT4S",
-                      overwrite=T
-                    )
-
-                    # ot<-try(t1 %>%
-                    #           stars::st_as_stars() %>%
-                    #           stars::write_stars(
-                    #             output_filename$outfile,
-                    #             driver = "GPKG",
-                    #             append=T,
-                    #             options = c("APPEND_SUBDATASET=YES",
-                    #                         paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
-                    #             )
-                    #           ),
-                    #         silent=T)
-                    #
-                    # while(inherits(ot,"try-error")){
-                    #   Sys.sleep(stats::runif(1,0,15))
-                    #   ot<-try(t1 %>%
-                    #     stars::st_as_stars() %>%
-                    #     stars::write_stars(
-                    #       output_filename$outfile,
-                    #       driver = "GPKG",
-                    #       append=T,
-                    #       options = c("APPEND_SUBDATASET=YES",
-                    #                   paste0("RASTER_TABLE=",gsub(".tif","",basename(terra::sources(t1))))
-                    #       )
-                    #     ),
-                    #     silent=T)
-                    # }
-
-
-
-                  }
-
-                  rm(hw_o)
-                  t1<-try((unlink(temp_dir_sub_sub,force = T,recursive = T)),silent=T)
-                  #p()
-                  return(NULL)
-
-                  #return(unlist(rout))
-                })
-
-              }))
-        })
-
         future_proc_status <- future::futureOf(future_proc)
 
         while(!future::resolved(future_proc_status)){
