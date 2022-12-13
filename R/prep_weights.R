@@ -306,8 +306,8 @@ prep_weights<-function(
                temp_dir_sub=list(temp_dir_sub),
                temp_dir_sub2=list(temp_dir_sub2),
                weighting_scheme_o=list(weighting_scheme_o),
-               inv_function=list(inv_function),
-               p=list(p)
+               inv_function=list(inv_function)#,
+               #p=list(p)
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
@@ -316,8 +316,8 @@ prep_weights<-function(
                      temp_dir_sub,
                      temp_dir_sub2,
                      weighting_scheme_o,
-                     inv_function,
-                     p
+                     inv_function#,
+                     #p
             ){
               options(dplyr.summarise.inform = FALSE)
               options(scipen = 999)
