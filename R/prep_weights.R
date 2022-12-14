@@ -342,7 +342,7 @@ prep_weights<-function(
                                                  flow_accum = flow_accum,
                                                  weighting_scheme = weighting_scheme_o,
                                                  inv_function = inv_function,
-                                                 clean_tempfiles=T,
+                                                 clean_tempfiles=F,
                                                  return_products = T,
                                                  wrap_return_products=F,
                                                  save_output=F,
