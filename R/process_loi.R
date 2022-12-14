@@ -364,14 +364,15 @@ process_loi<-function(
 
       if (inherits(tott,"try-error")) {
         if (attr(tott,"condition")$message != "stoi"){
-          tott<-terra::writeRaster(
-            tot,
-            NAflag=-9999,
-            output_filename,
-            filetype = "GPKG",
-            gdal = c("APPEND_SUBDATASET=YES",
-                     paste0("RASTER_TABLE=",names(tot),"")
-            ))
+          stop(attr(tott,"condition")$message)
+          # tott<-terra::writeRaster(
+          #   tot,
+          #   NAflag=-9999,
+          #   output_filename,
+          #   filetype = "GPKG",
+          #   gdal = c("APPEND_SUBDATASET=YES",
+          #            paste0("RASTER_TABLE=",names(tot),"")
+          #   ))
         }
       }
 
@@ -382,7 +383,7 @@ process_loi<-function(
   Sys.sleep(60)
 
   if (length(future_proc$result$conditions)>0){
-    err<-laply(future_proc$result$conditions,function(x) x$condition)
+    err<-lapply(future_proc$result$conditions,function(x) x$condition)
     err<-err[lapply(err,function(x) inherits(x,"error"))]
     if (length(err)>0){
       stop(err)

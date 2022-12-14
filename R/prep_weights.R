@@ -436,7 +436,7 @@ prep_weights<-function(
         Sys.sleep(60)
 
         if (length(future_proc$result$conditions)>0){
-          err<-laply(future_proc$result$conditions,function(x) x$condition)
+          err<-lapply(future_proc$result$conditions,function(x) x$condition)
           err<-err[lapply(err,function(x) inherits(x,"error"))]
           if (length(err)>0){
             stop(err)
