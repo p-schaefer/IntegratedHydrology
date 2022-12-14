@@ -301,19 +301,7 @@ process_loi<-function(
                                                names(output)<-sapply(output,names)
 
                                                for (i in names(output)){
-                                                 #terra::writeRaster(output[[i]],out_files[[i]],overwrite=T)
-
-
-                                                 # ot<-output[[i]] %>%
-                                                 #   stars::st_as_stars() %>%
-                                                 #   stars::write_stars(
-                                                 #     output_filename,
-                                                 #     driver = "GPKG",
-                                                 #     append=T,
-                                                 #     options = c("APPEND_SUBDATASET=YES",
-                                                 #                 paste0("RASTER_TABLE=",paste0(names(output[[i]])))
-                                                 #     )
-                                                 #   )
+                                                 output[[i]][is.na(output[[i]])]<-(-9999)
 
                                                  t1<-terra::writeRaster(
                                                    output[[i]],
@@ -322,15 +310,6 @@ process_loi<-function(
                                                    overwrite=T
                                                  )
 
-                                                 #
-                                                 # terra::writeRaster(
-                                                 #   t1,
-                                                 #   output_filename,
-                                                 #   filetype = "GPKG",
-                                                 #   gdal = c("APPEND_SUBDATASET=YES",
-                                                 #            paste0("RASTER_TABLE=",names(t1),"")
-                                                 #   )
-                                                 # )
 
                                                }
 
@@ -371,7 +350,7 @@ process_loi<-function(
       tot<-try(terra::rast(x),silent=T)
       if (inherits(tot,"try-error")) next()
       if (verbose) message(paste0("Writing: ",names(tot)))
-      tot[is.na(tot)]<-(-9999)
+      #tot[is.na(tot)]<-(-9999)
 
       tott<-try(terra::writeRaster(
         tot,
@@ -396,16 +375,6 @@ process_loi<-function(
         }
       }
 
-      # tott<- tot  %>%
-      #   stars::write_stars(
-      #     output_filename,
-      #     driver = "GPKG",
-      #     append=T,
-      #     options = c("APPEND_SUBDATASET=YES",
-      #                 paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
-      #     )
-      #   )
-
       file.remove(x)
     }
   }
@@ -413,20 +382,23 @@ process_loi<-function(
   Sys.sleep(60)
 
   if (length(future_proc$result$conditions)>0){
-    err<-future_proc$result$conditions[[1]]$condition
-    if (inherits(err,"error")){
+    err<-laply(future_proc$result$conditions,function(x) x$condition)
+    err<-err[lapply(err,function(x) inherits(x,"error"))]
+    if (length(err)>0){
       stop(err)
     }
   }
 
   fl<-list.files(temp_dir_save,".tif",full.names = T)
   for (x in fl) {
-    tot<-try(terra::rast(x),silent=T)
-    while (inherits(tot,"try-error")) {
-      sys.sleep(0.5)
-      tot<-try(terra::rast(x),silent=T)
-    }
-    tot[is.na(tot)]<-(-9999)
+    tot<-terra::rast(x)
+
+    # tot<-try(terra::rast(x),silent=T)
+    # while (inherits(tot,"try-error")) {
+    #   sys.sleep(0.5)
+    #   tot<-try(terra::rast(x),silent=T)
+    # }
+    #tot[is.na(tot)]<-(-9999)
 
     if (verbose) message(paste0("Writing: ",names(tot)))
 
@@ -442,25 +414,17 @@ process_loi<-function(
 
     if (inherits(tott,"try-error")) {
       if (attr(tott,"condition")$message != "stoi"){
-        tott<-terra::writeRaster(
-          tot,
-          NAflag=-9999,
-          output_filename,
-          filetype = "GPKG",
-          gdal = c("APPEND_SUBDATASET=YES",
-                   paste0("RASTER_TABLE=",names(tot),"")
-          ))
+        stop(attr(tott,"condition")$message)
+        # tott<-terra::writeRaster(
+        #   tot,
+        #   NAflag=-9999,
+        #   output_filename,
+        #   filetype = "GPKG",
+        #   gdal = c("APPEND_SUBDATASET=YES",
+        #            paste0("RASTER_TABLE=",names(tot),"")
+        #   ))
       }
     }
-    # tott<-tot %>%
-    #   stars::write_stars(
-    #     output_filename,
-    #     driver = "GPKG",
-    #     append=T,
-    #     options = c("APPEND_SUBDATASET=YES",
-    #                 paste0("RASTER_TABLE=",paste0(names(terra::rast(x))))
-    #     )
-    #   )
 
     file.remove(x)
   }
@@ -476,6 +440,8 @@ process_loi<-function(
     loi_type=.$rln
   ))
 
+  if (verbose) message("Saving meta data")
+
   con<-DBI::dbConnect(RSQLite::SQLite(),output_filename)
 
   tmp<-copy_to(dest=con,
@@ -488,9 +454,7 @@ process_loi<-function(
 
   DBI::dbDisconnect(con)
 
-
   # Generate Output ---------------------------------------------------------
-
 
   output<-input
 
