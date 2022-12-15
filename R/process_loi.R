@@ -382,11 +382,13 @@ process_loi<-function(
 
   Sys.sleep(60)
 
+  #browser()
+
   if (length(future_proc$result$conditions)>0){
     err<-lapply(future_proc$result$conditions,function(x) x$condition)
-    err<-err[lapply(err,function(x) inherits(x,"error"))]
+    err<-err[sapply(err,function(x) inherits(x,"error"))]
     if (length(err)>0){
-      stop(err)
+      stop(paste0(unlist(err)))
     }
   }
 
@@ -429,6 +431,7 @@ process_loi<-function(
 
     file.remove(x)
   }
+
 
   ot<-future::value(future_proc)
   names(ot)<-unlist(inputs_list$lyr_nms)
