@@ -843,8 +843,8 @@ extract_raster_attributes<-function(
                 }
 
                 if (inherits(ot,"try-error")) {
-                  ot<-NULL
-                  warning(paste0("Could not process unn_group: ",yy))
+                  ot<-tibble(link_id=input_poly$link_id)
+                  warning(paste0("Could not process the following link_id: ",paste0(input_poly$link_id,collapse = ", ")))
                 }
 
                 p()
