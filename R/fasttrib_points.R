@@ -370,12 +370,18 @@ extract_raster_attributes<-function(
 
                                                    pour_point_id<-df$link_id[[1]]
 
+                                                   #browser()
+
+                                                   df_class<-sapply(df,class)
+
                                                    df<-df %>%
+                                                     dtplyr::lazy_dt() %>%
                                                      dplyr::filter(coverage_fraction>0.5) %>%
                                                      dplyr::select(-coverage_fraction)
 
+
                                                    df<-df %>%
-                                                     dplyr::mutate(dplyr::across(tidyselect::where(is.numeric),~ifelse(is.nan(.),NA_real_,.)))
+                                                     dplyr::mutate(dplyr::across(tidyselect::any_of(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) #tidyselect::where(is.numeric)
 
                                                    df<-df %>%
                                                      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
@@ -389,6 +395,10 @@ extract_raster_attributes<-function(
                                                    df<-df %>%
                                                      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
                                                                           ~.*(!!rlang::sym("HAiFLO")),.names=paste0("{.col}_","HAiFLO")))
+
+                                                   df<-df %>%
+                                                     tibble::as_tibble() %>%
+                                                     dtplyr::lazy_dt()
 
 
                                                    weighted_mean_out<-NULL
@@ -416,6 +426,7 @@ extract_raster_attributes<-function(
                                                                        ~sum(.,na.rm=T)/dplyr::n()#sum(!!rlang::sym("lumped"),na.rm=T)
                                                          )
                                                        ) %>%
+                                                       tibble::as_tibble() %>%
                                                        dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="num_rast"]),~paste0(.,"_lumped_mean")) %>%
                                                        dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="cat_rast"]),~paste0(.,"_lumped_prop")) %>%
                                                        dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
@@ -427,6 +438,7 @@ extract_raster_attributes<-function(
                                                      min_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~min(.,na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_min"))#%>%
                                                      #dplyr::collect()
 
@@ -435,6 +447,7 @@ extract_raster_attributes<-function(
                                                      max_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~max(.,na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_max"))#%>%
                                                      #dplyr::collect()
 
@@ -443,6 +456,7 @@ extract_raster_attributes<-function(
                                                      count_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_count"))#%>%
                                                      #dplyr::collect()
 
@@ -452,6 +466,7 @@ extract_raster_attributes<-function(
                                                      sum_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~sum(.,na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_sum"))#%>%
                                                      #dplyr::collect()
                                                    }
@@ -460,6 +475,7 @@ extract_raster_attributes<-function(
                                                      median_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::median(.,na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_median"))#%>%
                                                      #dplyr::collect()
                                                    }
@@ -467,6 +483,7 @@ extract_raster_attributes<-function(
                                                      lumped_sd_out<-df %>%
                                                        dplyr::select(tidyselect::any_of(loi_cols2)) %>%
                                                        dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::sd(.,na.rm=T))) %>%
+                                                       tibble::as_tibble()%>%
                                                        dplyr::rename_with(~paste0(.,"_lumped_sd"))#%>%
                                                      #dplyr::collect()
                                                    }
@@ -481,6 +498,7 @@ extract_raster_attributes<-function(
                                                          dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)),
                                                          dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T))
                                                        ) %>%
+                                                       tibble::as_tibble() %>%
                                                        dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"],"_")),~paste0(.,"_mean")) %>%
                                                        dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"],"_")),~paste0(.,"_prop")) %>%
                                                        dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
@@ -529,6 +547,7 @@ extract_raster_attributes<-function(
                                                        dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                                                                         dplyr::across(tidyselect::ends_with("_term2"),~.[1])
                                                        ) %>%
+                                                       tibble::as_tibble() %>%
                                                        #dplyr::collect() %>%
                                                        # The below is some rearranging
                                                        tidyr::pivot_longer(cols=c(tidyselect::everything())) %>%
