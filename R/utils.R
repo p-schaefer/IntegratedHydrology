@@ -56,39 +56,64 @@ ihydro_layers<-function(input) {
     dplyr::select(layer_name=table_name,
                   data_type) %>%
     dplyr::filter(grepl("gridded",data_type)) %>%
-    dplyr::mutate(data_type="Raster") %>%
-    dplyr::mutate(data_group=dplyr::case_when(
-      grepl("^dem_",layer_name) ~ "hydro",
-      grepl("iFLS|HAiFLS|iFLO|HAiFLO",layer_name) ~ "iDW",
-      T ~ "loi"
-    ))
+    dplyr::mutate(data_type="Raster")
+
+  lyr<-DBI::dbListTables(con)
 
   DBI::dbDisconnect(con)
 
-  lyr<-suppressWarnings(sf::st_layers(input$outfile))
-
   vect_lyrs<-tibble::tibble(
-    layer_name=unlist(lyr[[1]]),
-    data_type=unlist(lyr[[2]])
+    layer_name=lyr[grepl("^rtree_",lyr) & grepl("_geom$",lyr)],
+    data_type="Vector"
   ) %>%
-    dplyr::mutate(data_type=dplyr::case_when(
-      grepl("Polygon",data_type) ~ "Polygon",
-      grepl("Line",data_type) ~ "Line",
-      is.na(data_type) ~ "Table",
-      T ~ data_type
-    )) %>%
+    mutate(layer_name=gsub("^rtree_|_geom$","",layer_name))
+
+  lyr_data<-lyr[!grepl("^rtree_|^gpkg_|^sqlite_|_geom$",lyr) & !lyr %in% rast_lyrs$layer_name]
+
+  lyr_data<-tibble::tibble(
+    layer_name=lyr_data,
+    data_type="Table"
+  )
+
+  out<-dplyr::bind_rows(rast_lyrs,vect_lyrs) %>%
+    dplyr::bind_rows(lyr_data)  %>%
     dplyr::mutate(data_group=dplyr::case_when(
+      grepl("^dem_",layer_name) ~ "hydro",
+      grepl("iFLS|HAiFLS|iFLO|HAiFLO",layer_name) ~ "iDW",
       layer_name %in% c("site_id_col","DEM_Extent","loi_meta","target_o_meta") ~ "meta",
       layer_name %in% c("snapped_points","original_points") ~ "sample_points",
       layer_name %in% c("stream_links","stream_lines","stream_points",
                         "Subbasins_poly","Catchment_poly",
                         "stream_points_attr","stream_links_attr") ~ "hydro",
       layer_name %in% c("ds_flowpaths","us_flowpaths") ~ "flow_path",
-      layer_name %in% c("funcon_pwise_dist","fcon_pwise_dist") ~ "pwise_dist"
-    ))
-
-  out<-dplyr::bind_rows(rast_lyrs,vect_lyrs) %>%
+      layer_name %in% c("funcon_pwise_dist","fcon_pwise_dist") ~ "pwise_dist",
+      T ~ "loi"
+    )) %>%
     dplyr::arrange(data_type,data_group)
+
+  # lyr<-suppressWarnings(sf::st_layers(input$outfile))
+  #
+  # vect_lyrs<-tibble::tibble(
+  #   layer_name=unlist(lyr[[1]]),
+  #   data_type=unlist(lyr[[2]])
+  # ) %>%
+  #   dplyr::mutate(data_type=dplyr::case_when(
+  #     grepl("Polygon",data_type) ~ "Polygon",
+  #     grepl("Line",data_type) ~ "Line",
+  #     is.na(data_type) ~ "Table",
+  #     T ~ data_type
+  #   )) %>%
+  #   dplyr::mutate(data_group=dplyr::case_when(
+  #     layer_name %in% c("site_id_col","DEM_Extent","loi_meta","target_o_meta") ~ "meta",
+  #     layer_name %in% c("snapped_points","original_points") ~ "sample_points",
+  #     layer_name %in% c("stream_links","stream_lines","stream_points",
+  #                       "Subbasins_poly","Catchment_poly",
+  #                       "stream_points_attr","stream_links_attr") ~ "hydro",
+  #     layer_name %in% c("ds_flowpaths","us_flowpaths") ~ "flow_path",
+  #     layer_name %in% c("funcon_pwise_dist","fcon_pwise_dist") ~ "pwise_dist"
+  #   ))
+
+
 
   return(out)
 }
@@ -225,11 +250,11 @@ target_o_fun<-function(
 if (F) {
   lines_out<-hydro_out$stream_lines %>%
     dplyr::filter(link_id %in% us_647$origin_link_id #|
-           #link_id %in% ds_1071.1$destination_link_id
+                  #link_id %in% ds_1071.1$destination_link_id
     )
   sub_out<-hydro_out$subbasins %>%
     dplyr::filter(link_id %in% us_647$origin_link_id #|
-           #link_id %in% ds_1071.1$destination_link_id
+                  #link_id %in% ds_1071.1$destination_link_id
     )
 
   t1<-tm_shape(sub_out) + tm_polygons(col="white",alpha =0.8,legend.show=F,lwd =2) +
