@@ -612,6 +612,13 @@ extract_raster_attributes<-function(
                   rm(ot)
                   gg<-gc()
 
+                  if (!dir.exists(temp_dir_sub)) dir.create(temp_dir_sub,recursive = T)
+                  input_rasts<-terra::writeRaster(input_rasts,
+                                                  tempfile(pattern="ihydro_",
+                                                           tmpdir = temp_dir_sub,
+                                                           fileext = ".tif"),
+                                                  overwrite=T)
+
                   ot<-try(
                     purrr::map(split(input_poly,seq_along(input_poly$link_id)),
                                function(xx) {
@@ -883,6 +890,8 @@ extract_raster_attributes<-function(
                       dplyr::bind_rows()
 
                     ,silent=F)
+
+                  file.remove(terra::sources(input_rasts))
                 }
 
                 if (inherits(ot,"try-error")) {
