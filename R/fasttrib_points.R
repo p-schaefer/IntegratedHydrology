@@ -158,6 +158,7 @@ fasttrib_points<-function(
     target_o_type=target_o_type
   )
 
+  #browser()
 
   # Get subbasin IDs --------------------------------------------------------
   con <- DBI::dbConnect(RSQLite::SQLite(), db_loc)
@@ -274,6 +275,8 @@ extract_raster_attributes<-function(
 
   if (verbose) message("Calculating Catchments")
 
+  #browser()
+
   input_poly<-ihydro::get_catchment(input,link_id=unique(subb_IDs$pour_point_id))
 
   if (verbose) message("Calculating Weighted Attributes")
@@ -348,6 +351,7 @@ extract_raster_attributes<-function(
 
                 input_rasts<-c(loi_rasts,iDWs_rasts,iDWo_rasts)
 
+                #browser()
 
                 ot<-try(exactextractr::exact_extract(input_rasts,
                                                      input_poly,
@@ -587,6 +591,8 @@ extract_raster_attributes<-function(
                                                          )
 
                                                        #DBI::dbDisconnect(con)
+                                                       rm(df)
+                                                       gg<-gc()
 
                                                        return(final_out)
 
@@ -835,6 +841,9 @@ extract_raster_attributes<-function(
                                                          DBI::dbDisconnect(con)
                                                          file.remove(temp_db)
 
+                                                         rm(df)
+                                                         gg<-gc()
+
                                                          return(final_out)
 
                                                        }
@@ -843,7 +852,7 @@ extract_raster_attributes<-function(
                 }
 
                 if (inherits(ot,"try-error")) {
-                  ot<-tibble(link_id=input_poly$link_id)
+                  ot<-tibble::tibble(link_id=input_poly$link_id)
                   warning(paste0("Could not process the following link_id: ",paste0(input_poly$link_id,collapse = ", ")))
                 }
 

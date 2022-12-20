@@ -121,7 +121,9 @@ get_catchment<-function(
                                          query=out)) %>%
               dplyr::select(-link_id,link_id=pour_point_id) %>%
               sf::st_union() %>%
-              sf::st_cast("POLYGON")
+              nngeo::st_remove_holes() %>%
+              sf::st_cast("POLYGON") %>%
+              .[1]
 
           }
         )
