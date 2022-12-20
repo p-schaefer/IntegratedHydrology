@@ -320,6 +320,7 @@ extract_raster_attributes<-function(
                      loi_cols,
                      p,
                      temp_dir_sub){
+              Sys.setenv(GTIFF_DIRECT_IO='ON')
               options(dplyr.summarise.inform = FALSE)
               options(scipen = 999)
               `%>%` <- magrittr::`%>%`
@@ -620,7 +621,9 @@ extract_raster_attributes<-function(
                                                   tempfile(pattern="ihydro_",
                                                            tmpdir = temp_dir_sub,
                                                            fileext = ".tif"),
-                                                  overwrite=T)
+                                                  overwrite=T,
+                                                  gdal=c("COMPRESS=NONE")
+                                                  )
 
                   ot<-try(
                     purrr::map(split(input_poly,seq_along(input_poly$link_id)),
