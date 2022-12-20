@@ -189,6 +189,7 @@ fasttrib_points<-function(
     loi_numeric_stats=loi_numeric_stats,
     loi_cols=loi_cols,
     subb_IDs=subb_IDs,
+    temp_dir_sub=temp_dir_sub,
     verbose=verbose
   )
 
@@ -258,6 +259,7 @@ extract_raster_attributes<-function(
     loi_cols,
     subb_IDs,
     loi_numeric_stats,
+    temp_dir_sub,
     verbose
 ){
   if (inherits(loi_file,"ihydro")) loi_file<-loi_file$outfile
@@ -303,7 +305,8 @@ extract_raster_attributes<-function(
                weighting_scheme=list(weighting_scheme),
                loi_numeric_stats=list(loi_numeric_stats),
                loi_cols=list(loi_cols),
-               p=list(p)
+               p=list(p),
+               temp_dir_sub=list()
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
