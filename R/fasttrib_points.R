@@ -353,6 +353,12 @@ extract_raster_attributes<-function(
 
                 #browser()
 
+
+                # Summary Function --------------------------------------------------------
+
+
+                #browser()
+
                 ot<-try(exactextractr::exact_extract(input_rasts,
                                                      input_poly,
                                                      include_cols="link_id",
@@ -363,8 +369,7 @@ extract_raster_attributes<-function(
                                                                   weighting_scheme2=weighting_scheme,
                                                                   loi_meta2=loi_meta,
                                                                   loi_cols2=loi_cols,
-                                                                  loi_numeric_stats2=loi_numeric_stats
-                                                     ){
+                                                                  loi_numeric_stats2=loi_numeric_stats){
                                                        #browser()
                                                        options(dplyr.summarise.inform = FALSE)
                                                        options(scipen = 999)
@@ -431,8 +436,8 @@ extract_raster_attributes<-function(
                                                              )
                                                            ) %>%
                                                            tibble::as_tibble() %>%
-                                                           dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="num_rast"]),~paste0(.,"_lumped_mean")) %>%
-                                                           dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="cat_rast"]),~paste0(.,"_lumped_prop")) %>%
+                                                           dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~paste0(.,"_lumped_mean")) %>%
+                                                           dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"]),~paste0(.,"_lumped_prop")) %>%
                                                            dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
                                                          #dplyr::collect()
 
@@ -581,6 +586,7 @@ extract_raster_attributes<-function(
                                                          sum_out
                                                        )
                                                        final_list<-final_list[!sapply(final_list,is.null)]
+                                                       final_list<-final_list[sapply(final_list,nrow)>0]
 
                                                        final_out<-dplyr::bind_cols(tibble::tibble(pour_point_id=pour_point_id),final_list)
 
@@ -600,255 +606,274 @@ extract_raster_attributes<-function(
 
                 ),silent=T)
 
+                #browser()
                 if (inherits(ot,"try-error")) {
-                  ot<-try(exactextractr::exact_extract(input_rasts,
-                                                       input_poly,
-                                                       include_cols="link_id",
-                                                       summarize_df=T,
-                                                       progress=F,
-                                                       force_df=T,
-                                                       fun=function(df,
-                                                                    weighting_scheme2=weighting_scheme,
-                                                                    loi_meta2=loi_meta,
-                                                                    loi_cols2=loi_cols,
-                                                                    loi_numeric_stats2=loi_numeric_stats
-                                                       ){
-                                                         #browser()
-                                                         options(dplyr.summarise.inform = FALSE)
-                                                         options(scipen = 999)
-                                                         `%>%` <- magrittr::`%>%`
 
-                                                         pour_point_id<-df$link_id[[1]]
-                                                         df_class<-sapply(df,class)
+                  ot<-try(
+                    purrr:::map(loi_cols,function(x){
+                      ot<-try(exactextractr::exact_extract(terra::subset(input_rasts,c(x,weighting_scheme)[c(x,weighting_scheme) %in% names(input_rasts)]),
+                                                           input_poly,
+                                                           max_cells_in_memory=(3e+07)/4,
+                                                           include_cols="link_id",
+                                                           summarize_df=T,
+                                                           progress=F,
+                                                           force_df=T,
+                                                           fun=function(df,
+                                                                        weighting_scheme2=weighting_scheme,
+                                                                        loi_meta2=loi_meta,
+                                                                        loi_cols2=x,
+                                                                        loi_numeric_stats2=loi_numeric_stats
+                                                           ){
+                                                             #browser()
+                                                             options(dplyr.summarise.inform = FALSE)
+                                                             options(scipen = 999)
+                                                             `%>%` <- magrittr::`%>%`
 
-                                                         temp_db<-tempfile(pattern = "DB_", tmpdir = tempdir(), fileext = ".sql")
+                                                             #con<-DBI::dbConnect(RSQLite::SQLite(),temp_dir_sub2)
 
-                                                         con<-DBI::dbConnect(RSQLite::SQLite(),temp_db)
+                                                             loi_meta2<-dplyr::filter(loi_meta2,loi_var_nms == loi_cols2)
 
-                                                         df<-dplyr::copy_to(df,con)
-                                                         #browser()
+                                                             pour_point_id<-df$link_id[[1]]
 
-                                                         df<-df %>%
-                                                           dplyr::filter(coverage_fraction>0.5) %>%
-                                                           dplyr::select(-coverage_fraction)
+                                                             #browser()
 
+                                                             df_class<-sapply(df,class)
 
-                                                         df<-df %>%
-                                                           dplyr::mutate(dplyr::across(tidyselect::any_of(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) #tidyselect::where(is.numeric)
-
-                                                         df<-df %>%
-                                                           dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
-                                                                                       ~.*(!!rlang::sym("iFLS")),.names=paste0("{.col}_","iFLS")))
-                                                         df<-df %>%
-                                                           dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
-                                                                                       ~.*(!!rlang::sym("iFLO")),.names=paste0("{.col}_","iFLO")))
-                                                         df<-df %>%
-                                                           dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
-                                                                                       ~.*(!!rlang::sym("HAiFLS")),.names=paste0("{.col}_","HAiFLS")))
-                                                         df<-df %>%
-                                                           dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
-                                                                                       ~.*(!!rlang::sym("HAiFLO")),.names=paste0("{.col}_","HAiFLO")))
-
-                                                         df<-df %>%
-                                                           dplyr::compute()
+                                                             df<-df %>%
+                                                               dtplyr::lazy_dt() %>%
+                                                               dplyr::filter(coverage_fraction>0.5) %>%
+                                                               dplyr::select(-coverage_fraction)
 
 
-                                                         weighted_mean_out<-NULL
-                                                         lumped_mean_out<-NULL
-                                                         weighted_sd_out<-NULL
-                                                         lumped_sd_out<-NULL
-                                                         min_out<-NULL
-                                                         max_out<-NULL
-                                                         count_out<-NULL
-                                                         median_out<-NULL
-                                                         sum_out<-NULL
+                                                             df<-df %>%
+                                                               dplyr::mutate(dplyr::across(tidyselect::any_of(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) #tidyselect::where(is.numeric)
+
+                                                             df<-df %>%
+                                                               dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+                                                                                           ~.*(!!rlang::sym("iFLS")),.names=paste0("{.col}_","iFLS")))
+                                                             df<-df %>%
+                                                               dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+                                                                                           ~.*(!!rlang::sym("iFLO")),.names=paste0("{.col}_","iFLO")))
+                                                             df<-df %>%
+                                                               dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+                                                                                           ~.*(!!rlang::sym("HAiFLS")),.names=paste0("{.col}_","HAiFLS")))
+                                                             df<-df %>%
+                                                               dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+                                                                                           ~.*(!!rlang::sym("HAiFLO")),.names=paste0("{.col}_","HAiFLO")))
+
+                                                             df<-df %>%
+                                                               tibble::as_tibble() %>%
+                                                               dtplyr::lazy_dt()
 
 
-                                                         # Lumped Summaries --------------------------------------------------------
+                                                             weighted_mean_out<-NULL
+                                                             lumped_mean_out<-NULL
+                                                             weighted_sd_out<-NULL
+                                                             lumped_sd_out<-NULL
+                                                             min_out<-NULL
+                                                             max_out<-NULL
+                                                             count_out<-NULL
+                                                             median_out<-NULL
+                                                             sum_out<-NULL
 
-                                                         if ("lumped" %in% weighting_scheme2 | any(loi_meta2$loi_type=="cat_rast")) {
-                                                           lumped_mean_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             #dplyr::mutate(lumped=1) %>%
-                                                             dplyr::summarise(
-                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                             ~sum(.,na.rm=T)/sum(!is.na(.),na.rm=T)
-                                                               ),
-                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"]),
-                                                                             ~sum(.,na.rm=T)/dplyr::n()#sum(!!rlang::sym("lumped"),na.rm=T)
+
+                                                             # Lumped Summaries --------------------------------------------------------
+
+                                                             if ("lumped" %in% weighting_scheme2 | any(loi_meta2$loi_type=="cat_rast")) {
+                                                               lumped_mean_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 #dplyr::mutate(lumped=1) %>%
+                                                                 dplyr::summarise(
+                                                                   dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                 ~sum(.,na.rm=T)/sum(!is.na(.),na.rm=T)
+                                                                   ),
+                                                                   dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"]),
+                                                                                 ~sum(.,na.rm=T)/dplyr::n()#sum(!!rlang::sym("lumped"),na.rm=T)
+                                                                   )
+                                                                 ) %>%
+                                                                 tibble::as_tibble() %>%
+                                                                 dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~paste0(.,"_lumped_mean")) %>%
+                                                                 dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"]),~paste0(.,"_lumped_prop")) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
+                                                               #dplyr::collect()
+
+                                                             }
+
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="min")){
+                                                               min_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~min(.,na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_min"))#%>%
+                                                               #dplyr::collect()
+
+                                                             }
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="max")){
+                                                               max_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~max(.,na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_max"))#%>%
+                                                               #dplyr::collect()
+
+                                                             }
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="count")){
+                                                               count_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_count"))#%>%
+                                                               #dplyr::collect()
+
+                                                             }
+
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="sum")){
+                                                               sum_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~sum(.,na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_sum"))#%>%
+                                                               #dplyr::collect()
+                                                             }
+
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="median")){
+                                                               median_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::median(.,na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_median"))#%>%
+                                                               #dplyr::collect()
+                                                             }
+                                                             if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2 %in% c("sd","stdev"))){
+                                                               lumped_sd_out<-df %>%
+                                                                 dplyr::select(tidyselect::any_of(loi_cols2)) %>%
+                                                                 dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::sd(.,na.rm=T))) %>%
+                                                                 tibble::as_tibble()%>%
+                                                                 dplyr::rename_with(~paste0(.,"_lumped_sd"))#%>%
+                                                               #dplyr::collect()
+                                                             }
+
+                                                             # Weighted summaries -----------------------------------------------------------
+
+                                                             if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 & (any(loi_numeric_stats2 %in% c("mean"))|any(loi_meta2$loi_type=="cat_rast"))) {
+                                                               weighted_mean_out<-df %>%
+                                                                 dplyr::summarize(
+                                                                   dplyr::across(tidyselect::ends_with(paste0("_iFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)),
+                                                                   dplyr::across(tidyselect::ends_with(paste0("_HAiFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)),
+                                                                   dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)),
+                                                                   dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T))
+                                                                 ) %>%
+                                                                 tibble::as_tibble() %>%
+                                                                 dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"],"_")),~paste0(.,"_mean")) %>%
+                                                                 dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"],"_")),~paste0(.,"_prop")) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
+                                                               #dplyr::collect()
+                                                             }
+
+
+                                                             if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 &
+                                                                 any(loi_numeric_stats2 %in% c("sd","stdev")) &
+                                                                 any(loi_meta2$loi_type=="num_rast")
+                                                             ) {
+
+                                                               weighted_sd_out<-df %>%
+                                                                 dplyr::select(
+                                                                   tidyselect::starts_with(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                   tidyselect::any_of(weighting_scheme2)
+                                                                 ) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~(!!rlang::sym("iFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)))^2)),
+                                                                                             .names="{.col}_iFLS_term1"),
+                                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~ ((sum(!!rlang::sym("iFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLS")!=0,na.rm=T)) * sum(!!rlang::sym("iFLS"),na.rm=T),
+                                                                                             .names="{.col}_iFLS_term2"
+                                                                               )) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
+                                                                                             .names="{.col}_HAiFLS_term1"),
+                                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
+                                                                                             .names="{.col}_HAiFLS_term2"
+                                                                               )) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
+                                                                                             .names="{.col}_iFLO_term1"),
+                                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
+                                                                                             .names="{.col}_iFLO_term2"
+                                                                               )) %>%
+                                                                 dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
+                                                                                             .names="{.col}_HAiFLO_term1"),
+                                                                               dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
+                                                                                             ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
+                                                                                             .names="{.col}_HAiFLO_term2"
+                                                                               )) %>%
+                                                                 dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
+                                                                                  dplyr::across(tidyselect::ends_with("_term2"),~.[1])
+                                                                 ) %>%
+                                                                 tibble::as_tibble() %>%
+                                                                 #dplyr::collect() %>%
+                                                                 # The below is some rearranging
+                                                                 tidyr::pivot_longer(cols=c(tidyselect::everything())) %>%
+                                                                 dplyr::mutate(attr=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_|_iFLO_|_HAiFLO_",2)[,1],
+                                                                               term=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_|_iFLO_|_HAiFLO_",2)[,2]) %>%
+                                                                 dplyr::rowwise() %>%
+                                                                 dplyr::mutate(hw=gsub(paste0(attr,"_","|","_",term,""),"",name)) %>%
+                                                                 dplyr::ungroup() %>%
+                                                                 dplyr::mutate(name=paste0(attr,"_",hw,"_sd")) %>%
+                                                                 dplyr::group_by(name) %>%
+                                                                 dplyr::summarize(sd=sqrt(value[term=="term1"]/value[term=="term2"])) %>%
+                                                                 dplyr::ungroup() %>%
+                                                                 tidyr::pivot_wider(names_from = name,values_from=sd)
+
+                                                             }
+
+
+                                                             final_list<-list(
+                                                               weighted_mean_out,
+                                                               lumped_mean_out,
+                                                               weighted_sd_out,
+                                                               lumped_sd_out,
+                                                               min_out,
+                                                               max_out,
+                                                               count_out,
+                                                               median_out,
+                                                               sum_out
+                                                             )
+                                                             final_list<-final_list[!sapply(final_list,is.null)]
+                                                             final_list<-final_list[sapply(final_list,nrow)>0]
+
+                                                             final_out<-dplyr::bind_cols(tibble::tibble(pour_point_id=pour_point_id),final_list)
+
+                                                             final_out<-final_out %>%
+                                                               dplyr::select(
+                                                                 pour_point_id,
+                                                                 tidyselect::contains(loi_meta2$loi_var_nms)
                                                                )
-                                                             ) %>%
-                                                             dplyr::collect() %>%
-                                                             dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="num_rast"]),~paste0(.,"_lumped_mean")) %>%
-                                                             dplyr::rename_with(.cols=tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta$loi_type=="cat_rast"]),~paste0(.,"_lumped_prop")) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
-                                                           #dplyr::collect()
 
-                                                         }
+                                                             #DBI::dbDisconnect(con)
+                                                             rm(df)
+                                                             gg<-gc()
 
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="min")){
-                                                           min_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~min(.,na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_min"))#%>%
-                                                           #dplyr::collect()
+                                                             return(final_out)
 
-                                                         }
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="max")){
-                                                           max_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~max(.,na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_max"))#%>%
-                                                           #dplyr::collect()
+                                                           }
 
-                                                         }
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="count")){
-                                                           count_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_count"))#%>%
-                                                           #dplyr::collect()
+                      ),silent=T)
 
-                                                         }
+                      if (inherits(ot,"try-error")) {
+                        warning(paste0("Could not process the following loi: ",x,
+                                       " at link_id: ",paste0(input_poly$link_id,collapse = ", ")))
 
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="sum")){
-                                                           sum_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~sum(.,na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_sum"))#%>%
-                                                           #dplyr::collect()
-                                                         }
+                        ot<-NULL
+                      }
 
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="median")){
-                                                           median_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::median(.,na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_median"))#%>%
-                                                           #dplyr::collect()
-                                                         }
-                                                         if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2 %in% c("sd","stdev"))){
-                                                           lumped_sd_out<-df %>%
-                                                             dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-                                                             dplyr::summarise(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),~stats::sd(.,na.rm=T))) %>%
-                                                             dplyr::collect()%>%
-                                                             dplyr::rename_with(~paste0(.,"_lumped_sd"))#%>%
-                                                           #dplyr::collect()
-                                                         }
-
-                                                         # Weighted summaries -----------------------------------------------------------
-
-                                                         if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 & (any(loi_numeric_stats2 %in% c("mean"))|any(loi_meta2$loi_type=="cat_rast"))) {
-                                                           weighted_mean_out<-df %>%
-                                                             dplyr::summarize(
-                                                               dplyr::across(tidyselect::ends_with(paste0("_iFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)),
-                                                               dplyr::across(tidyselect::ends_with(paste0("_HAiFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)),
-                                                               dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)),
-                                                               dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T))
-                                                             ) %>%
-                                                             dplyr::collect() %>%
-                                                             dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"],"_")),~paste0(.,"_mean")) %>%
-                                                             dplyr::rename_with(.cols=tidyselect::starts_with(paste0(loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"],"_")),~paste0(.,"_prop")) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.))) #%>%
-                                                           #dplyr::collect()
-                                                         }
-
-
-                                                         if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 &
-                                                             any(loi_numeric_stats2 %in% c("sd","stdev")) &
-                                                             any(loi_meta2$loi_type=="num_rast")
-                                                         ) {
-
-                                                           weighted_sd_out<-df %>%
-                                                             dplyr::select(
-                                                               tidyselect::starts_with(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                               tidyselect::any_of(weighting_scheme2)
-                                                             ) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~(!!rlang::sym("iFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)))^2)),
-                                                                                         .names="{.col}_iFLS_term1"),
-                                                                           dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~ ((sum(!!rlang::sym("iFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLS")!=0,na.rm=T)) * sum(!!rlang::sym("iFLS"),na.rm=T),
-                                                                                         .names="{.col}_iFLS_term2"
-                                                                           )) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
-                                                                                         .names="{.col}_HAiFLS_term1"),
-                                                                           dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
-                                                                                         .names="{.col}_HAiFLS_term2"
-                                                                           )) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
-                                                                                         .names="{.col}_iFLO_term1"),
-                                                                           dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
-                                                                                         .names="{.col}_iFLO_term2"
-                                                                           )) %>%
-                                                             dplyr::mutate(dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
-                                                                                         .names="{.col}_HAiFLO_term1"),
-                                                                           dplyr::across(tidyselect::any_of(loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]),
-                                                                                         ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
-                                                                                         .names="{.col}_HAiFLO_term2"
-                                                                           )) %>%
-                                                             dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
-                                                                              dplyr::across(tidyselect::ends_with("_term2"),~.[1])
-                                                             ) %>%
-                                                             dplyr::collect() %>%
-                                                             #dplyr::collect() %>%
-                                                             # The below is some rearranging
-                                                             tidyr::pivot_longer(cols=c(tidyselect::everything())) %>%
-                                                             dplyr::mutate(attr=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_|_iFLO_|_HAiFLO_",2)[,1],
-                                                                           term=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_|_iFLO_|_HAiFLO_",2)[,2]) %>%
-                                                             dplyr::rowwise() %>%
-                                                             dplyr::mutate(hw=gsub(paste0(attr,"_","|","_",term,""),"",name)) %>%
-                                                             dplyr::ungroup() %>%
-                                                             dplyr::mutate(name=paste0(attr,"_",hw,"_sd")) %>%
-                                                             dplyr::group_by(name) %>%
-                                                             dplyr::summarize(sd=sqrt(value[term=="term1"]/value[term=="term2"])) %>%
-                                                             dplyr::ungroup() %>%
-                                                             tidyr::pivot_wider(names_from = name,values_from=sd)
-
-                                                         }
-
-
-                                                         final_list<-list(
-                                                           weighted_mean_out,
-                                                           lumped_mean_out,
-                                                           weighted_sd_out,
-                                                           lumped_sd_out,
-                                                           min_out,
-                                                           max_out,
-                                                           count_out,
-                                                           median_out,
-                                                           sum_out
-                                                         )
-                                                         final_list<-final_list[!sapply(final_list,is.null)]
-
-                                                         final_out<-dplyr::bind_cols(tibble::tibble(pour_point_id=pour_point_id),final_list)
-
-                                                         final_out<-final_out %>%
-                                                           dplyr::select(
-                                                             pour_point_id,
-                                                             tidyselect::contains(loi_meta2$loi_var_nms)
-                                                           )
-
-                                                         DBI::dbDisconnect(con)
-                                                         file.remove(temp_db)
-
-                                                         rm(df)
-                                                         gg<-gc()
-
-                                                         return(final_out)
-
-                                                       }
-
-                  ),silent=T)
+                      return(ot)
+                    }) %>%
+                      .[!sapply(.,is.null)] %>%
+                      purrr::reduce(dplyr::left_join,by="pour_point_id")
+                    ,silent=T)
                 }
 
                 if (inherits(ot,"try-error")) {
