@@ -306,7 +306,7 @@ extract_raster_attributes<-function(
                loi_numeric_stats=list(loi_numeric_stats),
                loi_cols=list(loi_cols),
                p=list(p),
-               temp_dir_sub=list()
+               temp_dir_sub=list(temp_dir_sub)
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
