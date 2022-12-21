@@ -933,7 +933,7 @@ extract_raster_attributes<-function(
 
                   ,silent=F)
 
-                file.remove(terra::sources(input_rasts))
+                #file.remove(terra::sources(input_rasts))
               }
 
               if (inherits(ot,"try-error")) {
