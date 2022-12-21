@@ -516,6 +516,7 @@ prep_weights<-function(
 
   }
 
+  unlink(temp_dir,recursive = T,force = T)
 
   output<-input
   if (output$outfile != output_filename$outfile) output<-list(outfile=output_filename$outfile)
