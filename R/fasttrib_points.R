@@ -440,8 +440,12 @@ extract_raster_attributes<-function(
 
 }
 
+#' Process gpkg rasters for attribute calculation
+#'
 #' @keywords internal
+#' @return a data.frame of attributes
 #' @export
+#'
 .summ_fn<-function(x,
                    input,
                    iDW_file,
@@ -568,9 +572,12 @@ extract_raster_attributes<-function(
   })
 }
 
-
+#' Calculate loi attributes from input rasters
+#'
 #' @keywords internal
+#' @return a data.frame of attributes
 #' @export
+#'
 .attr_fn<-function(df,
                    point_id,
                    weighting_scheme2,
