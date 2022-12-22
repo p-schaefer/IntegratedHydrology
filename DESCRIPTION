@@ -39,6 +39,7 @@ Imports:
     future,
     hydroweight,
     magrittr,
+    memuse,
     progressr,
     purrr,
     sf,
