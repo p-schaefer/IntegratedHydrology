@@ -513,6 +513,15 @@ extract_raster_attributes<-function(
 
     input_rasts<-c(loi_rasts,iDWs_rasts,iDWo_rasts)
 
+    loi_types<-table(loi_meta$loi_type[loi_meta$loi_var_nms %in% loi_cols])
+    num_rast_analysis_cols<-loi_types["num_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*3
+    cat_rast_analysis_cols<-loi_types["cat_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*2
+    analysis_cols<-sum(c(num_rast_analysis_cols,cat_rast_analysis_cols),na.rm=T)
+
+    #Estimates the number of rows that could fit into memory without analysis
+    max.obj.fulldata<-memuse::howmany(sys.mem,
+                                      ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]))
+
     # Summary Function --------------------------------------------------------
     ot<-purrr::map_dfr(split(input_poly,seq_along(input_poly$link_id)),
                        function(sub_poly) {
@@ -521,14 +530,6 @@ extract_raster_attributes<-function(
                          sub_poly_rast<-terra::rasterize(sub_poly,input_rasts)
                          sub_poly_rast<-terra::cells(sub_poly_rast)
 
-                         loi_types<-table(loi_meta$loi_type[loi_meta$loi_var_nms %in% loi_cols])
-                         num_rast_analysis_cols<-loi_types["num_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*3
-                         cat_rast_analysis_cols<-loi_types["cat_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*2
-                         analysis_cols<-sum(c(num_rast_analysis_cols,cat_rast_analysis_cols),na.rm=T)
-
-                         #Estimates the number of rows that could fit into memory without analysis
-                         max.obj.fulldata<-memuse::howmany(sys.mem,
-                                                           ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]))
 
                          #Estimates the number of rows that could fit into memory and do analysis
                          max.obj.fullanalysis_row<-memuse::howmany(sys.mem,
@@ -561,11 +562,15 @@ extract_raster_attributes<-function(
 
                          } else {
                            if (obj.size.fullanalysis<sys.mem) { # object will fit entirely into memory
-                             ot<-exactextractr::exact_extract(
+                             # ot<-exactextractr::exact_extract(
+                             #   input_rasts,
+                             #   sub_poly,
+                             #   progress=F
+                             # )[[1]]
+                             ot<-terra::extract(
                                input_rasts,
-                               sub_poly,
-                               progress=F
-                             )[[1]]
+                               sub_poly_rast
+                             )
 
                              out<-ihydro::.attr_fn(ot,
                                                    point_id=sub_id,
@@ -587,21 +592,30 @@ extract_raster_attributes<-function(
                                if (all(weighting_scheme2=="lumped")){
                                  ot_idw<-data.frame(lumped=1)
                                } else {
-                                 ot_idw<-exactextractr::exact_extract(
+                                 # ot_idw<-exactextractr::exact_extract(
+                                 #   terra::subset(input_rasts,c(weighting_scheme2)[c(weighting_scheme2) %in% names(input_rasts)]),
+                                 #   sub_poly,
+                                 #   progress=F
+                                 # )[[1]] %>%
+                                 #   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+                                 #   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+
+                                 ot_idw<-terra::extract(
                                    terra::subset(input_rasts,c(weighting_scheme2)[c(weighting_scheme2) %in% names(input_rasts)]),
-                                   sub_poly,
-                                   progress=F
-                                 )[[1]] %>%
-                                   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-                                   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                   sub_poly_rast
+                                 )
+
 
                                  if (ncol(ot_idw)==1) colnames(ot_idw)<-weighting_scheme2
                                }
 
                                remaining_cols<-max.obj.fullanalysis_col[2]-(length(weighting_scheme[weighting_scheme!="lumped"])*3)
+                               remaining_cols_ratio<-remaining_cols/analysis_cols
 
-                               if (length(loi_cols)<=remaining_cols){
+                               if (remaining_cols_ratio>1){
                                  remaining_cols<-length(loi_cols)
+                               } else {
+                                 remaining_cols<-floor(length(loi_cols)*remaining_cols_ratio*0.9)
                                }
 
                                loi_cols_split<-split(loi_cols,
@@ -612,13 +626,17 @@ extract_raster_attributes<-function(
 
                                out<-purrr::map(loi_cols_split,function(loi_sub){
 
-                                 ot<-exactextractr::exact_extract(
+                                 # ot<-exactextractr::exact_extract(
+                                 #   terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
+                                 #   sub_poly,
+                                 #   progress=F
+                                 # )[[1]] %>%
+                                 #   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+                                 #   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                 ot<-terra::extract(
                                    terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
-                                   sub_poly,
-                                   progress=F
-                                 )[[1]] %>%
-                                   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-                                   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                   sub_poly_rast
+                                 )
 
                                  if (ncol(ot)==1) colnames(ot)<-loi_sub
 
@@ -648,26 +666,34 @@ extract_raster_attributes<-function(
                                  if (sub_weighting_scheme=="lumped"){
                                    ot_idw<-data.frame(lumped=1)
                                  } else {
-                                   ot_idw<-exactextractr::exact_extract(
+                                   # ot_idw<-exactextractr::exact_extract(
+                                   #   terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
+                                   #   sub_poly,
+                                   #   progress=F
+                                   # )[[1]] %>%
+                                   #   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+                                   #   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                   ot_idw<-terra::extract(
                                      terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
-                                     sub_poly,
-                                     progress=F
-                                   )[[1]] %>%
-                                     dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-                                     dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                     sub_poly_rast
+                                   )
 
                                    if (ncol(ot_idw)==1) colnames(ot_idw)<-sub_weighting_scheme
                                  }
 
 
                                  purrr::map(loi_cols,function(loi_sub){
-                                   ot<-exactextractr::exact_extract(
+                                   # ot<-exactextractr::exact_extract(
+                                   #   terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
+                                   #   sub_poly,
+                                   #   progress=F
+                                   # )[[1]] %>%
+                                   #   dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+                                   #   dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                   ot<-terra::extract(
                                      terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
-                                     sub_poly,
-                                     progress=F
-                                   )[[1]] %>%
-                                     dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-                                     dplyr::select(-tidyselect::any_of("coverage_fraction"))
+                                     sub_poly_rast
+                                   )
 
                                    if (ncol(ot)==1) colnames(ot)<-loi_sub
 
