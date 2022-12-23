@@ -323,7 +323,7 @@ extract_raster_attributes<-function(
                      p,
                      temp_dir_sub,
                      n_cores) {
-
+              #browser()
               ihydro::.summ_fn(
                 x=x,
                 input=input,
@@ -335,7 +335,8 @@ extract_raster_attributes<-function(
                 loi_cols=loi_cols,
                 p=p,
                 temp_dir_sub=temp_dir_sub,
-                n_cores=n_cores
+                n_cores=n_cores,
+                backend=c("data.table")
               )
 
             }
@@ -413,7 +414,8 @@ extract_raster_attributes<-function(
                     loi_cols=loi_cols,
                     p=p,
                     temp_dir_sub=temp_dir_sub,
-                    n_cores=1
+                    n_cores=1,
+                    backend=c("data.table")
                   )
                 }
               )))
@@ -436,6 +438,9 @@ extract_raster_attributes<-function(
         paste(out$pour_point_id[out$status=="Incomplete"],collapse = ",")
       )
     )
+
+    # TODO: If all else fails, extract the data using subcatchments, write to
+    #        sqlite database and do calculations there...
   }
 
 
@@ -459,7 +464,20 @@ extract_raster_attributes<-function(
                    loi_cols,
                    p,
                    temp_dir_sub,
-                   n_cores){
+                   n_cores,
+                   backend=c("data.table","SQLite")
+                   ){
+  backend<-match.arg(backend,several.ok=T)
+
+  sys.mem<-(memuse::Sys.meminfo()$totalram/n_cores)*0.9
+  sys.disk<-NULL
+
+  if ("SQLite" %in% backend){
+    sys.disk <- system(paste0("df -BM ",temp_dir_sub),intern=T)
+    sys.disk <- strsplit(sys.disk[length(sys.disk)], "[ ]+")[[1]]
+    sys.disk <- as.numeric(gsub("\\D", "", sys.disk[4]))/1024
+  }
+
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
   `%>%` <- magrittr::`%>%`
@@ -503,13 +521,16 @@ extract_raster_attributes<-function(
                          sub_poly_rast<-terra::rasterize(sub_poly,input_rasts)
                          sub_poly_rast<-terra::cells(sub_poly_rast)
 
-                         sys.mem<-(memuse::Sys.meminfo()$totalram/n_cores)*0.9
+
+                         # Estimate table size if reading entire dataframe into memory
                          obj.size.full<-memuse::howbig(nrow=length(sub_poly_rast),
                                                        ncol=length(loi_cols)*length(weighting_scheme[weighting_scheme!="lumped"])*3,
-                                                       unit="GiB")
+                                                       unit="GiB")*1.1
+
+                         # Estimate table size if single loi and IDW into memory
                          obj.size.single<-memuse::howbig(nrow=length(sub_poly_rast),
                                                          ncol=5,
-                                                         unit="GiB")
+                                                         unit="GiB")*1.1
 
                          if (obj.size.single>sys.mem) {
                            out<-tibble::tibble(pour_point_id=sub_id,status="Incomplete")
@@ -527,10 +548,15 @@ extract_raster_attributes<-function(
 
                                purrr::map(weighting_scheme2,function(sub_weighting_scheme){
                                  #browser()
-                                 ot<-terra::extract(
+                                 ot<-exactextractr::exact_extract(
                                    terra::subset(input_rasts,c(loi_sub,sub_weighting_scheme)[c(loi_sub,sub_weighting_scheme) %in% names(input_rasts)]),
-                                   sub_poly_rast
+                                   sub_poly,
+                                   progress=F
                                  )
+                                 # ot<-terra::extract(
+                                 #   terra::subset(input_rasts,c(loi_sub,sub_weighting_scheme)[c(loi_sub,sub_weighting_scheme) %in% names(input_rasts)]),
+                                 #   sub_poly_rast
+                                 # )
 
                                  with_lumped<-"lumped" %in% weighting_scheme
 
@@ -551,10 +577,15 @@ extract_raster_attributes<-function(
                                purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
 
                            } else {
-                             ot<-terra::extract(
+                             ot<-exactextractr::exact_extract(
                                input_rasts,
-                               sub_poly_rast
+                               sub_poly,
+                               progress=F
                              )
+                             # ot<-terra::extract(
+                             #   input_rasts,
+                             #   sub_poly_rast
+                             # )
 
                              out<-ihydro::.attr_fn(ot,
                                                    point_id=sub_id,
@@ -572,7 +603,6 @@ extract_raster_attributes<-function(
 
     p()
     return(ot)
-
   })
 }
 
@@ -582,24 +612,46 @@ extract_raster_attributes<-function(
 #' @return a data.frame of attributes
 #' @export
 #'
-.attr_fn<-function(df,
+.attr_fn<-function(df=NULL,
+                   db_path=NULL,
+                   tbl_name=NULL,
                    point_id,
                    weighting_scheme2,
                    loi_meta2,
                    loi_cols2,
-                   loi_numeric_stats2){
+                   loi_numeric_stats2,
+                   backend=c("data.table","SQLite")){
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
   `%>%` <- magrittr::`%>%`
 
   loi_meta2<-dplyr::filter(loi_meta2,loi_var_nms %in% loi_cols2)
 
-  df_class<-sapply(df,class)
+  backend<-match.arg(backend)
 
-  df<-df %>%
-    dtplyr::lazy_dt() %>%
-    dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-    dplyr::select(-tidyselect::any_of("coverage_fraction"))
+  if (backend=="data.table") {
+    stopifnot(!is.null(df))
+
+    df_class<-sapply(df,class)
+
+    df<-df %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+      dplyr::select(-tidyselect::any_of("coverage_fraction"))
+  } else {
+    if (backend=="SQLite") {
+      stopifnot(!is.null(db_path))
+      stopifnot(!is.null(tbl_name))
+
+      con<-DBI::dbConnect(RSQLite::SQLite(),db_path)
+
+      df<-dplyr::tbl(con,tbl_name)
+
+      df_class<-sapply(dplyr::collect(df,n=1),class)
+    }
+  }
+
+
 
 
   df<-df %>%
@@ -627,8 +679,7 @@ extract_raster_attributes<-function(
   }
 
   df<-df %>%
-    tibble::as_tibble() %>%
-    dtplyr::lazy_dt()
+    dplyr::compute()
 
 
   weighted_mean_out<-NULL
@@ -647,7 +698,7 @@ extract_raster_attributes<-function(
 
   # Lumped Summaries --------------------------------------------------------
 
-  if ("lumped" %in% weighting_scheme2) {
+  if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="mean")) {
     lumped_mean_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(
@@ -658,7 +709,7 @@ extract_raster_attributes<-function(
                       ~sum(.,na.rm=T)/dplyr::n()
         )
       ) %>%
-      tibble::as_tibble()
+      dplyr::collect()
 
     if (length(numb_rast)>0) {
       lumped_mean_out<-lumped_mean_out %>%
@@ -671,14 +722,13 @@ extract_raster_attributes<-function(
         dplyr::mutate(dplyr::across(tidyselect::ends_with("_prop"),~ifelse(is.na(.),0,.)))
     }
 
-
   }
 
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="min") & length(numb_rast)>0){
     min_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~min(.,na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_min"))
 
   }
@@ -686,7 +736,7 @@ extract_raster_attributes<-function(
     max_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~max(.,na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_max"))
 
   }
@@ -694,7 +744,7 @@ extract_raster_attributes<-function(
     count_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_count"))
 
   }
@@ -703,7 +753,7 @@ extract_raster_attributes<-function(
     sum_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~sum(.,na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sum"))
   }
 
@@ -711,14 +761,14 @@ extract_raster_attributes<-function(
     median_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::median(.,na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_median"))
   }
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2 %in% c("sd","stdev") & length(numb_rast)>0)){
     lumped_sd_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::sd(.,na.rm=T))) %>%
-      tibble::as_tibble()%>%
+      dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sd"))
   }
 
@@ -732,7 +782,7 @@ extract_raster_attributes<-function(
         dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)),
         dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T))
       ) %>%
-      tibble::as_tibble()
+      dplyr::collect()
 
     if (length(numb_rast)>0) {
       weighted_mean_out<-weighted_mean_out %>%
@@ -748,9 +798,10 @@ extract_raster_attributes<-function(
   }
 
 
-  if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 &
-      any(loi_numeric_stats2 %in% c("sd","stdev")) &
-      length(numb_rast)>0
+  if (
+    length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 &
+    any(loi_numeric_stats2 %in% c("sd","stdev")) &
+    length(numb_rast)>0
   ) {
 
     weighted_sd_out<-df %>%
@@ -771,40 +822,40 @@ extract_raster_attributes<-function(
     }
     if ("HAiFLS" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
-                                  .names="{.col}_HAiFLS_term1"),
-                    dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
-                                  .names="{.col}_HAiFLS_term2"
-                    ))
-      }
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
+                                    .names="{.col}_HAiFLS_term1"),
+                      dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
+                                    .names="{.col}_HAiFLS_term2"
+                      ))
+    }
     if ("iFLO" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
-                                  .names="{.col}_iFLO_term1"),
-                    dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
-                                  .names="{.col}_iFLO_term2"
-                    ))
-      }
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
+                                    .names="{.col}_iFLO_term1"),
+                      dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
+                                    .names="{.col}_iFLO_term2"
+                      ))
+    }
     if ("HAiFLO" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
-                                  .names="{.col}_HAiFLO_term1"),
-                    dplyr::across(tidyselect::any_of(numb_rast),
-                                  ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
-                                  .names="{.col}_HAiFLO_term2"
-                    ))
-      }
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
+                                    .names="{.col}_HAiFLO_term1"),
+                      dplyr::across(tidyselect::any_of(numb_rast),
+                                    ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
+                                    .names="{.col}_HAiFLO_term2"
+                      ))
+    }
 
     weighted_sd_out<- weighted_sd_out%>%
       dplyr::summarize(dplyr::across(tidyselect::ends_with("_term1"),~sum(.,na.rm=T)),
                        dplyr::across(tidyselect::ends_with("_term2"),~.[1])
       ) %>%
-      tibble::as_tibble() %>%
+      dplyr::collect() %>%
       # The below is some rearranging
       tidyr::pivot_longer(cols=c(tidyselect::everything())) %>%
       dplyr::mutate(attr=stringr::str_split_fixed(name,"_iFLS_|_HAiFLS_|_iFLO_|_HAiFLO_",2)[,1],
@@ -843,6 +894,10 @@ extract_raster_attributes<-function(
       tidyselect::any_of("status"),
       tidyselect::contains(loi_meta2$loi_var_nms)
     )
+
+  if (backend=="SQLite") {
+    DBI::dbDisconnect(con)
+  }
 
   return(final_out)
 }
