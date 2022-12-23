@@ -615,7 +615,7 @@ extract_raster_attributes<-function(
                                if (remaining_cols_ratio>1){
                                  remaining_cols<-length(loi_cols)
                                } else {
-                                 remaining_cols<-floor(length(loi_cols)*remaining_cols_ratio*0.9)
+                                 remaining_cols<-floor(length(loi_cols)*remaining_cols_ratio*0.5)
                                }
 
                                loi_cols_split<-split(loi_cols,
