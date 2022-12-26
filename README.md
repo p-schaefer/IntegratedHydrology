@@ -1,6 +1,8 @@
 ihydro: Integrated hydrology tools for environmental science
 ================
 
+- <a href="#ihydro-" id="toc-ihydro-">ihydro
+  <img src="man/figures/logo.png" align="right" width=280 /></a>
   - <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
   - <a href="#2-system-setup-and-installation"
     id="toc-2-system-setup-and-installation">2 System setup and
@@ -66,7 +68,7 @@ ihydro: Integrated hydrology tools for environmental science
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-<img src="man/figures/logo.png" align="right" width=280 />
+# ihydro <img src="man/figures/logo.png" align="right" width=280 />
 
 <!-- badges: start -->
 
@@ -129,7 +131,7 @@ Hence, autocorrelation should be low because the tributary does not
 contribute much flow to the larger stream. Using in-stream distances
 alone may misrepresent this pattern.
 
-***ihydro*** stores its geospatial products in a geopackage file for ease of
+***ihydro*** stores its geospatial products in a zip file for ease of
 retrieval and extraction in external software (i.e. QGIS). Many
 ***ihydro*** function can be run in parallel for increased speed (if
 enough memory is available). The functions are also quick at removing
@@ -268,15 +270,16 @@ hydro_out<-process_flowdir(
 
 # List files present in gpkg
 ihydro_layers(hydro_out)
-#> # A tibble: 6 × 3
+#> # A tibble: 7 × 3
 #>   layer_name       data_type data_group
 #>   <chr>            <chr>     <chr>     
-#> 1 DEM_Extent       Polygon   meta      
-#> 2 dem_final        Raster    hydro     
-#> 3 dem_d8           Raster    hydro     
-#> 4 dem_accum_d8     Raster    hydro     
-#> 5 dem_accum_d8_sca Raster    hydro     
-#> 6 dem_streams_d8   Raster    hydro
+#> 1 dem_final        Raster    hydro     
+#> 2 dem_d8           Raster    hydro     
+#> 3 dem_accum_d8     Raster    hydro     
+#> 4 dem_accum_d8_sca Raster    hydro     
+#> 5 dem_streams_d8   Raster    hydro     
+#> 6 DEM_Extent       Table     meta      
+#> 7 DEM_Extent       Vector    meta
 
 # hydro_out$outfile # -> This is the full file path of the resulting geopackage (gpkg) file
 
@@ -305,15 +308,16 @@ from a previous R run):
 
 hydro_out_new<-as.ihydro(output_filename_hydro)
 ihydro_layers(hydro_out_new)
-#> # A tibble: 6 × 3
+#> # A tibble: 7 × 3
 #>   layer_name       data_type data_group
 #>   <chr>            <chr>     <chr>     
-#> 1 DEM_Extent       Polygon   meta      
-#> 2 dem_final        Raster    hydro     
-#> 3 dem_d8           Raster    hydro     
-#> 4 dem_accum_d8     Raster    hydro     
-#> 5 dem_accum_d8_sca Raster    hydro     
-#> 6 dem_streams_d8   Raster    hydro
+#> 1 dem_final        Raster    hydro     
+#> 2 dem_d8           Raster    hydro     
+#> 3 dem_accum_d8     Raster    hydro     
+#> 4 dem_accum_d8_sca Raster    hydro     
+#> 5 dem_streams_d8   Raster    hydro     
+#> 6 DEM_Extent       Table     meta      
+#> 7 DEM_Extent       Vector    meta
 ```
 
 [Back to top](#1-introduction)
@@ -347,24 +351,20 @@ hydro_out<-generate_vectors(
 ) 
 
 ihydro_layers(hydro_out)
-#> # A tibble: 15 × 3
-#>    layer_name         data_type data_group   
-#>    <chr>              <chr>     <chr>        
-#>  1 stream_lines       Line      hydro        
-#>  2 stream_points      Point     hydro        
-#>  3 stream_links       Point     hydro        
-#>  4 snapped_points     Point     sample_points
-#>  5 original_points    Point     sample_points
-#>  6 Subbasins_poly     Polygon   hydro        
-#>  7 DEM_Extent         Polygon   meta         
-#>  8 dem_final          Raster    hydro        
-#>  9 dem_d8             Raster    hydro        
-#> 10 dem_accum_d8       Raster    hydro        
-#> 11 dem_accum_d8_sca   Raster    hydro        
-#> 12 dem_streams_d8     Raster    hydro        
-#> 13 stream_points_attr Table     hydro        
-#> 14 stream_links_attr  Table     hydro        
-#> 15 site_id_col        Table     meta
+#> # A tibble: 22 × 3
+#>    layer_name        data_type data_group
+#>    <chr>             <chr>     <chr>     
+#>  1 dem_final         Raster    hydro     
+#>  2 dem_d8            Raster    hydro     
+#>  3 dem_accum_d8      Raster    hydro     
+#>  4 dem_accum_d8_sca  Raster    hydro     
+#>  5 dem_streams_d8    Raster    hydro     
+#>  6 Subbasins_poly    Table     hydro     
+#>  7 stream_lines      Table     hydro     
+#>  8 stream_links      Table     hydro     
+#>  9 stream_links_attr Table     hydro     
+#> 10 stream_points     Table     hydro     
+#> # … with 12 more rows
 
 # Several important columns are used throughout the vector layers:
 # `link_id` - identifies reaches/segments (steam between two confluences)
@@ -435,27 +435,20 @@ hydro_out<-trace_flowpaths(
 )
 
 ihydro_layers(hydro_out)
-#> # A tibble: 18 × 3
-#>    layer_name         data_type data_group   
-#>    <chr>              <chr>     <chr>        
-#>  1 stream_lines       Line      hydro        
-#>  2 stream_points      Point     hydro        
-#>  3 stream_links       Point     hydro        
-#>  4 snapped_points     Point     sample_points
-#>  5 original_points    Point     sample_points
-#>  6 Subbasins_poly     Polygon   hydro        
-#>  7 DEM_Extent         Polygon   meta         
-#>  8 dem_final          Raster    hydro        
-#>  9 dem_d8             Raster    hydro        
-#> 10 dem_accum_d8       Raster    hydro        
-#> 11 dem_accum_d8_sca   Raster    hydro        
-#> 12 dem_streams_d8     Raster    hydro        
-#> 13 ds_flowpaths       Table     flow_path    
-#> 14 us_flowpaths       Table     flow_path    
-#> 15 stream_points_attr Table     hydro        
-#> 16 stream_links_attr  Table     hydro        
-#> 17 site_id_col        Table     meta         
-#> 18 fcon_pwise_dist    Table     pwise_dist
+#> # A tibble: 25 × 3
+#>    layer_name       data_type data_group
+#>    <chr>            <chr>     <chr>     
+#>  1 dem_final        Raster    hydro     
+#>  2 dem_d8           Raster    hydro     
+#>  3 dem_accum_d8     Raster    hydro     
+#>  4 dem_accum_d8_sca Raster    hydro     
+#>  5 dem_streams_d8   Raster    hydro     
+#>  6 ds_flowpaths     Table     flow_path 
+#>  7 us_flowpaths     Table     flow_path 
+#>  8 Subbasins_poly   Table     hydro     
+#>  9 stream_lines     Table     hydro     
+#> 10 stream_links     Table     hydro     
+#> # … with 15 more rows
 
 # We will add these upstream and downstream lookup tables to the output below
 con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$outfile)
@@ -573,27 +566,20 @@ hydro_out_sparse<-process_hydrology(
 )
 
 ihydro_layers(hydro_out_sparse)
-#> # A tibble: 18 × 3
-#>    layer_name         data_type data_group   
-#>    <chr>              <chr>     <chr>        
-#>  1 stream_lines       Line      hydro        
-#>  2 stream_points      Point     hydro        
-#>  3 stream_links       Point     hydro        
-#>  4 snapped_points     Point     sample_points
-#>  5 original_points    Point     sample_points
-#>  6 Subbasins_poly     Polygon   hydro        
-#>  7 DEM_Extent         Polygon   meta         
-#>  8 dem_final          Raster    hydro        
-#>  9 dem_d8             Raster    hydro        
-#> 10 dem_accum_d8       Raster    hydro        
-#> 11 dem_accum_d8_sca   Raster    hydro        
-#> 12 dem_streams_d8     Raster    hydro        
-#> 13 ds_flowpaths       Table     flow_path    
-#> 14 us_flowpaths       Table     flow_path    
-#> 15 stream_points_attr Table     hydro        
-#> 16 stream_links_attr  Table     hydro        
-#> 17 site_id_col        Table     meta         
-#> 18 fcon_pwise_dist    Table     pwise_dist
+#> # A tibble: 25 × 3
+#>    layer_name       data_type data_group
+#>    <chr>            <chr>     <chr>     
+#>  1 dem_final        Raster    hydro     
+#>  2 dem_d8           Raster    hydro     
+#>  3 dem_accum_d8     Raster    hydro     
+#>  4 dem_accum_d8_sca Raster    hydro     
+#>  5 dem_streams_d8   Raster    hydro     
+#>  6 ds_flowpaths     Table     flow_path 
+#>  7 us_flowpaths     Table     flow_path 
+#>  8 Subbasins_poly   Table     hydro     
+#>  9 stream_lines     Table     hydro     
+#> 10 stream_links     Table     hydro     
+#> # … with 15 more rows
 
 # Since we didn't return the products, we'll verify the outputs exist in the gpkg file
 
@@ -641,29 +627,20 @@ hydro_out<-generate_pdist(
 
 con <- DBI::dbConnect(RSQLite::SQLite(), hydro_out$outfile)
 ihydro_layers(hydro_out)
-#> # A tibble: 20 × 3
-#>    layer_name         data_type data_group   
-#>    <chr>              <chr>     <chr>        
-#>  1 stream_lines       Line      hydro        
-#>  2 stream_points      Point     hydro        
-#>  3 stream_links       Point     hydro        
-#>  4 snapped_points     Point     sample_points
-#>  5 original_points    Point     sample_points
-#>  6 Subbasins_poly     Polygon   hydro        
-#>  7 Catchment_poly     Polygon   hydro        
-#>  8 DEM_Extent         Polygon   meta         
-#>  9 dem_final          Raster    hydro        
-#> 10 dem_d8             Raster    hydro        
-#> 11 dem_accum_d8       Raster    hydro        
-#> 12 dem_accum_d8_sca   Raster    hydro        
-#> 13 dem_streams_d8     Raster    hydro        
-#> 14 ds_flowpaths       Table     flow_path    
-#> 15 us_flowpaths       Table     flow_path    
-#> 16 stream_points_attr Table     hydro        
-#> 17 stream_links_attr  Table     hydro        
-#> 18 site_id_col        Table     meta         
-#> 19 fcon_pwise_dist    Table     pwise_dist   
-#> 20 funcon_pwise_dist  Table     pwise_dist
+#> # A tibble: 28 × 3
+#>    layer_name       data_type data_group
+#>    <chr>            <chr>     <chr>     
+#>  1 dem_final        Raster    hydro     
+#>  2 dem_d8           Raster    hydro     
+#>  3 dem_accum_d8     Raster    hydro     
+#>  4 dem_accum_d8_sca Raster    hydro     
+#>  5 dem_streams_d8   Raster    hydro     
+#>  6 ds_flowpaths     Table     flow_path 
+#>  7 us_flowpaths     Table     flow_path 
+#>  8 Catchment_poly   Table     hydro     
+#>  9 Subbasins_poly   Table     hydro     
+#> 10 stream_lines     Table     hydro     
+#> # … with 18 more rows
 
 # funcon_pwise_dist is only available if pwise_all_links==T
 
@@ -997,28 +974,29 @@ loi_combined<-process_loi(
 )
 
 ihydro_layers(loi_combined)
-#> # A tibble: 19 × 3
+#> # A tibble: 20 × 3
 #>    layer_name      data_type data_group
 #>    <chr>           <chr>     <chr>     
-#>  1 DEM_Extent      Polygon   meta      
-#>  2 slope           Raster    loi       
-#>  3 LC_1            Raster    loi       
-#>  4 LC_2            Raster    loi       
-#>  5 LC_3            Raster    loi       
-#>  6 LC_4            Raster    loi       
-#>  7 LC_5            Raster    loi       
-#>  8 LC_6            Raster    loi       
-#>  9 LC_7            Raster    loi       
-#> 10 pontsrc_pontsrc Raster    loi       
-#> 11 GEO_NAME_CZam   Raster    loi       
-#> 12 GEO_NAME_CZbg   Raster    loi       
-#> 13 GEO_NAME_CZfg   Raster    loi       
-#> 14 GEO_NAME_CZg    Raster    loi       
-#> 15 GEO_NAME_CZig   Raster    loi       
-#> 16 GEO_NAME_CZlg   Raster    loi       
-#> 17 GEO_NAME_CZve   Raster    loi       
-#> 18 GEO_NAME_Km     Raster    loi       
-#> 19 loi_meta        Table     meta
+#>  1 GEO_NAME_CZam   Raster    loi       
+#>  2 GEO_NAME_CZbg   Raster    loi       
+#>  3 GEO_NAME_CZfg   Raster    loi       
+#>  4 GEO_NAME_CZg    Raster    loi       
+#>  5 GEO_NAME_CZig   Raster    loi       
+#>  6 GEO_NAME_CZlg   Raster    loi       
+#>  7 GEO_NAME_CZve   Raster    loi       
+#>  8 GEO_NAME_Km     Raster    loi       
+#>  9 LC_1            Raster    loi       
+#> 10 LC_2            Raster    loi       
+#> 11 LC_3            Raster    loi       
+#> 12 LC_4            Raster    loi       
+#> 13 LC_5            Raster    loi       
+#> 14 LC_6            Raster    loi       
+#> 15 LC_7            Raster    loi       
+#> 16 pontsrc_pontsrc Raster    loi       
+#> 17 slope           Raster    loi       
+#> 18 DEM_Extent      Table     meta      
+#> 19 loi_meta        Table     meta      
+#> 20 DEM_Extent      Vector    meta
 ```
 
 All categorical layers have been transformed to rasters with 1
@@ -1075,22 +1053,22 @@ hydro_out_sparse<-process_loi(
 )
 
 print(ihydro_layers(hydro_out_sparse),n=40)
-#> # A tibble: 36 × 3
+#> # A tibble: 43 × 3
 #>    layer_name         data_type data_group   
 #>    <chr>              <chr>     <chr>        
-#>  1 stream_lines       Line      hydro        
-#>  2 stream_points      Point     hydro        
-#>  3 stream_links       Point     hydro        
-#>  4 snapped_points     Point     sample_points
-#>  5 original_points    Point     sample_points
-#>  6 Subbasins_poly     Polygon   hydro        
-#>  7 DEM_Extent         Polygon   meta         
-#>  8 dem_final          Raster    hydro        
-#>  9 dem_d8             Raster    hydro        
-#> 10 dem_accum_d8       Raster    hydro        
-#> 11 dem_accum_d8_sca   Raster    hydro        
-#> 12 dem_streams_d8     Raster    hydro        
-#> 13 slope              Raster    loi          
+#>  1 dem_final          Raster    hydro        
+#>  2 dem_d8             Raster    hydro        
+#>  3 dem_accum_d8       Raster    hydro        
+#>  4 dem_accum_d8_sca   Raster    hydro        
+#>  5 dem_streams_d8     Raster    hydro        
+#>  6 GEO_NAME_CZam      Raster    loi          
+#>  7 GEO_NAME_CZbg      Raster    loi          
+#>  8 GEO_NAME_CZfg      Raster    loi          
+#>  9 GEO_NAME_CZg       Raster    loi          
+#> 10 GEO_NAME_CZig      Raster    loi          
+#> 11 GEO_NAME_CZlg      Raster    loi          
+#> 12 GEO_NAME_CZve      Raster    loi          
+#> 13 GEO_NAME_Km        Raster    loi          
 #> 14 LC_1               Raster    loi          
 #> 15 LC_2               Raster    loi          
 #> 16 LC_3               Raster    loi          
@@ -1099,21 +1077,26 @@ print(ihydro_layers(hydro_out_sparse),n=40)
 #> 19 LC_6               Raster    loi          
 #> 20 LC_7               Raster    loi          
 #> 21 pontsrc_pontsrc    Raster    loi          
-#> 22 GEO_NAME_CZam      Raster    loi          
-#> 23 GEO_NAME_CZbg      Raster    loi          
-#> 24 GEO_NAME_CZfg      Raster    loi          
-#> 25 GEO_NAME_CZg       Raster    loi          
-#> 26 GEO_NAME_CZig      Raster    loi          
-#> 27 GEO_NAME_CZlg      Raster    loi          
-#> 28 GEO_NAME_CZve      Raster    loi          
-#> 29 GEO_NAME_Km        Raster    loi          
-#> 30 ds_flowpaths       Table     flow_path    
-#> 31 us_flowpaths       Table     flow_path    
-#> 32 stream_points_attr Table     hydro        
-#> 33 stream_links_attr  Table     hydro        
-#> 34 site_id_col        Table     meta         
-#> 35 loi_meta           Table     meta         
-#> 36 fcon_pwise_dist    Table     pwise_dist
+#> 22 slope              Raster    loi          
+#> 23 ds_flowpaths       Table     flow_path    
+#> 24 us_flowpaths       Table     flow_path    
+#> 25 Subbasins_poly     Table     hydro        
+#> 26 stream_lines       Table     hydro        
+#> 27 stream_links       Table     hydro        
+#> 28 stream_links_attr  Table     hydro        
+#> 29 stream_points      Table     hydro        
+#> 30 stream_points_attr Table     hydro        
+#> 31 DEM_Extent         Table     meta         
+#> 32 loi_meta           Table     meta         
+#> 33 site_id_col        Table     meta         
+#> 34 fcon_pwise_dist    Table     pwise_dist   
+#> 35 original_points    Table     sample_points
+#> 36 snapped_points     Table     sample_points
+#> 37 Subbasins_poly     Vector    hydro        
+#> 38 stream_lines       Vector    hydro        
+#> 39 stream_links       Vector    hydro        
+#> 40 stream_points      Vector    hydro        
+#> # … with 3 more rows
 ```
 
 [Back to top](#1-introduction)
@@ -1156,8 +1139,8 @@ attrib_points_time_small<-system.time(
     link_id=NULL,
     clip_region=NULL,
     target_o_type=c("point"),
-    weighting_scheme = c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
-    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count"),
+    weighting_scheme = c("lumped","iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum"),
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -1169,19 +1152,19 @@ attrib_points_time_small<-system.time(
 
 
 final_attributes_sub_slow 
-#> # A tibble: 3 × 134
+#> # A tibble: 3 × 97
 #>   link_id site_id products     slope_l…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
 #>   <chr>   <chr>   <list>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
 #> 1 1107.1  1       <named list>      2.96   1.49     2.83 0.203     10.2    3613.
 #> 2 1050.1  25      <named list>      3.48   2.23     3.10 0.00216   22.8  257020.
 #> 3 555.1   80      <named list>      2.23   0.837    2.16 0.400      4.34    353.
-#> # … with 125 more variables: slope_lumped_cell_count <dbl>,
-#> #   slope_iEucO_distwtd_mean <dbl>, slope_iEucO_distwtd_sd <dbl>,
-#> #   slope_iEucS_distwtd_mean <dbl>, slope_iEucS_distwtd_sd <dbl>,
-#> #   slope_iFLO_distwtd_mean <dbl>, slope_iFLO_distwtd_sd <dbl>,
-#> #   slope_iFLS_distwtd_mean <dbl>, slope_iFLS_distwtd_sd <dbl>,
-#> #   slope_HAiFLO_distwtd_mean <dbl>, slope_HAiFLO_distwtd_sd <dbl>,
-#> #   slope_HAiFLS_distwtd_mean <dbl>, slope_HAiFLS_distwtd_sd <dbl>, …
+#> # … with 88 more variables: slope_iFLO_distwtd_mean <dbl>,
+#> #   slope_iFLO_distwtd_sd <dbl>, slope_iFLS_distwtd_mean <dbl>,
+#> #   slope_iFLS_distwtd_sd <dbl>, slope_HAiFLO_distwtd_mean <dbl>,
+#> #   slope_HAiFLO_distwtd_sd <dbl>, slope_HAiFLS_distwtd_mean <dbl>,
+#> #   slope_HAiFLS_distwtd_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_2_lumped_prop <dbl>, LC_3_lumped_prop <dbl>, LC_4_lumped_prop <dbl>,
+#> #   LC_5_lumped_prop <dbl>, LC_6_lumped_prop <dbl>, LC_7_lumped_prop <dbl>, …
 ```
 
 We can access the weighting layers and weighted attribute layers (if
@@ -1211,8 +1194,7 @@ plot(
 
 The `fasttrib_points()` function faster for larger data sets, more loi,
 and more sampling points. For very small datasets `attrib_points()` may
-be faster. It also allows faster iterative runs by saving and reusing
-intermediate ‘raw_file’.
+be faster.
 
 ``` r
 
@@ -1224,7 +1206,6 @@ fasttrib_points_time_small<-system.time(
     loi_cols=NULL,                # Specify loi columns to use, if NULL, all will be used
     iDW_file=NULL, # Leaving this as NULL will look for iDW in 'input' and calculate any not available
     store_iDW=T,   # This will save the distance weights to the input or iDW_file if it is specified
-    raw_file=file.path(tempdir(),"raw_data.db"), # file to save raw data to (this allows faster calculations in the fuutre)
     sample_points=c("1","25","80"),
     link_id=NULL,
     target_o_type=c("point"),
@@ -1239,44 +1220,35 @@ fasttrib_points_time_small<-system.time(
 )
 
 ihydro_layers(hydro_out)
-#> # A tibble: 20 × 3
-#>    layer_name                   data_type data_group   
-#>    <chr>                        <chr>     <chr>        
-#>  1 stream_lines                 Line      hydro        
-#>  2 stream_points                Point     hydro        
-#>  3 stream_links                 Point     hydro        
-#>  4 snapped_points               Point     sample_points
-#>  5 original_points              Point     sample_points
-#>  6 Subbasins_poly               Polygon   hydro        
-#>  7 Catchment_poly               Polygon   hydro        
-#>  8 DEM_Extent                   Polygon   meta         
-#>  9 dem_final                    Raster    hydro        
-#> 10 dem_d8                       Raster    hydro        
-#> 11 dem_accum_d8                 Raster    hydro        
-#> 12 dem_accum_d8_sca             Raster    hydro        
-#> 13 dem_streams_d8               Raster    hydro        
-#> 14 iFLS                         Raster    iDW          
-#> 15 HAiFLS                       Raster    iDW          
-#> 16 HAiFLO_unn_group5hUzmFduXWLo Raster    iDW          
-#> 17 iFLO_unn_group5hUzmFduXWLo   Raster    iDW          
-#> 18 HAiFLO_unn_groupI1oYLoAl3EAD Raster    iDW          
-#> 19 iFLO_unn_groupI1oYLoAl3EAD   Raster    iDW          
-#> 20 target_o_meta                Table     meta
+#> # A tibble: 35 × 3
+#>    layer_name                   data_type data_group
+#>    <chr>                        <chr>     <chr>     
+#>  1 dem_final                    Raster    hydro     
+#>  2 dem_d8                       Raster    hydro     
+#>  3 dem_accum_d8                 Raster    hydro     
+#>  4 dem_accum_d8_sca             Raster    hydro     
+#>  5 dem_streams_d8               Raster    hydro     
+#>  6 iFLS                         Raster    iDW       
+#>  7 HAiFLS                       Raster    iDW       
+#>  8 HAiFLO_unn_groupVKxpFOGOYiWb Raster    iDW       
+#>  9 HAiFLO_unn_groupx0kgF2Bgnrbh Raster    iDW       
+#> 10 iFLO_unn_groupVKxpFOGOYiWb   Raster    iDW       
+#> # … with 25 more rows
 
 final_attributes_sub
-#> # A tibble: 3 × 96
-#>   link_id site_id slope_iFLS_m…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
-#>   <chr>   <chr>            <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1107.1  1                 3.08    2.79    3.13    2.41    3.02    2.71    2.60
-#> 2 1050.1  25                3.56    3.30    3.37    1.50    3.51    2.16    3.23
-#> 3 555.1   80                2.37    1.86    2.37    1.77    2.34    1.61    1.64
-#> # … with 87 more variables: slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>,
-#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
-#> #   slope_lumped_median <dbl>, slope_lumped_sum <dbl>, LC_1_iFLS_prop <dbl>,
-#> #   LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>,
-#> #   LC_1_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
-#> #   LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>,
-#> #   LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, …
+#> # A tibble: 3 × 97
+#>   link_id site_id status slope…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
+#>   <chr>   <chr>   <chr>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1107.1  1       Compl…    3.02   1.46  0.203     10.2     2.89   3254.    3.08
+#> 2 1050.1  25      Compl…    3.51   2.24  0.00216   22.8     3.14 253079.    3.56
+#> 3 555.1   80      Compl…    2.34   0.904 0.400      4.34    2.19    273.    2.37
+#> # … with 87 more variables: slope_HAiFLS_mean <dbl>, slope_iFLO_mean <dbl>,
+#> #   slope_HAiFLO_mean <dbl>, slope_HAiFLO_sd <dbl>, slope_HAiFLS_sd <dbl>,
+#> #   slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
+#> #   LC_1_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
+#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
+#> #   LC_3_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, …
 ```
 
 [Back to top](#1-introduction)
@@ -1292,7 +1264,6 @@ final_attributes<-fasttrib_points(
   loi_cols=NULL,
   iDW_file=NULL,
   store_iDW=T,
-  raw_file=file.path(tempdir(),"raw_data.db"), # since we have a raw file available, calculations will be faster
   sample_points=hydro_out$snapped_points$site_id, # here we specify all sampling points
   link_id=NULL,
   target_o_type=c("point"),
@@ -1307,26 +1278,26 @@ final_attributes<-fasttrib_points(
 
 
 final_attributes
-#> # A tibble: 45 × 94
-#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
-#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 1118.1  41               2.46    2.31    2.57    2.10    2.43    2.52    2.45
-#>  2 1107.1  1                3.08    2.79    3.13    2.41    3.02    2.71    2.60
-#>  3 101.1   62               3.19    3.05    3.35    2.85    3.13    3.03    2.79
-#>  4 142.1   26               2.86    2.53    2.90    2.14    2.82    2.21    2.39
-#>  5 1086.1  4                3.42    3.10    3.49    2.27    3.37    2.75    2.91
-#>  6 1053.1  7                2.84    2.79    2.88    2.13    2.75    2.35    2.83
-#>  7 1048.1  5                2.57    2.53    2.57    2.13    2.52    2.30    2.49
-#>  8 1074.1  8                3.29    3.05    3.35    2.35    3.23    3.16    2.97
-#>  9 1080.1  66               4.06    3.53    4.24    2.49    3.97    2.62    3.30
-#> 10 1093.1  28               3.38    3.14    3.53    2.39    3.33    2.71    2.90
-#> # … with 35 more rows, 85 more variables: slope_iFLO_sd <dbl>,
-#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
-#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
-#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
-#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
-#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
-#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
+#> # A tibble: 45 × 95
+#>    link_id site_id status   slope_lump…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>    <chr>   <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 1118.1  41      Complete         2.43    1.57 0.00253   11.4     2.46    2.31
+#>  2 1107.1  1       Complete         3.02    1.46 0.203     10.2     3.08    2.79
+#>  3 101.1   62      Complete         3.13    1.81 0.0667     8.27    3.19    3.05
+#>  4 142.1   26      Complete         2.82    1.37 0.152      7.64    2.86    2.53
+#>  5 1086.1  4       Complete         3.37    1.75 0.146     12.3     3.42    3.10
+#>  6 1053.1  7       Complete         2.75    1.75 0.0323     9.97    2.84    2.79
+#>  7 1048.1  5       Complete         2.52    1.59 0.0323     7.90    2.57    2.53
+#>  8 1074.1  8       Complete         3.23    1.90 0.0323    12.3     3.29    3.05
+#>  9 1080.1  66      Complete         3.97    2.04 0.110     10.7     4.06    3.53
+#> 10 1093.1  28      Complete         3.33    1.80 0.152     10.8     3.38    3.14
+#> # … with 35 more rows, 86 more variables: slope_iFLO_mean <dbl>,
+#> #   slope_HAiFLO_mean <dbl>, slope_HAiFLO_sd <dbl>, slope_HAiFLS_sd <dbl>,
+#> #   slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
+#> #   LC_1_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
+#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
+#> #   LC_3_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, …
 ```
 
 [Back to top](#1-introduction)
@@ -1349,7 +1320,7 @@ across the length of the whole reach.
 # or the input pkg.
 
 # These can be large and take up a lot of room, so consider whether they are needed before storing.
-# Having the raster available does increase the computation time of fasttrib_points().
+# Having the raster available does decrease the computation time of fasttrib_points().
 
 dw_time<-system.time(
   Processed_HW<-prep_weights(
@@ -1366,8 +1337,8 @@ fasttrib_points_time_big<-system.time(
     loi_file=output_filename_loi, 
     loi_cols=NULL,
     iDW_file=file.path(tempfile(),"iDW_temp.gpkg"),
+    #iDW_file = file.path(tempfile(),"Processed_HW_out.gpkg"), # to use previously calculated weights
     store_iDW=T,
-    raw_file=NULL, # We will set this to NULL to allow fair comparison with  `attrib_points()`
     sample_points=NULL, # by specifying neither sample_points nor link_id
     link_id=NULL,       #   we get all reaches
     target_o_type=c("segment_point"),
@@ -1382,26 +1353,26 @@ fasttrib_points_time_big<-system.time(
 )
 
 final_attributes_all
-#> # A tibble: 1,382 × 94
-#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
-#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 6       <NA>             3.97    3.25    3.97    2.57    3.93    2.68    2.97
-#>  2 5       <NA>             4.85    4.56    4.85    4.22    4.73    4.10    4.12
-#>  3 1202    <NA>             4.03    3.89    4.05    2.04    3.97    2.34    3.42
-#>  4 1210    <NA>             4.15    3.92    4.36    2.42    4.09    2.80    3.70
-#>  5 1208    <NA>             3.65    3.46    3.80    3.22    3.58    3.61    3.41
-#>  6 1       <NA>             4.44    4.04    4.44    3.52    4.40    3.57    3.74
-#>  7 1199    <NA>             3.75    3.62    3.85    3.40    3.65    3.85    3.40
-#>  8 2       <NA>             3.55    3.57    3.55    3.46    3.46    3.40    3.12
-#>  9 1200    <NA>             4.45    3.92    4.68    3.78    4.33    4.37    3.76
-#> 10 33      <NA>             4.79    4.48    4.79    3.93    4.64    4.27    4.16
-#> # … with 1,372 more rows, 85 more variables: slope_iFLO_sd <dbl>,
-#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
-#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
-#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
-#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
-#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
-#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
+#> # A tibble: 1,241 × 95
+#>    link_id site_id status   slope_lump…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>    <chr>   <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 6       <NA>    Complete         3.93    1.90  0.178     8.26    3.97    3.25
+#>  2 5       <NA>    Complete         4.73    2.43  0.385    10.4     4.85    4.56
+#>  3 1202    <NA>    Complete         3.97    1.91  0.0656   12.7     4.03    3.89
+#>  4 1210    <NA>    Complete         4.09    2.34  0.119    15.9     4.15    3.92
+#>  5 1208    <NA>    Complete         3.58    2.21  0.0485   14.5     3.65    3.46
+#>  6 1       <NA>    Complete         4.40    2.32  0.330     9.19    4.44    4.04
+#>  7 1199    <NA>    Complete         3.65    2.18  0.117    12.9     3.75    3.62
+#>  8 2       <NA>    Complete         3.46    1.73  0.296     8.18    3.55    3.57
+#>  9 1200    <NA>    Complete         4.33    2.59  0.162    17.8     4.45    3.92
+#> 10 33      <NA>    Complete         4.64    2.82  0.204    15.0     4.79    4.48
+#> # … with 1,231 more rows, 86 more variables: slope_iFLO_mean <dbl>,
+#> #   slope_HAiFLO_mean <dbl>, slope_HAiFLO_sd <dbl>, slope_HAiFLS_sd <dbl>,
+#> #   slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
+#> #   LC_1_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
+#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
+#> #   LC_3_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, …
 
 attrib_points_time_big<-system.time(
   final_attributes_slow<-attrib_points(
@@ -1455,13 +1426,13 @@ pmap(
          attrib_points_time_big,
          fasttrib_points_time_big),
     list(final_attributes_sub_slow %>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_sub%>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_slow %>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_all%>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"))
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status"))
     )),
   function(.z,.x,.y) paste0(.z," took ",
                             round(.x[[3]]/60,2),
@@ -1472,23 +1443,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 1.36 min to calculate for 3 reaches with 131 attributes using 4 cores."
+#> [1] "attrib_points() took 0.82 min to calculate for 3 reaches with 94 attributes using 4 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 0.25 min to calculate for 3 reaches with 94 attributes using 4 cores."
+#> [1] "fasttrib_points() took 1.73 min to calculate for 3 reaches with 94 attributes using 4 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 27.6 min to calculate for 1241 reaches with 92 attributes using 4 cores."
+#> [1] "attrib_points() took 23.72 min to calculate for 1241 reaches with 92 attributes using 4 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 6.08 min to calculate for 1382 reaches with 92 attributes using 4 cores."
+#> [1] "fasttrib_points() took 10.36 min to calculate for 1241 reaches with 92 attributes using 4 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "1.65 min to calculate distance weights for 1382 reaches using 4 cores."
+#> [1] "2.45 min to calculate distance weights for 1241 reaches using 4 cores."
 ```
 
 [Back to top](#1-introduction)
@@ -1590,22 +1561,22 @@ comb_data<-response_table %>%
   mutate(across(starts_with("Prop_catch_"),~ifelse(is.na(.),0,.)))
 
 head(comb_data)
-#> # A tibble: 6 × 337
-#>   site_id value link_id slope_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
-#>   <chr>   <dbl> <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#> 1 1           1 1107.1      3.08    2.79    3.13    2.41    3.02    2.71    2.60
-#> 2 4           1 1086.1      3.42    3.10    3.49    2.27    3.37    2.75    2.91
-#> 3 5           1 1048.1      2.57    2.53    2.57    2.13    2.52    2.30    2.49
-#> 4 7           1 1053.1      2.84    2.79    2.88    2.13    2.75    2.35    2.83
-#> 5 8           1 1074.1      3.29    3.05    3.35    2.35    3.23    3.16    2.97
-#> 6 11          2 1037.1      3.49    3.17    3.63    3.38    3.42    4.17    3.13
-#> # … with 327 more variables: slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>,
-#> #   slope_lumped_sd <dbl>, slope_lumped_min <dbl>, slope_lumped_max <dbl>,
-#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
-#> #   LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
-#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
-#> #   LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>,
-#> #   LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, LC_3_lumped_prop <dbl>, …
+#> # A tibble: 6 × 338
+#>   site_id value link_id status   slope…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>   <chr>   <dbl> <chr>   <chr>      <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#> 1 1           1 1107.1  Complete    3.02    1.46  0.203    10.2     3.08    2.79
+#> 2 4           1 1086.1  Complete    3.37    1.75  0.146    12.3     3.42    3.10
+#> 3 5           1 1048.1  Complete    2.52    1.59  0.0323    7.90    2.57    2.53
+#> 4 7           1 1053.1  Complete    2.75    1.75  0.0323    9.97    2.84    2.79
+#> 5 8           1 1074.1  Complete    3.23    1.90  0.0323   12.3     3.29    3.05
+#> 6 11          2 1037.1  Complete    3.42    2.22  0.0323   22.8     3.49    3.17
+#> # … with 328 more variables: slope_iFLO_mean <dbl>, slope_HAiFLO_mean <dbl>,
+#> #   slope_HAiFLO_sd <dbl>, slope_HAiFLS_sd <dbl>, slope_iFLO_sd <dbl>,
+#> #   slope_iFLS_sd <dbl>, LC_1_lumped_prop <dbl>, LC_1_iFLS_prop <dbl>,
+#> #   LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>,
+#> #   LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>,
+#> #   LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>, LC_3_lumped_prop <dbl>,
+#> #   LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, …
 ```
 
 Then, we’ll follow the tidymodels workflow from here:
@@ -1695,18 +1666,18 @@ wf<-workflow() %>%
 # tune_grid() can only work in parallel with the doParallel package
 plan(sequential)
 # 
-# library(doParallel)
-# cl <- makeCluster(8)
-# registerDoParallel(cl)
-# set.seed(1234)
+library(doParallel)
+cl <- makeCluster(4)
+registerDoParallel(cl)
+set.seed(1234)
 
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
-                          grid=50  # Choose 50 hyper-parameter configurations
+                          grid=200  # Choose 100 hyper-parameter configurations
                ) 
 )
 
-# stopCluster(cl)
+stopCluster(cl)
 
 # We expect the standard cross-validation to have higher accuracy than spatial
 # cross-validation because the spatial autocorrelation variables should allow more accurate
@@ -1718,32 +1689,32 @@ map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            7   852     3 rmse    standa…  2.96     5  0.165  Prepro…
-#>  2 standard            2  1891    16 rmse    standa…  2.99     5  0.0943 Prepro…
-#>  3 standard          116   540     7 rmse    standa…  2.99     5  0.253  Prepro…
-#>  4 standard           12  1756    28 rmse    standa…  3.00     5  0.104  Prepro…
-#>  5 standard          112    86    10 rmse    standa…  3.00     5  0.179  Prepro…
-#>  6 spatial            49  1407    36 rmse    standa…  2.95     5  0.338  Prepro…
-#>  7 spatial            42  1953    40 rmse    standa…  2.95     5  0.348  Prepro…
-#>  8 spatial            25  1378    38 rmse    standa…  2.97     5  0.339  Prepro…
-#>  9 spatial            52  1631    37 rmse    standa…  2.98     5  0.333  Prepro…
-#> 10 spatial             8   760    34 rmse    standa…  2.98     5  0.312  Prepro…
+#>  1 standard            5   476     9 rmse    standa…  2.96     5   0.157 Prepro…
+#>  2 standard          115    83     4 rmse    standa…  2.96     5   0.258 Prepro…
+#>  3 standard           11   520    21 rmse    standa…  2.97     5   0.135 Prepro…
+#>  4 standard            4  1748    16 rmse    standa…  2.97     5   0.124 Prepro…
+#>  5 standard           79    97     6 rmse    standa…  2.97     5   0.251 Prepro…
+#>  6 spatial            26   540    40 rmse    standa…  2.96     5   0.350 Prepro…
+#>  7 spatial            58   637    36 rmse    standa…  2.96     5   0.337 Prepro…
+#>  8 spatial           110   162    40 rmse    standa…  2.96     5   0.347 Prepro…
+#>  9 spatial           118   370    40 rmse    standa…  2.96     5   0.350 Prepro…
+#> 10 spatial            48   795    36 rmse    standa…  2.96     5   0.338 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 
 map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-valida…¹  mtry trees min_n .metric .esti…²   mean     n std_err .config
 #>    <chr>          <int> <int> <int> <chr>   <chr>    <dbl> <int>   <dbl> <chr>  
-#>  1 standard         116   540     7 rsq     standa… 0.229      5  0.0902 Prepro…
-#>  2 standard           2  1891    16 rsq     standa… 0.222      5  0.108  Prepro…
-#>  3 standard           7   852     3 rsq     standa… 0.212      5  0.0887 Prepro…
-#>  4 standard         136  1221     8 rsq     standa… 0.210      5  0.0816 Prepro…
-#>  5 standard           4   238     6 rsq     standa… 0.205      5  0.110  Prepro…
-#>  6 spatial            1  1763     5 rsq     standa… 0.109      5  0.0565 Prepro…
-#>  7 spatial           49  1407    36 rsq     standa… 0.0646     2  0.0645 Prepro…
-#>  8 spatial           97    49    31 rsq     standa… 0.0589     2  0.0586 Prepro…
-#>  9 spatial            6  1721     9 rsq     standa… 0.0467     5  0.0131 Prepro…
-#> 10 spatial          101   168    35 rsq     standa… 0.0466     4  0.0323 Prepro…
+#>  1 standard         103    46     5 rsq     standa… 0.269      4  0.0934 Prepro…
+#>  2 standard         135   496     9 rsq     standa… 0.232      5  0.0914 Prepro…
+#>  3 standard          79    97     6 rsq     standa… 0.231      5  0.0872 Prepro…
+#>  4 standard           2  1570    34 rsq     standa… 0.231      5  0.125  Prepro…
+#>  5 standard         110   510    12 rsq     standa… 0.221      5  0.0891 Prepro…
+#>  6 spatial            1  1363     8 rsq     standa… 0.0766     5  0.0488 Prepro…
+#>  7 spatial           27   121     8 rsq     standa… 0.0766     5  0.0435 Prepro…
+#>  8 spatial            2  1740    16 rsq     standa… 0.0723     5  0.0338 Prepro…
+#>  9 spatial           58   637    36 rsq     standa… 0.0627     2  0.0618 Prepro…
+#> 10 spatial          108    84    33 rsq     standa… 0.0623     4  0.0358 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
@@ -1758,20 +1729,20 @@ in this data, it is difficult to evaluate that aspect of the model.
 # We will use rmse to select best metrics overall as it is better suited
 # for model selection in this context than r^2
 
-best_tunes<-map(final_out,select_best,1,metric = "rmse")
+best_tunes<-map(final_out,select_by_pct_loss,1,metric = "rmse")
 
 best_tunes
 #> $standard
-#> # A tibble: 1 × 4
-#>    mtry trees min_n .config              
-#>   <int> <int> <int> <chr>                
-#> 1     7   852     3 Preprocessor1_Model40
+#> # A tibble: 1 × 11
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
+#> 1    50  1823     8 rmse    standard    3.02     5   0.234 Preproce…  2.96  1.88
 #> 
 #> $spatial
-#> # A tibble: 1 × 4
-#>    mtry trees min_n .config              
-#>   <int> <int> <int> <chr>                
-#> 1    49  1407    36 Preprocessor1_Model13
+#> # A tibble: 1 × 11
+#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
+#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
+#> 1    81  1441    33 rmse    standard    3.01     5   0.275 Preproce…  2.96  1.86
 
 # Final ranger results
 final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
@@ -1819,26 +1790,26 @@ prediction_data<-final_attributes_all %>%
   tidyr::drop_na(c(everything(),-site_id))
 
 prediction_data
-#> # A tibble: 1,249 × 139
-#>    link_id site_id slope_iFLS_…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶ slope…⁷
-#>    <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
-#>  1 6       <NA>             3.97    3.25    3.97    2.57    3.93    2.68    2.97
-#>  2 5       <NA>             4.85    4.56    4.85    4.22    4.73    4.10    4.12
-#>  3 1202    <NA>             4.03    3.89    4.05    2.04    3.97    2.34    3.42
-#>  4 1210    <NA>             4.15    3.92    4.36    2.42    4.09    2.80    3.70
-#>  5 1208    <NA>             3.65    3.46    3.80    3.22    3.58    3.61    3.41
-#>  6 1       <NA>             4.44    4.04    4.44    3.52    4.40    3.57    3.74
-#>  7 1199    <NA>             3.75    3.62    3.85    3.40    3.65    3.85    3.40
-#>  8 2       <NA>             3.55    3.57    3.55    3.46    3.46    3.40    3.12
-#>  9 1200    <NA>             4.45    3.92    4.68    3.78    4.33    4.37    3.76
-#> 10 33      <NA>             4.79    4.48    4.79    3.93    4.64    4.27    4.16
-#> # … with 1,239 more rows, 130 more variables: slope_iFLO_sd <dbl>,
-#> #   slope_iFLS_sd <dbl>, slope_lumped_sd <dbl>, slope_lumped_min <dbl>,
-#> #   slope_lumped_max <dbl>, LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>,
-#> #   LC_1_iFLO_prop <dbl>, LC_1_HAiFLO_prop <dbl>, LC_1_lumped_prop <dbl>,
-#> #   LC_2_iFLS_prop <dbl>, LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>,
-#> #   LC_2_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>,
-#> #   LC_3_HAiFLS_prop <dbl>, LC_3_iFLO_prop <dbl>, LC_3_HAiFLO_prop <dbl>, …
+#> # A tibble: 1,196 × 140
+#>    link_id site_id status   slope_lump…¹ slope…² slope…³ slope…⁴ slope…⁵ slope…⁶
+#>    <chr>   <chr>   <chr>           <dbl>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl>
+#>  1 6       <NA>    Complete         3.93    1.90  0.178     8.26    3.97    3.25
+#>  2 5       <NA>    Complete         4.73    2.43  0.385    10.4     4.85    4.56
+#>  3 1202    <NA>    Complete         3.97    1.91  0.0656   12.7     4.03    3.89
+#>  4 1210    <NA>    Complete         4.09    2.34  0.119    15.9     4.15    3.92
+#>  5 1208    <NA>    Complete         3.58    2.21  0.0485   14.5     3.65    3.46
+#>  6 1       <NA>    Complete         4.40    2.32  0.330     9.19    4.44    4.04
+#>  7 1199    <NA>    Complete         3.65    2.18  0.117    12.9     3.75    3.62
+#>  8 2       <NA>    Complete         3.46    1.73  0.296     8.18    3.55    3.57
+#>  9 1200    <NA>    Complete         4.33    2.59  0.162    17.8     4.45    3.92
+#> 10 33      <NA>    Complete         4.64    2.82  0.204    15.0     4.79    4.48
+#> # … with 1,186 more rows, 131 more variables: slope_iFLO_mean <dbl>,
+#> #   slope_HAiFLO_mean <dbl>, slope_HAiFLO_sd <dbl>, slope_HAiFLS_sd <dbl>,
+#> #   slope_iFLO_sd <dbl>, slope_iFLS_sd <dbl>, LC_1_lumped_prop <dbl>,
+#> #   LC_1_iFLS_prop <dbl>, LC_1_HAiFLS_prop <dbl>, LC_1_iFLO_prop <dbl>,
+#> #   LC_1_HAiFLO_prop <dbl>, LC_2_lumped_prop <dbl>, LC_2_iFLS_prop <dbl>,
+#> #   LC_2_HAiFLS_prop <dbl>, LC_2_iFLO_prop <dbl>, LC_2_HAiFLO_prop <dbl>,
+#> #   LC_3_lumped_prop <dbl>, LC_3_iFLS_prop <dbl>, LC_3_HAiFLS_prop <dbl>, …
 ```
 
 And finally, we can predict across the landscape. We’ll use the range of
@@ -1863,20 +1834,20 @@ prediction_tbl<-tibble(
          `Predicted`=p50) 
 
 prediction_tbl
-#> # A tibble: 1,249 × 6
+#> # A tibble: 1,196 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
-#>  1 6           1     2     4           3         2
-#>  2 5           2     3     4           2         3
-#>  3 1202        1     1     3           2         1
-#>  4 1210        1     1     3           2         1
-#>  5 1208        2     4     6           4         4
-#>  6 1           3     4     8           5         4
-#>  7 1199        2     3     6           4         3
-#>  8 2           1     8     8           7         8
-#>  9 1200        3     4     8           5         4
-#> 10 33          3     3     6           3         3
-#> # … with 1,239 more rows
+#>  1 6           1     2   4           3           2
+#>  2 5           2     3   4           2           3
+#>  3 1202        1     1   3           2           1
+#>  4 1210        1     1   3           2           1
+#>  5 1208        2     3   6           4           3
+#>  6 1           3     4   8           5           4
+#>  7 1199        2     3   5           3           3
+#>  8 2           3     8   8           5           8
+#>  9 1200        3     4   8           5           4
+#> 10 33          2     3   4.5         2.5         3
+#> # … with 1,186 more rows
 
 # Since we only have predictions for entire stream segments
 # This will merge and breaks in stream lines
@@ -1928,6 +1899,7 @@ predicted value classes:
 Streams %>% 
   mutate(strm_len=as.numeric(st_length(geom))) %>% 
   as_tibble() %>% 
+  drop_na() %>% 
   mutate(`Prediction Groups` = cut(Predicted, 
                                    breaks = c(0,2,4,6,8,10), 
                                    include.lowest=TRUE)

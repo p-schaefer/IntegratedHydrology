@@ -770,8 +770,8 @@ attrib_points_time_small<-system.time(
     link_id=NULL,
     clip_region=NULL,
     target_o_type=c("point"),
-    weighting_scheme = c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS"),
-    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum", "cell_count"),
+    weighting_scheme = c("lumped","iFLO", "iFLS", "HAiFLO", "HAiFLS"),
+    loi_numeric_stats = c("distwtd_mean", "distwtd_sd", "mean", "sd", "median", "min", "max", "sum"),
     inv_function = function(x) {
       (x * 0.001 + 1)^-1
     },
@@ -809,7 +809,7 @@ plot(
 
 ```
 
-The `fasttrib_points()` function faster for larger data sets, more loi, and more sampling points. For very small datasets `attrib_points()` may be faster. It also allows faster iterative runs by saving and reusing intermediate 'raw_file'.
+The `fasttrib_points()` function faster for larger data sets, more loi, and more sampling points. For very small datasets `attrib_points()` may be faster.
 
 ```{r, fig.width = 7, fig.height = 7, message = F, error = F, warning = F}
 
@@ -821,7 +821,6 @@ fasttrib_points_time_small<-system.time(
     loi_cols=NULL,                # Specify loi columns to use, if NULL, all will be used
     iDW_file=NULL, # Leaving this as NULL will look for iDW in 'input' and calculate any not available
     store_iDW=T,   # This will save the distance weights to the input or iDW_file if it is specified
-    raw_file=file.path(tempdir(),"raw_data.db"), # file to save raw data to (this allows faster calculations in the fuutre)
     sample_points=c("1","25","80"),
     link_id=NULL,
     target_o_type=c("point"),
@@ -855,7 +854,6 @@ final_attributes<-fasttrib_points(
   loi_cols=NULL,
   iDW_file=NULL,
   store_iDW=T,
-  raw_file=file.path(tempdir(),"raw_data.db"), # since we have a raw file available, calculations will be faster
   sample_points=hydro_out$snapped_points$site_id, # here we specify all sampling points
   link_id=NULL,
   target_o_type=c("point"),
@@ -885,7 +883,7 @@ In order to make predictions across the landscape, we will need to calculate our
 # or the input pkg.
 
 # These can be large and take up a lot of room, so consider whether they are needed before storing.
-# Having the raster available does increase the computation time of fasttrib_points().
+# Having the raster available does decrease the computation time of fasttrib_points().
 
 dw_time<-system.time(
   Processed_HW<-prep_weights(
@@ -902,8 +900,8 @@ fasttrib_points_time_big<-system.time(
     loi_file=output_filename_loi, 
     loi_cols=NULL,
     iDW_file=file.path(tempfile(),"iDW_temp.gpkg"),
+    #iDW_file = file.path(tempfile(),"Processed_HW_out.gpkg"), # to use previously calculated weights
     store_iDW=T,
-    raw_file=NULL, # We will set this to NULL to allow fair comparison with  `attrib_points()`
     sample_points=NULL, # by specifying neither sample_points nor link_id
     link_id=NULL,       #   we get all reaches
     target_o_type=c("segment_point"),
@@ -951,13 +949,13 @@ pmap(
          attrib_points_time_big,
          fasttrib_points_time_big),
     list(final_attributes_sub_slow %>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_sub%>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_slow %>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id")),
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status")),
          final_attributes_all%>%
-           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"))
+           select(-any_of("products"),-any_of("link_id"),-any_of("site_id"),-any_of("status"))
     )),
   function(.z,.x,.y) paste0(.z," took ",
                             round(.x[[3]]/60,2),
@@ -1136,18 +1134,18 @@ wf<-workflow() %>%
 # tune_grid() can only work in parallel with the doParallel package
 plan(sequential)
 # 
-# library(doParallel)
-# cl <- makeCluster(8)
-# registerDoParallel(cl)
-# set.seed(1234)
+library(doParallel)
+cl <- makeCluster(4)
+registerDoParallel(cl)
+set.seed(1234)
 
 final_out<-map(cv_strats,
                ~tune_grid(wf,resamples=.,
-                          grid=50  # Choose 50 hyper-parameter configurations
+                          grid=200  # Choose 100 hyper-parameter configurations
                ) 
 )
 
-# stopCluster(cl)
+stopCluster(cl)
 
 # We expect the standard cross-validation to have higher accuracy than spatial
 # cross-validation because the spatial autocorrelation variables should allow more accurate
@@ -1168,7 +1166,7 @@ Next we build the final model. We will use the hyper-parameters that yielded the
 # We will use rmse to select best metrics overall as it is better suited
 # for model selection in this context than r^2
 
-best_tunes<-map(final_out,select_best,1,metric = "rmse")
+best_tunes<-map(final_out,select_by_pct_loss,1,metric = "rmse")
 
 best_tunes
 
@@ -1284,6 +1282,7 @@ We can also summarize the percent of stream lengths that fall within predicted v
 Streams %>% 
   mutate(strm_len=as.numeric(st_length(geom))) %>% 
   as_tibble() %>% 
+  drop_na() %>% 
   mutate(`Prediction Groups` = cut(Predicted, 
                                    breaks = c(0,2,4,6,8,10), 
                                    include.lowest=TRUE)

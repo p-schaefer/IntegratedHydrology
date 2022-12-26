@@ -5,12 +5,15 @@
 \title{Calculate loi attributes from input rasters}
 \usage{
 .attr_fn(
-  df,
+  df = NULL,
+  db_path = NULL,
+  tbl_name = NULL,
   point_id,
   weighting_scheme2,
   loi_meta2,
   loi_cols2,
-  loi_numeric_stats2
+  loi_numeric_stats2,
+  backend = c("data.table", "SQLite")
 )
 }
 \value{

@@ -15,7 +15,8 @@
   loi_cols,
   p,
   temp_dir_sub,
-  n_cores
+  n_cores,
+  backend = c("data.table", "SQLite")
 )
 }
 \value{
