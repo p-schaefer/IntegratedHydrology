@@ -2,6 +2,7 @@ ihydro: Integrated hydrology tools for environmental science
 ================
 
 - <a href="#ihydro-" id="toc-ihydro-">ihydro
+  <img src="man/figures/logo.png" align="right" width="280"/></a>
   - <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
   - <a href="#2-system-setup-and-installation"
     id="toc-2-system-setup-and-installation">2 System setup and
@@ -67,12 +68,13 @@ ihydro: Integrated hydrology tools for environmental science
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# ihydro <img src="man/figures/logo.png" align="right" width=280 />
+# ihydro <img src="man/figures/logo.png" align="right" width="280"/>
 
 <!-- badges: start -->
 
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+
 <!-- badges: end -->
 
 ## 1 Introduction
@@ -106,7 +108,7 @@ attributes.
 
 The complexity of this workflow can be a rate limiting step in the
 scope, content, quality, and applicability of investigations by aquatic
-environmental scientist. The ***ihydro*** package offers tools and
+environmental scientists. The ***ihydro*** package offers tools and
 workflows to simplify these complex steps. It is capable of handling all
 above computation steps, leaving researchers the task of identifying
 layers of interest and modeling with (potentially) large numbers of
@@ -116,7 +118,7 @@ The ***ihydro*** package also implements descriptions of spatial
 autocorrelation among sites. Due to the linear nature of flow in streams
 and rivers, autocorrelation tends to be asymmetric, with sites generally
 more similar when they are flow connected, than not flow connected.
-***ihydro*** produces tables that can be transformed into a asymmetric
+***ihydro*** produces tables that can be transformed into an asymmetric
 matrices that describes the relationships between sampling points based
 on instream distances and/or the proportions shared catchments.
 Proportion of shared upstream catchment (rather than in-stream distance)
@@ -130,9 +132,9 @@ Hence, autocorrelation should be low because the tributary does not
 contribute much flow to the larger stream. Using in-stream distances
 alone may misrepresent this pattern.
 
-***ihydro*** stores its geospatial products in a zip file for ease of
-retrieval and extraction in external software (i.e. QGIS). Many
-***ihydro*** function can be run in parallel for increased speed (if
+***ihydro*** stores its geospatial products in a geopackage file for
+ease of retrieval and extraction in external software (i.e. QGIS). Many
+***ihydro*** functions can be run in parallel for increased speed (if
 enough memory is available). The functions are also quick at removing
 internal intermediate files to keep hard drives from filling up too
 fast.
@@ -366,7 +368,7 @@ ihydro_layers(hydro_out)
 #> # … with 12 more rows
 
 # Several important columns are used throughout the vector layers:
-# `link_id` - identifies reaches/segments (steam between two confluences)
+# `link_id` - identifies reaches/segments (stream length between two confluences)
 # `trib_id` - identifies streams/tributaries, with the shortest channel getting
 #           # a new trib_id at a confluence, and longest channel retaining the original ID
 # `uslink_id` and `dslink_id`  - columns identify upstream and downstream links
@@ -482,23 +484,23 @@ head(hydro_out$ds_flowpaths %>% arrange(destination_link_id))
 # Below we demonstrate how to extract the upstream and downstream flowpaths for specific points
 
 us_647<-hydro_out$us_flowpaths %>%
-  filter(pour_point_id == "647") # get all upstream link_ids from link_id 790
-ds_1071.1<-hydro_out$ds_flowpaths %>%
-  filter(origin_link_id == "1071.1") # get all downstream link_ids from 
-#                                   # link_id 145.1 (this corresponds with site_id = 29)
+  filter(pour_point_id == "647") # get all upstream link_ids from link_id 647
+ds_101.1<-hydro_out$ds_flowpaths %>%
+  filter(origin_link_id == "101.1") # get all downstream link_ids from 
+#                                   # link_id 101.1 (this corresponds with site_id = 62)
 
 lines_out<-hydro_out$stream_lines %>% 
   filter(link_id %in% us_647$origin_link_id | 
-           link_id %in% ds_1071.1$destination_link_id  
+           link_id %in% ds_101.1$destination_link_id  
   )
 sub_out<-hydro_out$subbasins %>% 
   filter(link_id %in% us_647$origin_link_id | 
-           link_id %in% ds_1071.1$destination_link_id 
+           link_id %in% ds_101.1$destination_link_id 
   )
 
 tm_shape(sub_out) + tm_polygons(col="white",alpha =0.2,legend.show=F) +
   tm_shape(lines_out) + tm_lines(col="blue",alpha =0.5,legend.show=F,lwd =3) +
-  tm_shape(hydro_out$links %>% filter(link_id %in% c("647","1071.1"))) +
+  tm_shape(hydro_out$links %>% filter(link_id %in% c("647","101.1"))) +
   tm_dots(legend.show=F,size=0.45,border.col="black",border.alpha=1,border.lwd=1) + 
   tm_layout(frame = FALSE)
 ```
@@ -598,7 +600,7 @@ tm_shape(read_sf(hydro_out_sparse$outfile,"Subbasins_poly")) +
 
 For more complete and thorough treatment on spatial autocorrelation in
 stream systems, see [Zimmerman and Hoef
-(2007)](https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgegramForFluvialVariography.pdf).
+(2007)](https://www.fs.usda.gov/rm/boise/AWAE/projects/NationalStreamInternet/downloads/17ZimmermanVerHoef_TheTorgeg%20amForFluvialVariography.pdf).
 
 In case we didn’t request pairwise distances in `trace_flowpaths()`, we
 can calculate them separately with `generate_pdist()`. Below we
@@ -1028,7 +1030,7 @@ gpkg file for convenient file storage/organization.
 
 ``` r
 
-# In this case, we will use out previously calculated loi results, but if `process_loi` 
+# In this case, we will use our previously calculated loi results, but if `process_loi` 
 # is run with an input parameter specified, the loi rasters will be added to the
 # output. This can make for convenient data storage.
 
@@ -1108,13 +1110,13 @@ those features, and the location of those features relative to the
 locations of streams and areas of higher flow accumulation is very
 important (Peterson ***et al.*** 2011).
 
-***ihydro*** provides 2 functions for calculating weighted spatial
+***ihydro*** provides two functions for calculating weighted spatial
 summaries: `attrib_points()` and `fasttrib_points()`. `attrib_points()`
 uses the [hydroweight](https://github.com/bkielstr/hydroweight) package
 to calculate weighted spatial summaries of supplied loi layers. It can
 be used to examine the resulting distance-weighted rasters and
-distance-weighted loi layers. However, `attrib_points()` is very slow,
-so `fasttrib_points()` is available for improved performance for larger
+distance-weighted loi layers. However, `attrib_points()` is slow, so
+`fasttrib_points()` is available for improved performance for larger
 datasets.
 
 ### 6.1 At specific sampling points
@@ -1191,9 +1193,9 @@ plot(
 
 <img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
 
-The `fasttrib_points()` function faster for larger data sets, more loi,
-and more sampling points. For very small datasets `attrib_points()` may
-be faster.
+The `fasttrib_points()` function is faster for larger data sets, more
+loi, and more sampling points. For very small datasets `attrib_points()`
+may be faster.
 
 ``` r
 
@@ -1229,9 +1231,9 @@ ihydro_layers(hydro_out)
 #>  5 dem_streams_d8               Raster    hydro     
 #>  6 iFLS                         Raster    iDW       
 #>  7 HAiFLS                       Raster    iDW       
-#>  8 HAiFLO_unn_groupVKxpFOGOYiWb Raster    iDW       
-#>  9 HAiFLO_unn_groupx0kgF2Bgnrbh Raster    iDW       
-#> 10 iFLO_unn_groupVKxpFOGOYiWb   Raster    iDW       
+#>  8 HAiFLO_unn_group0Lec41Mc3Psz Raster    iDW       
+#>  9 HAiFLO_unn_group1iBKALOf0eCL Raster    iDW       
+#> 10 iFLO_unn_group0Lec41Mc3Psz   Raster    iDW       
 #> # … with 25 more rows
 
 final_attributes_sub
@@ -1442,23 +1444,23 @@ pmap(
                             " cores.")
 )
 #> [[1]]
-#> [1] "attrib_points() took 0.82 min to calculate for 3 reaches with 94 attributes using 4 cores."
+#> [1] "attrib_points() took 1 min to calculate for 3 reaches with 94 attributes using 4 cores."
 #> 
 #> [[2]]
-#> [1] "fasttrib_points() took 1.73 min to calculate for 3 reaches with 94 attributes using 4 cores."
+#> [1] "fasttrib_points() took 1.8 min to calculate for 3 reaches with 94 attributes using 4 cores."
 #> 
 #> [[3]]
-#> [1] "attrib_points() took 23.72 min to calculate for 1241 reaches with 92 attributes using 4 cores."
+#> [1] "attrib_points() took 26.85 min to calculate for 1241 reaches with 92 attributes using 4 cores."
 #> 
 #> [[4]]
-#> [1] "fasttrib_points() took 10.36 min to calculate for 1241 reaches with 92 attributes using 4 cores."
+#> [1] "fasttrib_points() took 12.63 min to calculate for 1241 reaches with 92 attributes using 4 cores."
 
 paste0(round(dw_time[[3]]/60,2),
        " min to calculate distance weights for ",
        nrow(final_attributes_all)," reaches using ",
        nbrOfWorkers(),
        " cores.")
-#> [1] "2.45 min to calculate distance weights for 1241 reaches using 4 cores."
+#> [1] "2.66 min to calculate distance weights for 1241 reaches using 4 cores."
 ```
 
 [Back to top](#1-introduction)
@@ -1586,8 +1588,6 @@ Then, we’ll follow the tidymodels workflow from here:
 require(tidymodels)
 #install.packages("recipes")
 require(recipes)
-#install.packages("spatialsample")
-require(spatialsample)
 #install.packages("ranger")
 require(ranger)
 
@@ -1598,32 +1598,34 @@ rf_mod <- rand_forest(trees = tune(),
   set_engine("ranger",
              keep.inbag=TRUE,
              quantreg=TRUE,
-             splitrule="extratrees", # for generally improved accuracy
-             num.random.splits = 10
+             splitrule="extratrees",
+             num.random.splits=25,
   ) %>% 
-  set_mode("regression")
+  set_mode("regression") 
 
 # Setup recipes, define column roles, and preprocessing steps
 recip<-recipe(x=comb_data %>%
                 select(-starts_with("CLUST_"),
                        -contains("site_id"),
                        -contains('link_id'),
-                       -contains('pour_point_id'))
+                       -contains('pour_point_id'),
+                       -contains('status'))
 ) %>% 
   update_role(c(everything()),new_role="predictor") %>% 
   update_role(value,new_role="outcome") %>% 
-  step_zv() %>% # remove variables with zero variance
-  step_lincomb() # remove variables that are linear combinations of other 
-#                # variables (can happen with proportional variables)
+  step_zv(starts_with("Prop_catch_")) %>%         # remove variables with zero variance
+  step_nzv(contains("lumped"),
+           contains("iFLS"),
+           contains("iFLO"))                      # remove variables with near zero variance
 
 # Setup Cross-Validation Strategies
 set.seed(1234)
 cv_strats<-list(
   standard=vfold_cv(comb_data,v=5), # standard random leave group_out cross-validation
-  spatial=spatial_clustering_cv(
+  spatial=clustering_cv(
     comb_data, # using spatial information to leave out groups of nearby stations
     cluster_function = "hclust", # hclust did a decent job clustering sites previously
-    coords=colnames(comb_data)[grepl("CLUST_",colnames(comb_data))],v=5)
+    vars=colnames(comb_data)[grepl("CLUST_",colnames(comb_data))],v=5)
 )
 
 # Map hold-out data for each cross-validation fold
@@ -1648,7 +1650,7 @@ tmap_arrange(c(spatial_cv,standard_cv),ncol=5)
 
 <img src="man/figures/README-unnamed-chunk-26-1.png" width="100%" />
 
-We see the spatial-cross validation hold-out sites cluster nicely
+We see the spatial cross-validation hold-out sites cluster nicely
 together, whereas the standard cross-validation are randomly distributed
 across the region. Depending on the purpose of the model, we may favour
 one type of cross-validation over another.
@@ -1670,9 +1672,16 @@ cl <- makeCluster(4)
 registerDoParallel(cl)
 set.seed(1234)
 
+par_info<-hardhat::extract_parameter_set_dials(rf_mod) %>% 
+  finalize(bake(prep(recip,comb_data),comb_data)) %>% 
+  update(trees=dials::trees(range=c(20L,4000L))) # Must increase the default number of trees to get quantile predictions
+
 final_out<-map(cv_strats,
-               ~tune_grid(wf,resamples=.,
-                          grid=200  # Choose 100 hyper-parameter configurations
+               ~tune_grid(wf,
+                          resamples=.,
+                          metrics =metric_set(mae,rmse,rsq),
+                          param_info = par_info,
+                          grid=200  # Choose 200 random hyper-parameter configurations
                ) 
 )
 
@@ -1684,64 +1693,65 @@ stopCluster(cl)
 # show the best possible accuracy for predicting beyond the spatial extents of 
 # Where the data was collected.
 
-map_dfr(final_out,show_best,5,metric = "rmse",.id="Cross-validation strategy")
+map_dfr(final_out,show_best,5,metric = "mae",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-validat…¹  mtry trees min_n .metric .esti…²  mean     n std_err .config
 #>    <chr>           <int> <int> <int> <chr>   <chr>   <dbl> <int>   <dbl> <chr>  
-#>  1 standard            5   476     9 rmse    standa…  2.96     5   0.157 Prepro…
-#>  2 standard          115    83     4 rmse    standa…  2.96     5   0.258 Prepro…
-#>  3 standard           11   520    21 rmse    standa…  2.97     5   0.135 Prepro…
-#>  4 standard            4  1748    16 rmse    standa…  2.97     5   0.124 Prepro…
-#>  5 standard           79    97     6 rmse    standa…  2.97     5   0.251 Prepro…
-#>  6 spatial            26   540    40 rmse    standa…  2.96     5   0.350 Prepro…
-#>  7 spatial            58   637    36 rmse    standa…  2.96     5   0.337 Prepro…
-#>  8 spatial           110   162    40 rmse    standa…  2.96     5   0.347 Prepro…
-#>  9 spatial           118   370    40 rmse    standa…  2.96     5   0.350 Prepro…
-#> 10 spatial            48   795    36 rmse    standa…  2.96     5   0.338 Prepro…
+#>  1 standard           63   211     6 mae     standa…  2.51     5   0.249 Prepro…
+#>  2 standard          102   336    14 mae     standa…  2.51     5   0.245 Prepro…
+#>  3 standard           88   236     8 mae     standa…  2.51     5   0.229 Prepro…
+#>  4 standard           71   278    14 mae     standa…  2.51     5   0.230 Prepro…
+#>  5 standard           58   473    12 mae     standa…  2.51     5   0.246 Prepro…
+#>  6 spatial           106  2713    17 mae     standa…  2.56     5   0.248 Prepro…
+#>  7 spatial            95  2675    19 mae     standa…  2.57     5   0.246 Prepro…
+#>  8 spatial           103  3843    17 mae     standa…  2.57     5   0.245 Prepro…
+#>  9 spatial            54   424    20 mae     standa…  2.58     5   0.255 Prepro…
+#> 10 spatial            80  2439    17 mae     standa…  2.58     5   0.238 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 
 map_dfr(final_out,show_best,5,metric = "rsq",.id="Cross-validation strategy")
 #> # A tibble: 10 × 10
 #>    Cross-valida…¹  mtry trees min_n .metric .esti…²   mean     n std_err .config
 #>    <chr>          <int> <int> <int> <chr>   <chr>    <dbl> <int>   <dbl> <chr>  
-#>  1 standard         103    46     5 rsq     standa… 0.269      4  0.0934 Prepro…
-#>  2 standard         135   496     9 rsq     standa… 0.232      5  0.0914 Prepro…
-#>  3 standard          79    97     6 rsq     standa… 0.231      5  0.0872 Prepro…
-#>  4 standard           2  1570    34 rsq     standa… 0.231      5  0.125  Prepro…
-#>  5 standard         110   510    12 rsq     standa… 0.221      5  0.0891 Prepro…
-#>  6 spatial            1  1363     8 rsq     standa… 0.0766     5  0.0488 Prepro…
-#>  7 spatial           27   121     8 rsq     standa… 0.0766     5  0.0435 Prepro…
-#>  8 spatial            2  1740    16 rsq     standa… 0.0723     5  0.0338 Prepro…
-#>  9 spatial           58   637    36 rsq     standa… 0.0627     2  0.0618 Prepro…
-#> 10 spatial          108    84    33 rsq     standa… 0.0623     4  0.0358 Prepro…
+#>  1 standard         107  1005     9 rsq     standa… 0.252      5  0.108  Prepro…
+#>  2 standard         102   336    14 rsq     standa… 0.238      5  0.0996 Prepro…
+#>  3 standard          97  2585    10 rsq     standa… 0.236      5  0.0992 Prepro…
+#>  4 standard          94  1990     5 rsq     standa… 0.235      5  0.0986 Prepro…
+#>  5 standard           1  3145    34 rsq     standa… 0.235      5  0.132  Prepro…
+#>  6 spatial            1  2732     8 rsq     standa… 0.0940     5  0.0509 Prepro…
+#>  7 spatial            2  3483    16 rsq     standa… 0.0621     5  0.0254 Prepro…
+#>  8 spatial           39  1600    36 rsq     standa… 0.0605     2  0.0599 Prepro…
+#>  9 spatial           67  1644    36 rsq     standa… 0.0603     2  0.0603 Prepro…
+#> 10 spatial           46  1287    36 rsq     standa… 0.0597     2  0.0580 Prepro…
 #> # … with abbreviated variable names ¹​`Cross-validation strategy`, ²​.estimator
 ```
 
 Next we build the final model. We will use the hyper-parameters that
-yielded the highest prediction accuracy using spatial cross-validation.
-The spatial cross-validation may provide better predictions as the
-distance from sampled areas increases, but with so few samples available
-in this data, it is difficult to evaluate that aspect of the model.
+yielded the highest mean absolute error (mae) prediction accuracy using
+standard cross-validation. The spatial cross-validation may provide
+better predictions as the distance from sampled areas increases, but
+with so few samples, it is difficult to evaluate that aspect of the
+model.
 
 ``` r
 
-# We will use rmse to select best metrics overall as it is better suited
+# We will use mae to select best metrics overall as it is better suited
 # for model selection in this context than r^2
 
-best_tunes<-map(final_out,select_by_pct_loss,1,metric = "rmse")
+best_tunes<-map(final_out,select_best,metric = "mae")
 
 best_tunes
 #> $standard
-#> # A tibble: 1 × 11
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    50  1823     8 rmse    standard    3.02     5   0.234 Preproce…  2.96  1.88
+#> # A tibble: 1 × 4
+#>    mtry trees min_n .config               
+#>   <int> <int> <int> <chr>                 
+#> 1    63   211     6 Preprocessor1_Model176
 #> 
 #> $spatial
-#> # A tibble: 1 × 11
-#>    mtry trees min_n .metric .estimator  mean     n std_err .config   .best .loss
-#>   <int> <int> <int> <chr>   <chr>      <dbl> <int>   <dbl> <chr>     <dbl> <dbl>
-#> 1    81  1441    33 rmse    standard    3.01     5   0.275 Preproce…  2.96  1.86
+#> # A tibble: 1 × 4
+#>    mtry trees min_n .config               
+#>   <int> <int> <int> <chr>                 
+#> 1   106  2713    17 Preprocessor1_Model021
 
 # Final ranger results
 final_model<-finalize_workflow(wf,best_tunes$standard) %>% 
@@ -1836,16 +1846,16 @@ prediction_tbl
 #> # A tibble: 1,196 × 6
 #>    link_id   p25   p50   p75 Uncertainty Predicted
 #>    <chr>   <dbl> <dbl> <dbl>       <dbl>     <dbl>
-#>  1 6           1     2   4           3           2
-#>  2 5           2     3   4           2           3
-#>  3 1202        1     1   3           2           1
-#>  4 1210        1     1   3           2           1
-#>  5 1208        2     3   6           4           3
-#>  6 1           3     4   8           5           4
-#>  7 1199        2     3   5           3           3
-#>  8 2           3     8   8           5           8
-#>  9 1200        3     4   8           5           4
-#> 10 33          2     3   4.5         2.5         3
+#>  1 6         1       3   5           4           3
+#>  2 5         2.5     3   4           1.5         3
+#>  3 1202      1       2   4           3           2
+#>  4 1210      1       2   4           3           2
+#>  5 1208      2       3   4           2           3
+#>  6 1         3       4   6.5         3.5         4
+#>  7 1199      2       3   4           2           3
+#>  8 2         2       8   8           6           8
+#>  9 1200      3       4   6           3           4
+#> 10 33        2       3   4           2           3
 #> # … with 1,186 more rows
 
 # Since we only have predictions for entire stream segments
@@ -1916,6 +1926,173 @@ Streams %>%
 
 <img src="man/figures/README-unnamed-chunk-31-1.png" width="100%" />
 
+Next we will explore the final model in more detail. The
+[DALEX](https://github.com/ModelOriented/DALEX) package is a great tool
+for evaluating machine learning models. A supplemental ebook is
+available with great detailed examples and explanations of all the
+features available in this package ([Biecek and Burzykowski,
+2020](https://ema.drwhy.ai/)).
+
+``` r
+# install.packages("DALEX)
+library(DALEX)
+
+# Prepare some datasets using the tidymodels recipe we specified for the model.
+# We will prepare a full dataset to allow inferences about the full study region,
+# as well as some spatial subsets to explore things more locally.
+
+# Full dataset
+final_data<-bake(prep(recip,comb_data),comb_data) 
+
+# One of the spatial validation folds in the upper stream 
+subset1_data<-assessment(cv_strats$spatial$splits[[1]]) 
+subset1_data<-bake(prep(recip,comb_data),subset1_data)
+
+# One of the spatial validation folds in the lower stream
+subset2_data<-assessment(cv_strats$spatial$splits[[3]]) 
+subset2_data<-bake(prep(recip,comb_data),subset2_data)
+
+# Create some explainer objects
+explainer_full <- explain(final_model,
+                          data = final_data %>% select(-value),
+                          y =final_data %>% select(value),
+                          label = "Full-Dataset")
+#> Preparation of a new explainer is initiated
+#>   -> model label       :  Full-Dataset 
+#>   -> data              :  45  rows  109  cols 
+#>   -> data              :  tibble converted into a data.frame 
+#>   -> target variable   :  Argument 'y' was a data frame. Converted to a vector. (  WARNING  )
+#>   -> target variable   :  45  values 
+#>   -> predict function  :  yhat.ranger  will be used (  default  )
+#>   -> predicted values  :  No value for predict function target column. (  default  )
+#>   -> model_info        :  package ranger , ver. 0.14.1 , task regression (  default  ) 
+#>   -> predicted values  :  numerical, min =  1.312164 , mean =  4.608348 , max =  8.441153  
+#>   -> residual function :  difference between y and yhat (  default  )
+#>   -> residuals         :  numerical, min =  -2.723223 , mean =  -0.03057048 , max =  3.021722  
+#>   A new explainer has been created!
+
+explainer_sub1 <- explain(final_model,
+                          data = subset1_data %>% select(-value),
+                          y =subset1_data %>% select(value),
+                          label = "Subset 1")
+#> Preparation of a new explainer is initiated
+#>   -> model label       :  Subset 1 
+#>   -> data              :  9  rows  109  cols 
+#>   -> data              :  tibble converted into a data.frame 
+#>   -> target variable   :  Argument 'y' was a data frame. Converted to a vector. (  WARNING  )
+#>   -> target variable   :  9  values 
+#>   -> predict function  :  yhat.ranger  will be used (  default  )
+#>   -> predicted values  :  No value for predict function target column. (  default  )
+#>   -> model_info        :  package ranger , ver. 0.14.1 , task regression (  default  ) 
+#>   -> predicted values  :  numerical, min =  1.312164 , mean =  3.013893 , max =  6.271169  
+#>   -> residual function :  difference between y and yhat (  default  )
+#>   -> residuals         :  numerical, min =  -2.384044 , mean =  -0.1250044 , max =  2.434518  
+#>   A new explainer has been created!
+
+explainer_sub2 <- explain(final_model,
+                          data = subset2_data %>% select(-value),
+                          y =subset2_data %>% select(value),
+                          label = "Subset 2")
+#> Preparation of a new explainer is initiated
+#>   -> model label       :  Subset 2 
+#>   -> data              :  14  rows  109  cols 
+#>   -> data              :  tibble converted into a data.frame 
+#>   -> target variable   :  Argument 'y' was a data frame. Converted to a vector. (  WARNING  )
+#>   -> target variable   :  14  values 
+#>   -> predict function  :  yhat.ranger  will be used (  default  )
+#>   -> predicted values  :  No value for predict function target column. (  default  )
+#>   -> model_info        :  package ranger , ver. 0.14.1 , task regression (  default  ) 
+#>   -> predicted values  :  numerical, min =  2.150553 , mean =  5.80567 , max =  8.441153  
+#>   -> residual function :  difference between y and yhat (  default  )
+#>   -> residuals         :  numerical, min =  -2.521722 , mean =  0.1943297 , max =  2.035782  
+#>   A new explainer has been created!
+
+explainer_list<-list(
+  `Full-Dataset`=explainer_full,
+  `Subset 1`=explainer_sub1,
+  `Subset 2`=explainer_sub2
+)
+
+imp_full<-lapply(explainer_list,
+                 feature_importance,
+                 B=100,
+                 type = "ratio")
+# Setting type = "ratio" means variable importance
+
+plot(imp_full,
+     max_vars = 7, # just show the top 7 predictors for each model
+     bar_width =4)
+```
+
+<img src="man/figures/README-unnamed-chunk-32-1.png" width="100%" />
+
+The above plots show the relative importance of individual predictor
+variables expressed as a percent loss in model accuracy (measured as
+RMSE) when that variable is permuted. A greater loss in predictive
+accuracy implies that variable is more important in model accuracy.
+
+As we expect, the relative importance of predictors varies depending on
+the region we are investigating. However, with this many predictors, it
+is difficult to make confident statements about the overall importance
+of broader groups of predictors (i.e., the relative importance of
+Land-cover overall vs geology; or the relative importance of local
+affects measured through HAIFLO vs upstream effects measured through
+HAIFLS). We can make these inferences by defining predictor groups.
+
+``` r
+# Define predictor variable groups
+predictor_groups<-list(
+  Autocorrelation = colnames(final_data)[grepl("Prop_catch_",colnames(final_data))],
+  Landcover = colnames(final_data)[grepl("^LC_",colnames(final_data))],
+  Geology = colnames(final_data)[grepl("^GEO_NAME_",colnames(final_data))],
+  Slope = colnames(final_data)[grepl("^slope_",colnames(final_data))]
+)
+
+weighting_groups<-list(
+  `lumped` = colnames(final_data)[grepl("lumped",colnames(final_data))],
+  `iFLS` = colnames(final_data)[grepl("_iFLS",colnames(final_data))],
+  `iFLO` = colnames(final_data)[grepl("_iFLO",colnames(final_data))],
+  `HAiFLS` = colnames(final_data)[grepl("HAiFLS",colnames(final_data))],
+  `HAiFLO` = colnames(final_data)[grepl("HAiFLO",colnames(final_data))]
+)
+
+imp_pred_gp<-map(explainer_list,
+                 ~feature_importance(.,
+                                     label=paste0(.$label," Predictor Groups"),
+                                     B=100,
+                                     variable_groups = predictor_groups,
+                                     type = "ratio"))
+
+imp_weighting_gp<-map(explainer_list,
+                      ~feature_importance(.,
+                                          label=paste0(.$label," Weighting Groups"),
+                                          B=100,
+                                          variable_groups = weighting_groups,
+                                          type = "ratio"))
+
+# install.packages("cowplot)
+
+cowplot::plot_grid(
+  plot(imp_pred_gp,
+     bar_width =7,
+     title = NULL,
+     subtitle=""),
+  plot(imp_weighting_gp,
+     bar_width =7,
+     title = NULL,
+     subtitle=""),
+  ncol=2
+)
+```
+
+<img src="man/figures/README-unnamed-chunk-33-1.png" width="100%" />
+
+These plots show the relative importance of different predictors and
+weighting schemes for the three subsets of data.
+
+There are many more ways to explore model results with the DALEX
+package, but we’ll leave that for you to explore.
+
 ## 8 Future Plans
 
 This package is considered in early alpha, and bugs are expected. There
@@ -1929,10 +2106,9 @@ functions may still change as the package develops and matures.
 
 ## 9 References
 
-Brian W Kielstra, Robert W Mackereth, Stephanie J Melles, & Erik JS
-Emilson. (2021). hydroweight: Inverse distance-weighted rasters and
-landscape attributes (v1.0.0). Zenodo.
-<https://doi.org/10.5281/zenodo.4728559>
+Kielstra, B., Mackereth, R., Melles, S., & Emilson E. (2021).
+hydroweight: Inverse distance-weighted rasters and landscape attributes
+(v1.0.0). Zenodo. <https://doi.org/10.5281/zenodo.4728559>
 
 Lindsay, J.B. (2016). Whitebox GAT: A case study in geomorphometric
 analysis. Computers & Geosciences, 95: 75-84.
@@ -1942,6 +2118,9 @@ Peterson, E. E., Sheldon, F., Darnell, R., Bunn, S. E., & Harch, B. D.
 (2011). A comparison of spatially explicit landscape representation
 methods and their relationship to stream condition. Freshwater Biology,
 56(3), 590–610. <https://doi.org/10.1111/j.1365-2427.2010.02507.x>
+
+Przemyslaw Biecek and Tomasz Burzykowski. (2020). Explanatory Model
+Analysis. <https://pbiecek.github.io/ema/>
 
 R Core Team (2022). R: A language and environment for statistical
 computing. R Foundation for Statistical Computing, Vienna, Austria.
