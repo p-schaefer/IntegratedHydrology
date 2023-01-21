@@ -2,7 +2,6 @@ ihydro: Integrated hydrology tools for environmental science
 ================
 
 - <a href="#ihydro-" id="toc-ihydro-">ihydro
-  <img src="man/figures/logo.png" align="right" width="280"/></a>
   - <a href="#1-introduction" id="toc-1-introduction">1 Introduction</a>
   - <a href="#2-system-setup-and-installation"
     id="toc-2-system-setup-and-installation">2 System setup and
