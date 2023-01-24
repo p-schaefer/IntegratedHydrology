@@ -105,7 +105,7 @@ generate_pdist<-function(
   #un-directed path-lengths
   DBI::dbExecute(con,"DROP TABLE IF EXISTS funcon_pwise_dist")
 
-  if (pwise_all_links) {
+  #if (pwise_all_links) {
     if (verbose) message("Calculating Flow Unconnected Distances")
 
     flowUNconn_out<-dplyr::full_join(dplyr::tbl(con,"fcon_pwise_dist") %>%
@@ -134,7 +134,7 @@ generate_pdist<-function(
 
 
 
-  }
+  #}
 
   DBI::dbDisconnect(con)
 
