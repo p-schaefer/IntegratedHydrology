@@ -6,7 +6,6 @@
 #' @param loi_cols character or NULL. Names of loi layers to include in summary. If NULL, all layers used.
 #' @param iDW_file filepath of `prep_weights()` output (optional, will search for weight layers in 'input' if not specified).
 #' @param store_iDW logical, if 'iDW_file' is NULL, weights will be added to 'input'
-#' @param raw_file Optional, file path to store intermediate SQL table, if file doesn't exist, it will be created at the specified path, if it does exist it will be queried first, and only extra data that is needed will be added.
 #' @param sample_points character or NULL. IDs of unique station identifiers provided in 'site_id_col' of `generate_vectors()` to calculate attributes for.
 #' @param link_id character or NULL. 'link_id's of reaches to calculate attributes for.
 #' @param target_o_type character. One of: c("point","segment_point","segment_whole"). Target for"iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.
@@ -45,7 +44,6 @@ fasttrib_points<-function(
     loi_cols=NULL,
     iDW_file=NULL,
     store_iDW=F,
-    raw_file=NULL,
     sample_points=NULL,
     link_id=NULL,
     target_o_type=c("point","segment_point","segment_whole"),
@@ -96,6 +94,15 @@ fasttrib_points<-function(
 
   if (!is.logical(store_iDW)) stop("'store_iDW' must be logical")
 
+  # Get Target IDs ----------------------------------------------------------
+  target_IDs<-target_id_fun(
+    db_fp=db_loc,
+    sample_points=sample_points,
+    link_id=link_id,
+    segment_whole=target_o_type=="segment_whole",
+    target_o_type=target_o_type
+  )
+
   lyrs<-ihydro_layers(input)
 
   if (is.null(loi_file)) {
@@ -128,35 +135,34 @@ fasttrib_points<-function(
   }
 
   if (verbose) message("Preparing inverse distance weights")
-  iDW_out<-prep_weights(
-    input=input,
-    output_filename=iDW_file,
-    sample_points=sample_points,
-    link_id=link_id,
-    target_o_type=target_o_type,
-    weighting_scheme =   weighting_scheme[!grepl("lumped",weighting_scheme)],
-    inv_function = inv_function,
-    temp_dir=temp_dir,
-    verbose=verbose
-  )
+  target_o_meta<-target_IDs
+  target_o_meta$unn_group<-"1"
 
-  idw_lyrs<-ihydro_layers(iDW_out)
+  idw_lyrs<-NULL
+  if (!all(weighting_scheme=="lumped")) {
+    iDW_out<-prep_weights(
+      input=input,
+      output_filename=iDW_file,
+      sample_points=sample_points,
+      link_id=link_id,
+      target_o_type=target_o_type,
+      weighting_scheme =   weighting_scheme[!grepl("lumped",weighting_scheme)],
+      inv_function = inv_function,
+      temp_dir=temp_dir,
+      verbose=verbose
+    )
 
-  # TODO: Add checks to make sure requested weighting_scheme are in input
-  if (any(!sapply(weighting_scheme[!grepl("lumped",weighting_scheme)],function(x) any(grepl(x,idw_lyrs$layer_name))))) stop("no 'iDW' data found in 'input'")
+    idw_lyrs<-ihydro_layers(iDW_out)
 
-  target_o_meta<-sf::read_sf(iDW_file,"target_o_meta")
+    # TODO: Add checks to make sure requested weighting_scheme are in input
+    if (any(!sapply(weighting_scheme[!grepl("lumped",weighting_scheme)],function(x) any(grepl(x,idw_lyrs$layer_name))))) stop("no 'iDW' data found in 'input'")
+
+    target_o_meta<-sf::read_sf(iDW_file,"target_o_meta")
+  }
 
 
 
-  # Get Target IDs ----------------------------------------------------------
-  target_IDs<-target_id_fun(
-    db_fp=db_loc,
-    sample_points=sample_points,
-    link_id=link_id,
-    segment_whole=target_o_type=="segment_whole",
-    target_o_type=target_o_type
-  )
+
 
   #browser()
 
@@ -876,26 +882,26 @@ extract_raster_attributes<-function(
 
 
   df<-df %>%
-    dplyr::mutate(dplyr::across(tidyselect::any_of(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) #tidyselect::where(is.numeric)
+    dplyr::mutate(dplyr::across(!!(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) # tidyselect::any_of tidyselect::where(is.numeric)
 
   if ("iFLS" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+      dplyr::mutate(dplyr::across(!!(loi_cols2), # tidyselect::any_of
                                   ~.*(!!rlang::sym("iFLS")),.names=paste0("{.col}_","iFLS")))
   }
   if ("iFLO" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("iFLO")),.names=paste0("{.col}_","iFLO")))
   }
   if ("HAiFLS" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("HAiFLS")),.names=paste0("{.col}_","HAiFLS")))
   }
   if ("HAiFLO" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2),
+      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("HAiFLO")),.names=paste0("{.col}_","HAiFLO")))
   }
 
@@ -923,10 +929,10 @@ extract_raster_attributes<-function(
     lumped_mean_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
       dplyr::summarise(
-        dplyr::across(tidyselect::any_of(numb_rast),
+        dplyr::across(!!(numb_rast), #tidyselect::any_of
                       ~sum(.,na.rm=T)/sum(!is.na(.),na.rm=T)
         ),
-        dplyr::across(tidyselect::any_of(cat_rast),
+        dplyr::across(!!(cat_rast), #tidyselect::any_of
                       ~sum(.,na.rm=T)/dplyr::n()
         )
       ) %>%
@@ -948,7 +954,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="min") & length(numb_rast)>0){
     min_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~min(.,na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(!!(numb_rast),~min(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_min"))
 
@@ -956,7 +962,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="max" & length(numb_rast)>0)){
     max_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~max(.,na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(!!(numb_rast),~max(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_max"))
 
@@ -964,7 +970,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="count")){
     count_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(tidyselect::everything(),~sum(!is.na(.),na.rm=T))) %>% #tidyselect::everything
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_count"))
 
@@ -973,7 +979,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="sum" & length(numb_rast)>0)){
     sum_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~sum(.,na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(!!(numb_rast),~sum(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sum"))
   }
@@ -981,14 +987,14 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="median" & length(numb_rast)>0)){
     median_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::median(.,na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(!!(numb_rast),~stats::median(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_median"))
   }
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2 %in% c("sd","stdev") & length(numb_rast)>0)){
     lumped_sd_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::sd(.,na.rm=T))) %>%
+      dplyr::summarise(dplyr::across(!!(numb_rast),~stats::sd(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sd"))
   }
@@ -998,10 +1004,10 @@ extract_raster_attributes<-function(
   if (length(weighting_scheme2[!weighting_scheme2 %in% "lumped"])>0 & (any(loi_numeric_stats2 %in% c("mean")) | length(cat_rast)>0)) {
     weighted_mean_out<-df %>%
       dplyr::summarize(
-        dplyr::across(tidyselect::ends_with(paste0("_iFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)),
-        dplyr::across(tidyselect::ends_with(paste0("_HAiFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)),
-        dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)),
-        dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T))
+        dplyr::across(tidyselect::ends_with(paste0("_iFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)), #tidyselect::any_of
+        dplyr::across(tidyselect::ends_with(paste0("_HAiFLS")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)), #tidyselect::any_of
+        dplyr::across(tidyselect::ends_with(paste0("_iFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)), #tidyselect::any_of
+        dplyr::across(tidyselect::ends_with(paste0("_HAiFLO")),~sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)) #tidyselect::any_of
       ) %>%
       dplyr::collect()
 
@@ -1033,40 +1039,40 @@ extract_raster_attributes<-function(
 
     if ("iFLS" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~(!!rlang::sym("iFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLS"),na.rm=T)))^2)),
                                     .names="{.col}_iFLS_term1"),
-                      dplyr::across(tidyselect::any_of(numb_rast),
+                      dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~ ((sum(!!rlang::sym("iFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLS")!=0,na.rm=T)) * sum(!!rlang::sym("iFLS"),na.rm=T),
                                     .names="{.col}_iFLS_term2"
                       ))
     }
     if ("HAiFLS" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~(!!rlang::sym("HAiFLS") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLS"),na.rm=T)))^2)),
                                     .names="{.col}_HAiFLS_term1"),
-                      dplyr::across(tidyselect::any_of(numb_rast),
+                      dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~ ((sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLS")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLS"),na.rm=T),
                                     .names="{.col}_HAiFLS_term2"
                       ))
     }
     if ("iFLO" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~(!!rlang::sym("iFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("iFLO"),na.rm=T)))^2)),
                                     .names="{.col}_iFLO_term1"),
-                      dplyr::across(tidyselect::any_of(numb_rast),
+                      dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~ ((sum(!!rlang::sym("iFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("iFLO")!=0,na.rm=T)) * sum(!!rlang::sym("iFLO"),na.rm=T),
                                     .names="{.col}_iFLO_term2"
                       ))
     }
     if ("HAiFLO" %in% weighting_scheme2) {
       weighted_sd_out<-weighted_sd_out %>%
-        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),
+        dplyr::mutate(dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~(!!rlang::sym("HAiFLO") * ((.-(sum(.,na.rm=T)/sum(!!rlang::sym("HAiFLO"),na.rm=T)))^2)),
                                     .names="{.col}_HAiFLO_term1"),
-                      dplyr::across(tidyselect::any_of(numb_rast),
+                      dplyr::across(tidyselect::any_of(numb_rast),#tidyselect::any_of
                                     ~ ((sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)-1)/sum(!!rlang::sym("HAiFLO")!=0,na.rm=T)) * sum(!!rlang::sym("HAiFLO"),na.rm=T),
                                     .names="{.col}_HAiFLO_term2"
                       ))

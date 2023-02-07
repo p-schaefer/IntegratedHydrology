@@ -11,7 +11,6 @@ fasttrib_points(
   loi_cols = NULL,
   iDW_file = NULL,
   store_iDW = F,
-  raw_file = NULL,
   sample_points = NULL,
   link_id = NULL,
   target_o_type = c("point", "segment_point", "segment_whole"),
@@ -36,8 +35,6 @@ fasttrib_points(
 \item{iDW_file}{filepath of \code{prep_weights()} output (optional, will search for weight layers in 'input' if not specified).}
 
 \item{store_iDW}{logical, if 'iDW_file' is NULL, weights will be added to 'input'}
-
-\item{raw_file}{Optional, file path to store intermediate SQL table, if file doesn't exist, it will be created at the specified path, if it does exist it will be queried first, and only extra data that is needed will be added.}
 
 \item{sample_points}{character or NULL. IDs of unique station identifiers provided in 'site_id_col' of \code{generate_vectors()} to calculate attributes for.}
 

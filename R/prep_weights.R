@@ -5,7 +5,7 @@
 #' @param sample_points character or NULL. IDs of unique station identifiers priveded in 'site_id_col' of `generate_vectors()`
 #' @param link_id character or NULL. 'link_id's of reaches to calculate attributes for.
 #' @param target_o_type character. One of: c("point","segment_point","segment_whole"). Target for iEucO" "iFLO", and "HAiFLO" weighting schemes. "Point" represents the sampling point on the stream, "segment_point" represents the upstream segment of the sampling points, and "segment_whole" will target the entire reach, regardless of where sampling occurred.
-#' @param weighting_scheme character. One or more weighting schemes: c("lumped", "iEucO", "iEucS", "iFLO", "iFLS", "HAiFLO", "HAiFLS")
+#' @param weighting_scheme character. One or more weighting schemes: c( "iFLO", "iFLS", "HAiFLO", "HAiFLS")
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical.
@@ -52,6 +52,8 @@ prep_weights<-function(
   options(dplyr.summarise.inform = FALSE)
 
   weighting_scheme<-match.arg(weighting_scheme,several.ok = T)
+  weighting_scheme<-weighting_scheme[weighting_scheme!="lumped"]
+
   weighting_scheme_s<-weighting_scheme[grepl("FLS",weighting_scheme)]
   weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS",weighting_scheme)]
   if (length(weighting_scheme_o)>0) message("Calculation for iFLO, and HAiFLO are slow")
@@ -164,7 +166,7 @@ prep_weights<-function(
                                            wrap_return_products=F,
                                            save_output=F,
                                            temp_dir=temp_dir_sub2
-                                           )
+      )
     )
 
     for (i in hw_streams) {
@@ -308,8 +310,8 @@ prep_weights<-function(
                temp_dir_sub=list(temp_dir_sub),
                temp_dir_sub2=list(temp_dir_sub2),
                weighting_scheme_o=list(weighting_scheme_o),
-               inv_function=list(inv_function)#,
-               #p=list(p)
+               inv_function=list(inv_function),
+               verbose=list(verbose)
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
@@ -318,8 +320,8 @@ prep_weights<-function(
                      temp_dir_sub,
                      temp_dir_sub2,
                      weighting_scheme_o,
-                     inv_function#,
-                     #p
+                     inv_function,
+                     verbose
             ){
               options(dplyr.summarise.inform = FALSE)
               options(scipen = 999)
@@ -330,6 +332,10 @@ prep_weights<-function(
               flow_accum <- terra::rast(file.path(temp_dir_sub,"dem_accum_d8.tif"))
 
               o_out<-purrr::map(x,function(y){
+                if(verbose) {
+                  message(paste("Calculating weights for:",y$unn_group[[1]])) #
+
+                }
                 temp_dir_sub_sub<-file.path(temp_dir_sub2,basename(tempfile()))
                 dir.create(temp_dir_sub_sub)
                 suppressMessages(
@@ -374,7 +380,7 @@ prep_weights<-function(
             }))
       })
 
-      progressr::with_progress(enable=T,{
+      #progressr::with_progress(enable=T,{
         p <- progressr::progressor(steps = (length(target_O_sub)*length(weighting_scheme_o)))
         future_proc_status <- future::futureOf(future_proc)
 
@@ -391,11 +397,8 @@ prep_weights<-function(
               Sys.sleep(0.2)
               x<-try(terra::rast(y),
                      silent = T)
-              # x<-try(terra::rast(y),
-              #        silent = T)
 
               if (inherits(x,"try-error")) return(NULL)
-              #x[is.na(x)]<-(-9999)
 
               ot<-try(terra::writeRaster(
                 x,
@@ -439,7 +442,9 @@ prep_weights<-function(
           err<-lapply(future_proc$result$conditions,function(x) x$condition)
           err<-err[sapply(err,function(x) inherits(x,"error"))]
           if (length(err)>0){
-            stop(paste0(unlist(err)))
+            #if (verbose) browser()
+            return(err)
+            #stop(paste0(unlist(err)))
           }
         }
 
@@ -450,17 +455,6 @@ prep_weights<-function(
           rast_all<-purrr::map(fl_un,function(y) {
 
             x<-terra::rast(y)
-
-            # x<-try(terra::rast(y),silent = T)
-            # # x<-try(terra::rast(y),silent = T)
-            #
-            # while (inherits(x,"try-error")) {
-            #   sys.sleep(0.5)
-            #   # x<-try(terra::rast(y),silent = T)
-            #   x<-try(terra::rast(y),silent=T)
-            # }
-
-            #x[is.na(x)]<-(-9999)
 
             ot<-try(terra::writeRaster(
               x,
@@ -475,14 +469,6 @@ prep_weights<-function(
             if (inherits(ot,"try-error")) {
               if (attr(ot,"condition")$message != "stoi"){
                 stop(attr(ot,"condition")$message)
-                # ot<-terra::writeRaster(
-                #   x,
-                #   NAflag=-9999,
-                #   output_filename$outfile,
-                #   filetype = "GPKG",
-                #   gdal = c("APPEND_SUBDATASET=YES",
-                #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
-                #   ))
               }
             }
 
@@ -496,7 +482,7 @@ prep_weights<-function(
 
 
         t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
-      })
+      #})
 
       if (verbose) message("Saving meta data")
 
