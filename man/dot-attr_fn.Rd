@@ -6,8 +6,8 @@
 \usage{
 .attr_fn(
   df = NULL,
-  db_path = NULL,
-  tbl_name = NULL,
+  db_path = ":memory:",
+  tbl_name = basename(tempfile(pattern = "SQL")),
   point_id,
   weighting_scheme2,
   loi_meta2,

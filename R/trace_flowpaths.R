@@ -11,11 +11,6 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if
-#' @importFrom RSQLite SQLite
-#' @importFrom tidyselect any_of
-
 trace_flowpaths<-function(
     input,
     return_products=F,

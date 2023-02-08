@@ -20,7 +20,8 @@ fasttrib_points(
      (x * 0.001 + 1)^-1
  },
   temp_dir = NULL,
-  verbose = F
+  verbose = F,
+  backend = c("data.table", "SQLite")
 )
 }
 \arguments{
@@ -51,6 +52,8 @@ fasttrib_points(
 \item{temp_dir}{character. File path for intermediate products; these are deleted once the function runs successfully.}
 
 \item{verbose}{logical.}
+
+\item{backend}{character. One of "data.table" or "SQLite"}
 }
 \value{
 A data.frame of weighted attributes for the requested areas

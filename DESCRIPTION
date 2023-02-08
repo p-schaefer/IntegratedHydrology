@@ -43,12 +43,14 @@ Imports:
     progressr,
     purrr,
     sf,
+    sfheaders,
     stars,
     stringr,
     tidyr,
     tidyselect,
     tibble,
     terra,
+    units,
     whitebox,
 Depends:
     R (>= 4.0)

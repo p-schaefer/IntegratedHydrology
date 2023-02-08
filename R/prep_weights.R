@@ -14,19 +14,6 @@
 #' @export
 #'
 
-#' @importFrom carrier crate
-#' @importFrom dplyr filter select mutate bind_rows
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom future nbrOfWorkers availableCores future futureOf resolved plan tweak multisession
-#' @importFrom hydroweight hydroweight
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr map
-#' @importFrom sf st_as_sf write_sf read_sf
-#' @importFrom stars st_as_stars write_stars
-#' @importFrom terra rast ext as.polygons crs terraOptions writeRaster unique sources split
-#' @importFrom tibble as_tibble
-#' @importFrom whitebox wbt_options wbt_exe_path wbt_unnest_basins
-
 prep_weights<-function(
     input,
     output_filename=NULL,
@@ -51,54 +38,9 @@ prep_weights<-function(
   options(future.rng.onMisuse="ignore")
   options(dplyr.summarise.inform = FALSE)
 
-  weighting_scheme<-match.arg(weighting_scheme,several.ok = T)
-  weighting_scheme<-weighting_scheme[weighting_scheme!="lumped"]
-
-  weighting_scheme_s<-weighting_scheme[grepl("FLS",weighting_scheme)]
-  weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS",weighting_scheme)]
-  if (length(weighting_scheme_o)>0) message("Calculation for iFLO, and HAiFLO are slow")
-
   if (is.null(target_o_type)) target_o_type<-"point"
   if (length(target_o_type)>1) target_o_type<-target_o_type[[1]]
   target_o_type<-match.arg(target_o_type,several.ok = F)
-
-  db_loc<-zip_loc<-input$outfile
-
-  if (is.null(output_filename) || output_filename==db_loc) {
-    output_filename<-db_loc
-
-    if (!file.exists(output_filename)){
-      t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
-    }
-
-  } else {
-    if (!grepl("\\.gpkg$",output_filename)) stop("output_filename must be a character ending in '.gpkg'")
-
-    if (!file.exists(output_filename)){
-      t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
-    }
-
-    dem<-terra::rast(db_loc,"dem_final")
-    dem_ext<-dem %>%
-      terra::ext() %>%
-      terra::as.polygons(crs=terra::crs(dem)) %>%
-      sf::st_as_sf() %>%
-      sf::write_sf(output_filename,
-                   layer="DEM_Extent",
-                   append = T,
-                   delete_layer = F,
-                   delete_dsn = F)
-  }
-
-  output_filename<-as.ihydro(output_filename)
-  lyrs<-ihydro_layers(output_filename)
-  weighting_scheme_s<-weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name]
-
-  # out_zip_loc<-zip_loc
-  # out_zip_loc<-file.path(gsub(basename(out_zip_loc),"",out_zip_loc),paste0(gsub(".zip","_DW.zip",basename(out_zip_loc))))
-  # if (file.exists(out_zip_loc)) file.remove(out_zip_loc)
-
-  # db_loc<-input$db_loc
 
   if (is.null(temp_dir)) temp_dir<-tempfile()
   if (!dir.exists(temp_dir)) dir.create(temp_dir)
@@ -112,10 +54,50 @@ prep_weights<-function(
                       tempdir = temp_dir
   )
 
-  #fl<-utils::unzip(list=T,zip_loc)
+  # Determine output --------------------------------------------------------
 
-  if (verbose) message("Reading in data")
+  db_loc<-zip_loc<-input$outfile
 
+  if (is.null(output_filename) | output_filename==db_loc) {
+    output_filename<-db_loc
+
+    if (!file.exists(output_filename)){
+      t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
+    }
+
+  } else {
+    if (!grepl("\\.gpkg$",output_filename)) stop("output_filename must be a character ending in '.gpkg'")
+
+    if (!file.exists(output_filename)){
+      t1<-try(dir.create(gsub(basename(output_filename),"",output_filename)),silent=T)
+
+      dem<-terra::rast(db_loc,"dem_final")
+      dem_ext<-dem %>%
+        terra::ext() %>%
+        terra::as.polygons(crs=terra::crs(dem)) %>%
+        sf::st_as_sf() %>%
+        sf::write_sf(output_filename,
+                     layer="DEM_Extent",
+                     append = T,
+                     delete_layer = F,
+                     delete_dsn = F)
+    }
+  }
+
+  output_filename<-as.ihydro(output_filename)
+  lyrs<-ihydro_layers(output_filename)
+
+  # Organize weighting schemes ----------------------------------------------
+  weighting_scheme<-match.arg(weighting_scheme,several.ok = T)
+  weighting_scheme<-weighting_scheme[weighting_scheme!="lumped"]
+
+  weighting_scheme_s<-weighting_scheme[grepl("FLS",weighting_scheme)]
+  if (all(weighting_scheme_s %in% lyrs$layer_name)) message("Stream Targeted Weights already exist in output and won't be recalculated")
+  weighting_scheme_s<-weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name]
+
+  weighting_scheme_o<-weighting_scheme[!grepl("lumped|FLS",weighting_scheme)]
+
+  # Determine what sites/layers needs to be calculated ----------------------
   target_IDs<-target_id_fun(
     db_fp=db_loc,
     sample_points=sample_points,
@@ -124,11 +106,39 @@ prep_weights<-function(
     target_o_type=target_o_type
   )
 
+  if (any(lyrs=="target_o_meta")) {
+    avail_weights<-sf::read_sf(output_filename,"target_o_meta") %>%
+      dplyr::full_join(target_IDs %>% dplyr::select(link_id),by="link_id")
 
+    avail_weights<-lapply(setNames(weighting_scheme_o,weighting_scheme_o),function(x){
+      avail_weights %>%
+        dplyr::mutate(weight=x) %>%
+        dplyr::mutate(layer_name=paste0(x,"_unn_group",unn_group)) %>%
+        dplyr::mutate(layer_name_exists = layer_name %in% lyrs$layer_name)
+    }) %>%
+      dplyr::bind_rows()
+  } else {
+    avail_weights<-lapply(setNames(weighting_scheme_o,weighting_scheme_o),function(x){
+      tibble::tibble(link_id=target_IDs$link_id) %>%
+        dplyr::mutate(weight=x) %>%
+        dplyr::mutate(layer_name=NA_character_) %>%
+        dplyr::mutate(layer_name_exists = F)
+    }) %>%
+      dplyr::bind_rows()
+  }
+
+
+  # Check if remaining function needs to be run: ----------------------------
+  if (length(weighting_scheme_s)==0 & all(avail_weights$layer_name_exists==T)){
+    if (!inherits(output_filename,"ihydro")) output_filename<-ihydro::as_ihydro(output_filename)
+    return(output_filename)
+  }
 
   temp_dir_sub<-file.path(temp_dir,basename(tempfile()))
   dir.create(temp_dir_sub)
 
+
+  # Write rasters to temporary locatio --------------------------------------
   for (i in c("dem_streams_d8",
               "dem_final",
               "dem_accum_d8",
@@ -142,11 +152,7 @@ prep_weights<-function(
 
   # Calculate weighted S-target distances -------------------------------------
 
-  #browser()
-
-  lyrs<-ihydro_layers(output_filename)
-
-  if (length(weighting_scheme_s[!weighting_scheme_s %in% lyrs$layer_name]) > 0) {
+  if (length(weighting_scheme_s) > 0) {
     temp_dir_sub2<-file.path(temp_dir_sub,basename(tempfile()))
     dir.create(temp_dir_sub2)
 
@@ -192,7 +198,6 @@ prep_weights<-function(
 
     }
 
-
     rm(hw_streams)
     t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
   }
@@ -204,10 +209,10 @@ prep_weights<-function(
   }
 
   if (length(weighting_scheme_o) > 0) {
+    #browser()
+
     temp_dir_sub2<-file.path(temp_dir_sub,basename(tempfile()))
     dir.create(temp_dir_sub2)
-
-    lyrs<-ihydro_layers(output_filename)
 
     target_o_meta<-NULL
     if ("target_o_meta" %in% lyrs$layer_name){
@@ -235,6 +240,7 @@ prep_weights<-function(
 
     if (nrow(target_O)>0){
       if (verbose) message("Generating Site Targeted Weights")
+      if (verbose) message("Calculation for iFLO, and HAiFLO can be slow")
 
       # Unnest basins -----------------------------------------------------------
 
@@ -381,80 +387,24 @@ prep_weights<-function(
       })
 
       #progressr::with_progress(enable=T,{
-        p <- progressr::progressor(steps = (length(target_O_sub)*length(weighting_scheme_o)))
-        future_proc_status <- future::futureOf(future_proc)
+      p <- progressr::progressor(steps = (length(target_O_sub)*length(weighting_scheme_o)))
+      future_proc_status <- future::futureOf(future_proc)
 
-        while(!future::resolved(future_proc_status)){
-          Sys.sleep(0.2)
-          fl_un<-list.files(temp_dir_sub2,full.names = T)
-          fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
-
-          fl_un_time<-file.mtime(fl_un)
-          fl_un<-fl_un[fl_un_time<(Sys.time()-60)]
-
-          if (length(fl_un)>0) {
-            rast_all<-purrr::map(fl_un,function(y) {
-              Sys.sleep(0.2)
-              x<-try(terra::rast(y),
-                     silent = T)
-
-              if (inherits(x,"try-error")) return(NULL)
-
-              ot<-try(terra::writeRaster(
-                x,
-                NAflag=-9999,
-                output_filename$outfile,
-                filetype = "GPKG",
-                gdal = c("APPEND_SUBDATASET=YES",
-                         paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
-                )
-              ),silent=T)
-
-              if (inherits(ot,"try-error")) {
-                if (attr(ot,"condition")$message != "stoi"){
-                  ot<-terra::writeRaster(
-                    x,
-                    NAflag=-9999,
-                    output_filename$outfile,
-                    filetype = "GPKG",
-                    gdal = c("APPEND_SUBDATASET=YES",
-                             paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
-                    ))
-                }
-              }
-
-
-              p()
-              return(y)
-            })
-
-            rast_all<-rast_all[!sapply(rast_all,is.null)]
-
-            try(suppressWarnings(file.remove(unlist(rast_all))),silent=T)
-
-          }
-
-        }
-
-        Sys.sleep(60)
-
-        if (length(future_proc$result$conditions)>0){
-          err<-lapply(future_proc$result$conditions,function(x) x$condition)
-          err<-err[sapply(err,function(x) inherits(x,"error"))]
-          if (length(err)>0){
-            #if (verbose) browser()
-            return(err)
-            #stop(paste0(unlist(err)))
-          }
-        }
-
+      while(!future::resolved(future_proc_status)){
+        Sys.sleep(0.2)
         fl_un<-list.files(temp_dir_sub2,full.names = T)
         fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
 
+        fl_un_time<-file.mtime(fl_un)
+        fl_un<-fl_un[fl_un_time<(Sys.time()-60)]
+
         if (length(fl_un)>0) {
           rast_all<-purrr::map(fl_un,function(y) {
+            Sys.sleep(0.2)
+            x<-try(terra::rast(y),
+                   silent = T)
 
-            x<-terra::rast(y)
+            if (inherits(x,"try-error")) return(NULL)
 
             ot<-try(terra::writeRaster(
               x,
@@ -468,20 +418,76 @@ prep_weights<-function(
 
             if (inherits(ot,"try-error")) {
               if (attr(ot,"condition")$message != "stoi"){
-                stop(attr(ot,"condition")$message)
+                ot<-terra::writeRaster(
+                  x,
+                  NAflag=-9999,
+                  output_filename$outfile,
+                  filetype = "GPKG",
+                  gdal = c("APPEND_SUBDATASET=YES",
+                           paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+                  ))
               }
             }
+
 
             p()
             return(y)
           })
+
           rast_all<-rast_all[!sapply(rast_all,is.null)]
 
           try(suppressWarnings(file.remove(unlist(rast_all))),silent=T)
+
         }
 
+      }
 
-        t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
+      Sys.sleep(60)
+
+      if (length(future_proc$result$conditions)>0){
+        err<-lapply(future_proc$result$conditions,function(x) x$condition)
+        err<-err[sapply(err,function(x) inherits(x,"error"))]
+        if (length(err)>0){
+          #if (verbose) browser()
+          return(err)
+          #stop(paste0(unlist(err)))
+        }
+      }
+
+      fl_un<-list.files(temp_dir_sub2,full.names = T)
+      fl_un<-fl_un[grepl(paste0(weighting_scheme_o,collapse = "|"),fl_un)]
+
+      if (length(fl_un)>0) {
+        rast_all<-purrr::map(fl_un,function(y) {
+
+          x<-terra::rast(y)
+
+          ot<-try(terra::writeRaster(
+            x,
+            NAflag=-9999,
+            output_filename$outfile,
+            filetype = "GPKG",
+            gdal = c("APPEND_SUBDATASET=YES",
+                     paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+            )
+          ),silent=T)
+
+          if (inherits(ot,"try-error")) {
+            if (attr(ot,"condition")$message != "stoi"){
+              stop(attr(ot,"condition")$message)
+            }
+          }
+
+          p()
+          return(y)
+        })
+        rast_all<-rast_all[!sapply(rast_all,is.null)]
+
+        try(suppressWarnings(file.remove(unlist(rast_all))),silent=T)
+      }
+
+
+      t1<-try((unlink(temp_dir_sub2,force = T,recursive = T)),silent=T)
       #})
 
       if (verbose) message("Saving meta data")

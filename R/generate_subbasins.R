@@ -12,20 +12,6 @@
 #' @export
 #'
 
-
-#' @importFrom carrier crate
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if left_join filter select rename group_by ungroup bind_rows arrange copy_to
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom rlang sym
-#' @importFrom RSQLite SQLite
-#' @importFrom sf st_as_sf st_area write_sf read_sf st_crs st_geometry st_join
-#' @importFrom terra terraOptions writeRaster rast as.polygons vect crop app
-#' @importFrom tibble as_tibble
-#' @importFrom tidyr nest unnest
-#' @importFrom tidyselect any_of
-#' @importFrom whitebox wbt_options wbt_exe_path wbt_subbasins wbt_unnest_basins
-
 generate_subbasins<-function(
     input,
     points,

@@ -19,21 +19,6 @@
 #'
 #' @return A tibble of resulting attributes. If \code{return_products = TRUE}, all geospatial analysis products are returned as well.
 #'
-#' @importFrom carrier crate
-#' @importFrom data.table fwrite
-#' @importFrom dplyr filter mutate n group_by ungroup bind_cols left_join select
-#' @importFrom furrr future_pmap
-#' @importFrom future nbrOfWorkers availableCores
-#' @importFrom hydroweight process_input hydroweight hydroweight_attributes
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr pmap_dfr reduce
-#' @importFrom sf read_sf st_as_sf
-#' @importFrom stats setNames
-#' @importFrom terra terraOptions writeRaster writeVector rast
-#' @importFrom tibble tibble
-#' @importFrom tidyr nest unnest
-#' @importFrom tidyselect everything any_of
-#' @importFrom whitebox wbt_options wbt_exe_path
 #' @export
 
 

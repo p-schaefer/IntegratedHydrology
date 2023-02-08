@@ -14,21 +14,6 @@
 #'
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #'
-
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr select mutate case_when bind_cols group_by summarize across ungroup filter left_join summarise arrange desc row_number bind_rows rename if_any rowwise full_join copy_to
-#' @importFrom hydroweight process_input
-#' @importFrom nngeo st_nn
-#' @importFrom rlang sym
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf st_crs st_as_sf write_sf st_centroid st_join
-#' @importFrom stats setNames
-#' @importFrom terra terraOptions writeRaster rast crs as.points extract vect rasterize cells adjacent xyFromCell
-#' @importFrom tibble tibble as_tibble
-#' @importFrom tidyr fill gather pivot_wider
-#' @importFrom tidyselect everything any_of
-#' @importFrom utils head
-#' @importFrom whitebox wbt_options wbt_exe_path wbt_stream_link_identifier wbt_stream_link_class wbt_stream_link_length wbt_tributary_identifier wbt_farthest_channel_head wbt_stream_link_slope wbt_stream_slope_continuous wbt_hack_stream_order wbt_strahler_stream_order wbt_horton_stream_order wbt_shreve_stream_magnitude wbt_length_of_upstream_channels wbt_raster_streams_to_vector
 #' @export
 
 attrib_streamline<-function(

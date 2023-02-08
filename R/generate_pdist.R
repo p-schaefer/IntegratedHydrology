@@ -7,10 +7,6 @@
 #' @return input with table 'fcon_pwise_dist' and 'funcon_pwise_dist' added to the database
 #' @export
 
-#' @importFrom DBI dbConnect dbExecute dbDisconnect
-#' @importFrom dbplyr sql window_order
-#' @importFrom dplyr collect tbl filter select rename left_join group_by mutate ungroup summarize case_when compute full_join anti_join
-#' @importFrom RSQLite SQLite
 
 generate_pdist<-function(
     input,

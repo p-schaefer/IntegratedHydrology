@@ -35,16 +35,6 @@ as_ihydro<-function(...) as.ihydro(...)
 #' @return table of objects in the ihydro geopackage
 #' @export
 #'
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr tbl collect select filter mutate case_when bind_rows arrange
-#' @importFrom RSQLite SQLite
-#' @importFrom sf st_layers
-#' @importFrom tibble tibble
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr tbl collect select filter mutate case_when bind_rows arrange
-#' @importFrom RSQLite SQLite
-#' @importFrom sf st_layers
-#' @importFrom tibble tibble
 
 ihydro_layers<-function(input) {
   if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
@@ -119,20 +109,6 @@ ihydro_layers<-function(input) {
 }
 
 
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if select filter bind_rows distinct
-#' @importFrom rlang sym
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf
-#' @importFrom tibble as_tibble
-#' @importFrom tidyselect any_of
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if select filter bind_rows distinct
-#' @importFrom rlang sym
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf
-#' @importFrom tibble as_tibble
-#' @importFrom tidyselect any_of
 target_id_fun<-function(
     db_fp,
     sample_points=NULL,
@@ -206,10 +182,6 @@ target_id_fun<-function(
 }
 
 
-#' @importFrom dplyr select mutate filter group_by summarize ungroup
-#' @importFrom sf read_sf st_union
-#' @importFrom dplyr select mutate filter group_by summarize ungroup
-#' @importFrom sf read_sf st_union
 target_o_fun<-function(
     db_fp,
     target_IDs,

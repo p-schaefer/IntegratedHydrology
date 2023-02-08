@@ -10,18 +10,6 @@
 #'
 #' @return sf polygon of upstream catchments
 #'
-#' @importFrom carrier crate
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom dplyr collect tbl mutate across na_if filter rename left_join select show_query bind_rows
-#' @importFrom furrr future_pmap
-#' @importFrom progressr with_progress progressor
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf st_union st_cast write_sf st_as_sf
-#' @importFrom tibble tibble
-#' @importFrom tidyr unnest
-#' @importFrom tidyselect any_of
-#' @importFrom utils capture.output tail
-#' @importFrom whitebox wbt_options wbt_exe_path
 #' @export
 
 
@@ -116,11 +104,16 @@ get_catchment<-function(
             DBI::dbDisconnect(con)
 
             p()
+            #browser()
 
-            suppressWarnings(sf::read_sf(db_loc,
-                                         query=out)) %>%
+            s1<-suppressWarnings(sf::read_sf(db_loc,
+                                         query=out))
+
+            s1 %>%
               dplyr::select(-link_id,link_id=pour_point_id) %>%
+              sf::st_buffer(units::as_units(0.01,sf::st_crs(s1)$units)) %>%
               sf::st_union() %>%
+              #sfheaders::sf_remove_holes() %>%
               nngeo::st_remove_holes() %>%
               sf::st_cast("POLYGON") %>%
               .[1]

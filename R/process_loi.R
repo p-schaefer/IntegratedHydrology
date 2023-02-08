@@ -15,20 +15,6 @@
 #' @return If \code{return_products = TRUE}, all geospatial analysis products are returned. If \code{return_products = FALSE}, folder path to resulting .zip file.
 #' @export
 
-#' @importFrom carrier crate
-#' @importFrom DBI dbConnect dbDisconnect
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom future nbrOfWorkers availableCores plan tweak multisession future futureOf resolved value
-#' @importFrom hydroweight process_input
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr map pmap
-#' @importFrom RSQLite SQLite
-#' @importFrom sf st_as_sf write_sf
-#' @importFrom stars st_as_stars write_stars
-#' @importFrom terra terraOptions rast writeRaster as.polygons ext crs writeVector vect wrap split
-#' @importFrom tibble tibble
-#' @importFrom whitebox wbt_options wbt_exe_path
-
 process_loi<-function(
     input=NULL,
     dem=NULL,

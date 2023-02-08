@@ -21,13 +21,6 @@
 #' @export
 #'
 
-#' @importFrom hydroweight process_input
-#' @importFrom sf st_as_sf st_buffer write_sf
-#' @importFrom stars st_as_stars write_stars
-#' @importFrom stats setNames
-#' @importFrom terra terraOptions crs writeRaster res as.lines vect as.polygons ext writeVector mask rast wrap
-#' @importFrom whitebox wbt_options wbt_exe_path wbt_feature_preserving_smoothing wbt_fill_depressions wbt_breach_depressions wbt_d8_pointer wbt_d8_flow_accumulation wbt_extract_streams wbt_remove_short_streams
-
 process_flowdir<-function(
     dem,
     threshold,

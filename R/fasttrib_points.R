@@ -14,28 +14,11 @@
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical.
+#' @param backend character. One of "data.table" or "SQLite"
 #'
 #' @return A data.frame of weighted attributes for the requested areas
 #' @export
 #'
-#' @importFrom carrier crate
-#' @importFrom data.table fwrite
-#' @importFrom DBI dbConnect dbDisconnect dbExecute dbRemoveTable
-#' @importFrom dbplyr tbl_memdb sql
-#' @importFrom dplyr filter tbl select distinct collect left_join mutate arrange copy_to group_by n desc ungroup bind_rows across collapse compute rows_append rename_with summarise summarize rowwise bind_cols
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom future nbrOfWorkers availableCores
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr map map2_dfr
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf
-#' @importFrom stats setNames
-#' @importFrom stringr str_split_fixed
-#' @importFrom terra terraOptions
-#' @importFrom tibble enframe tibble
-#' @importFrom tidyr nest pivot_wider pivot_longer unnest
-#' @importFrom tidyselect everything contains any_of ends_with starts_with
-#' @importFrom whitebox wbt_options wbt_exe_path
 
 fasttrib_points<-function(
     input,
@@ -53,8 +36,11 @@ fasttrib_points<-function(
       (x * 0.001 + 1)^-1
     },
     temp_dir=NULL,
-    verbose=F
+    verbose=F,
+    backend=c("data.table","SQLite")
 ){
+  backend<-match.arg(backend)
+
   if (!inherits(input,"ihydro")) stop("'input' must be of class('ihydro')")
   if (inherits(loi_file,"ihydro")) loi_file<-loi_file$outfile
   if (inherits(iDW_file,"ihydro")) iDW_file<-iDW_file$outfile
@@ -152,6 +138,8 @@ fasttrib_points<-function(
       verbose=verbose
     )
 
+    if (!inherits(iDW_out,"ihydro")) stop(iDW_out)
+
     idw_lyrs<-ihydro_layers(iDW_out)
 
     # TODO: Add checks to make sure requested weighting_scheme are in input
@@ -196,7 +184,8 @@ fasttrib_points<-function(
     loi_cols=loi_cols,
     subb_IDs=subb_IDs,
     temp_dir_sub=temp_dir_sub,
-    verbose=verbose
+    verbose=verbose,
+    backend=backend
   )
 
   target_IDs_out<-target_id_fun(
@@ -229,33 +218,6 @@ fasttrib_points<-function(
 
 
 
-#' @importFrom carrier crate
-#' @importFrom data.table fwrite fread
-#' @importFrom DBI dbConnect dbListTables dbDisconnect
-#' @importFrom dplyr group_by ungroup mutate n filter select row_number tbl rows_update copy_to
-#' @importFrom exactextractr exact_extract
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom future nbrOfWorkers availableCores plan tweak multisession future futureOf resolved
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr map2
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf
-#' @importFrom terra rast
-#' @importFrom tidyr nest
-#' @importFrom tidyselect everything
-#' @importFrom carrier crate
-#' @importFrom data.table fwrite fread
-#' @importFrom DBI dbConnect dbListTables dbExecute dbDisconnect
-#' @importFrom dplyr group_by ungroup mutate n filter select row_number tbl rows_update copy_to
-#' @importFrom furrr future_pmap furrr_options
-#' @importFrom future nbrOfWorkers availableCores plan tweak multisession future futureOf resolved
-#' @importFrom progressr with_progress progressor
-#' @importFrom purrr map2
-#' @importFrom RSQLite SQLite
-#' @importFrom sf read_sf
-#' @importFrom terra rast
-#' @importFrom tidyr nest
-#' @importFrom tidyselect everything
 extract_raster_attributes<-function(
     input,
     iDW_file,
@@ -265,7 +227,8 @@ extract_raster_attributes<-function(
     subb_IDs,
     loi_numeric_stats,
     temp_dir_sub,
-    verbose
+    verbose,
+    backend=c("data.table","SQLite")
 ){
   if (inherits(loi_file,"ihydro")) loi_file<-loi_file$outfile
   if (inherits(iDW_file,"ihydro")) iDW_file<-iDW_file$outfile
@@ -313,7 +276,8 @@ extract_raster_attributes<-function(
                loi_cols=list(loi_cols),
                p=list(p),
                temp_dir_sub=list(temp_dir_sub),
-               n_cores=list(n_cores)
+               n_cores=list(n_cores),
+               backend=list(backend)
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
@@ -327,7 +291,8 @@ extract_raster_attributes<-function(
                      loi_cols,
                      p,
                      temp_dir_sub,
-                     n_cores) {
+                     n_cores,
+                     backend) {
               #browser()
               ihydro::.summ_fn(
                 x=x,
@@ -341,7 +306,7 @@ extract_raster_attributes<-function(
                 p=p,
                 temp_dir_sub=temp_dir_sub,
                 n_cores=n_cores,
-                backend=c("data.table")
+                backend=backend
               )
 
             }
@@ -393,7 +358,8 @@ extract_raster_attributes<-function(
                    loi_cols=list(loi_cols),
                    p=list(p),
                    temp_dir_sub=list(temp_dir_sub),
-                   n_cores=list(1)
+                   n_cores=list(1),
+                   backend=list(backend)
               ),
               carrier::crate(
                 function(x,
@@ -406,7 +372,8 @@ extract_raster_attributes<-function(
                          loi_cols,
                          p,
                          temp_dir_sub,
-                         n_cores) {
+                         n_cores,
+                         backend) {
 
                   ihydro::.summ_fn(
                     x=x,
@@ -420,7 +387,7 @@ extract_raster_attributes<-function(
                     p=p,
                     temp_dir_sub=temp_dir_sub,
                     n_cores=1,
-                    backend=c("data.table")
+                    backend=backend
                   )
                 }
               )))
@@ -472,7 +439,7 @@ extract_raster_attributes<-function(
                    n_cores,
                    backend=c("data.table","SQLite")
 ){
-  backend<-match.arg(backend,several.ok=T)
+  backend<-match.arg(backend)
 
   sys.mem<-(memuse::Sys.meminfo()$freeram/n_cores)*0.9
   max_pixels_mem<-as.numeric(sys.mem)/12
@@ -710,7 +677,8 @@ extract_raster_attributes<-function(
                                                    weighting_scheme2=weighting_scheme,
                                                    loi_meta2=loi_meta,
                                                    loi_cols2=loi_cols,
-                                                   loi_numeric_stats2=loi_numeric_stats)
+                                                   loi_numeric_stats2=loi_numeric_stats,
+                                                   backend=backend)
 
                            } else {
                              if (max.obj.fullanalysis_col[2]>(length(weighting_scheme[weighting_scheme!="lumped"])*3)) { # all IDW plus at least some loi will fit into memory
@@ -763,7 +731,8 @@ extract_raster_attributes<-function(
                                                        weighting_scheme2=weighting_scheme,
                                                        loi_meta2=loi_meta,
                                                        loi_cols2=loi_sub,
-                                                       loi_numeric_stats2=loi_numeric_stats)
+                                                       loi_numeric_stats2=loi_numeric_stats,
+                                                       backend=backend)
 
                                  return(out)
                                }) %>%
@@ -812,7 +781,8 @@ extract_raster_attributes<-function(
                                                          weighting_scheme2=sub_weighting_scheme,
                                                          loi_meta2=loi_meta,
                                                          loi_cols2=loi_sub,
-                                                         loi_numeric_stats2=loi_numeric_stats)
+                                                         loi_numeric_stats2=loi_numeric_stats,
+                                                         backend=backend)
                                    return(out)
                                  })%>%
                                    purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
@@ -840,21 +810,29 @@ extract_raster_attributes<-function(
 #' @export
 #'
 .attr_fn<-function(df=NULL,
-                   db_path=NULL,
-                   tbl_name=NULL,
+                   db_path=":memory:",
+                   tbl_name=basename(tempfile(pattern = "SQL")),
                    point_id,
                    weighting_scheme2,
                    loi_meta2,
                    loi_cols2,
                    loi_numeric_stats2,
                    backend=c("data.table","SQLite")){
+  #browser()
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
   `%>%` <- magrittr::`%>%`
 
-  loi_meta2<-dplyr::filter(loi_meta2,loi_var_nms %in% loi_cols2)
+  loi_meta2<-dplyr::filter(loi_meta2,
+                           loi_var_nms %in% loi_cols2,
+                           loi_var_nms %in% colnames(df)
+                           ) #
 
   backend<-match.arg(backend)
+
+  df<-df %>%
+    dplyr::mutate(dplyr::across(tidyselect::where(is.numeric),~dplyr::if_else(is.nan(.),NA_real_,.)))
+
 
   if (backend=="data.table") {
     stopifnot(!is.null(df))
@@ -872,6 +850,9 @@ extract_raster_attributes<-function(
 
       con<-DBI::dbConnect(RSQLite::SQLite(),db_path)
 
+      #df1<-DBI::dbWriteTable(con,tbl_name,df)
+      df1<-dplyr::copy_to(con,df,name = tbl_name)
+
       df<-dplyr::tbl(con,tbl_name)
 
       df_class<-sapply(dplyr::collect(df,n=1),class)
@@ -879,29 +860,24 @@ extract_raster_attributes<-function(
   }
 
 
-
-
-  df<-df %>%
-    dplyr::mutate(dplyr::across(!!(names(df_class[df_class=="numeric"])),~ifelse(is.nan(.),NA_real_,.))) # tidyselect::any_of tidyselect::where(is.numeric)
-
   if ("iFLS" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(!!(loi_cols2), # tidyselect::any_of
+      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2), # tidyselect::any_of
                                   ~.*(!!rlang::sym("iFLS")),.names=paste0("{.col}_","iFLS")))
   }
   if ("iFLO" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
+      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("iFLO")),.names=paste0("{.col}_","iFLO")))
   }
   if ("HAiFLS" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
+      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("HAiFLS")),.names=paste0("{.col}_","HAiFLS")))
   }
   if ("HAiFLO" %in% weighting_scheme2) {
     df<-df %>%
-      dplyr::mutate(dplyr::across(!!(loi_cols2), #tidyselect::any_of
+      dplyr::mutate(dplyr::across(tidyselect::any_of(loi_cols2), #tidyselect::any_of
                                   ~.*(!!rlang::sym("HAiFLO")),.names=paste0("{.col}_","HAiFLO")))
   }
 
@@ -921,6 +897,8 @@ extract_raster_attributes<-function(
 
   numb_rast<-loi_meta2$loi_var_nms[loi_meta2$loi_type=="num_rast"]
   cat_rast<-loi_meta2$loi_var_nms[loi_meta2$loi_type=="cat_rast"]
+
+  #browser()
 
 
   # Lumped Summaries --------------------------------------------------------
@@ -954,7 +932,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="min") & length(numb_rast)>0){
     min_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(!!(numb_rast),~min(.,na.rm=T))) %>% #tidyselect::any_of
+      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~min(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_min"))
 
@@ -962,7 +940,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="max" & length(numb_rast)>0)){
     max_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(!!(numb_rast),~max(.,na.rm=T))) %>% #tidyselect::any_of
+      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~max(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_max"))
 
@@ -979,7 +957,7 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="sum" & length(numb_rast)>0)){
     sum_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(!!(numb_rast),~sum(.,na.rm=T))) %>% #tidyselect::any_of
+      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~sum(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sum"))
   }
@@ -987,14 +965,14 @@ extract_raster_attributes<-function(
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2=="median" & length(numb_rast)>0)){
     median_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(!!(numb_rast),~stats::median(.,na.rm=T))) %>% #tidyselect::any_of
+      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::median(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_median"))
   }
   if ("lumped" %in% weighting_scheme2 & any(loi_numeric_stats2 %in% c("sd","stdev") & length(numb_rast)>0)){
     lumped_sd_out<-df %>%
       dplyr::select(tidyselect::any_of(loi_cols2)) %>%
-      dplyr::summarise(dplyr::across(!!(numb_rast),~stats::sd(.,na.rm=T))) %>% #tidyselect::any_of
+      dplyr::summarise(dplyr::across(tidyselect::any_of(numb_rast),~stats::sd(.,na.rm=T))) %>% #tidyselect::any_of
       dplyr::collect()%>%
       dplyr::rename_with(~paste0(.,"_lumped_sd"))
   }
