@@ -256,6 +256,7 @@ attrib_streamline<-function(
   # Instert Points if present -----------------------------------------------
 
   if (!is.null(points)){
+    #browser()
     points<-hydroweight::process_input(points,target = terra::vect(utils::head(final_points[,1])),input_name="points")
 
     sf::write_sf(sf::st_as_sf(points) %>%
@@ -264,7 +265,8 @@ attrib_streamline<-function(
 
     points<-sf::st_as_sf(points) %>%
       dplyr::group_by(!!rlang::sym(site_id_col)) %>%
-      dplyr::summarize(dplyr::across(geometry,sf::st_centroid)) %>%
+      dplyr::summarize(dplyr::across(tidyselect::contains("geom"),sf::st_union)) %>%
+      sf::st_centroid() %>%
       dplyr::ungroup()
 
     if (!site_id_col %in% names(points)) stop("'site_id_col' must be a variable name in 'points'")
