@@ -104,6 +104,7 @@ generate_subbasins<-function(
       dplyr::mutate(link_id=as.numeric(link_id))
 
     message("Splitting Subbasins")
+    #browser()
 
     new_data<-stream_links %>%
       dplyr::filter(floor(link_id) %in% floor(link_id[!is.na(!!rlang::sym(site_id_col))])) %>%
@@ -162,7 +163,7 @@ generate_subbasins<-function(
                                       t1<-terra::rast(file.path(temp_dir,"dem_d8.tif")) %>%
                                         terra::crop(y=cr,
                                                     mask=T,
-                                                    snap="in",
+                                                    snap="near",
                                                     touches=F,
                                                     filename=file.path(temp_dir,paste0("d8_int_",link_id,".tif")),
                                                     overwrite=T) %>%
