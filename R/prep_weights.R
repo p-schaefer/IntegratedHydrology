@@ -108,6 +108,7 @@ prep_weights<-function(
 
   if (any(lyrs=="target_o_meta")) {
     avail_weights<-sf::read_sf(output_filename,"target_o_meta") %>%
+      dplyr::mutate(link_id=as.character(link_id)) %>%
       dplyr::full_join(target_IDs %>% dplyr::select(link_id),by="link_id")
 
     avail_weights<-lapply(setNames(weighting_scheme_o,weighting_scheme_o),function(x){

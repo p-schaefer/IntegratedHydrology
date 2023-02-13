@@ -178,6 +178,11 @@ target_id_fun<-function(
 
   }
 
+  target_IDs<-target_IDs %>%
+    dplyr::mutate(
+      link_id=as.character(link_id)
+    )
+
   return(target_IDs)
 }
 
