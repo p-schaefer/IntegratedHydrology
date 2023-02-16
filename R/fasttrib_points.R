@@ -15,6 +15,7 @@
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical.
 #' @param backend character. One of "data.table" or "SQLite"
+#' @param SQLdb_path character. If backend = "SQLite" directory to store temporary SQL tables, or ":memory:" for an in-memory SQL table
 #'
 #' @return A data.frame of weighted attributes for the requested areas
 #' @export
@@ -37,7 +38,8 @@ fasttrib_points<-function(
     },
     temp_dir=NULL,
     verbose=F,
-    backend=c("data.table","SQLite")
+    backend=c("data.table","SQLite"),
+    SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
 
@@ -185,7 +187,8 @@ fasttrib_points<-function(
     subb_IDs=subb_IDs,
     temp_dir_sub=temp_dir_sub,
     verbose=verbose,
-    backend=backend
+    backend=backend,
+    SQLdb_path=SQLdb_path
   )
 
   target_IDs_out<-target_id_fun(
@@ -228,7 +231,8 @@ extract_raster_attributes<-function(
     loi_numeric_stats,
     temp_dir_sub,
     verbose,
-    backend=c("data.table","SQLite")
+    backend=c("data.table","SQLite"),
+    SQLdb_path=":memory:"
 ){
   if (inherits(loi_file,"ihydro")) loi_file<-loi_file$outfile
   if (inherits(iDW_file,"ihydro")) iDW_file<-iDW_file$outfile
@@ -277,7 +281,8 @@ extract_raster_attributes<-function(
                p=list(p),
                temp_dir_sub=list(temp_dir_sub),
                n_cores=list(n_cores),
-               backend=list(backend)
+               backend=list(backend),
+               SQLdb_path=list(SQLdb_path)
           ),
           .options = furrr::furrr_options(globals = F),
           carrier::crate(
@@ -292,7 +297,8 @@ extract_raster_attributes<-function(
                      p,
                      temp_dir_sub,
                      n_cores,
-                     backend) {
+                     backend,
+                     SQLdb_path) {
               #browser()
               ihydro::.summ_fn(
                 x=x,
@@ -306,7 +312,8 @@ extract_raster_attributes<-function(
                 p=p,
                 temp_dir_sub=temp_dir_sub,
                 n_cores=n_cores,
-                backend=backend
+                backend=backend,
+                SQLdb_path=SQLdb_path
               )
 
             }
@@ -359,7 +366,8 @@ extract_raster_attributes<-function(
                    p=list(p),
                    temp_dir_sub=list(temp_dir_sub),
                    n_cores=list(1),
-                   backend=list(backend)
+                   backend=list(backend),
+                   SQLdb_path=list(SQLdb_path)
               ),
               carrier::crate(
                 function(x,
@@ -373,7 +381,8 @@ extract_raster_attributes<-function(
                          p,
                          temp_dir_sub,
                          n_cores,
-                         backend) {
+                         backend,
+                         SQLdb_path) {
 
                   ihydro::.summ_fn(
                     x=x,
@@ -387,7 +396,8 @@ extract_raster_attributes<-function(
                     p=p,
                     temp_dir_sub=temp_dir_sub,
                     n_cores=1,
-                    backend=backend
+                    backend=backend,
+                    SQLdb_path=SQLdb_path
                   )
                 }
               )))
@@ -437,7 +447,8 @@ extract_raster_attributes<-function(
                    p,
                    temp_dir_sub,
                    n_cores,
-                   backend=c("data.table","SQLite")
+                   backend=c("data.table","SQLite"),
+                   SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
 
@@ -678,7 +689,8 @@ extract_raster_attributes<-function(
                                                    loi_meta2=loi_meta,
                                                    loi_cols2=loi_cols,
                                                    loi_numeric_stats2=loi_numeric_stats,
-                                                   backend=backend)
+                                                   backend=backend,
+                                                   SQLdb_path=SQLdb_path)
 
                            } else {
                              if (max.obj.fullanalysis_col[2]>(length(weighting_scheme[weighting_scheme!="lumped"])*3)) { # all IDW plus at least some loi will fit into memory
@@ -732,7 +744,8 @@ extract_raster_attributes<-function(
                                                        loi_meta2=loi_meta,
                                                        loi_cols2=loi_sub,
                                                        loi_numeric_stats2=loi_numeric_stats,
-                                                       backend=backend)
+                                                       backend=backend,
+                                                       SQLdb_path=SQLdb_path)
 
                                  return(out)
                                }) %>%
@@ -782,7 +795,8 @@ extract_raster_attributes<-function(
                                                          loi_meta2=loi_meta,
                                                          loi_cols2=loi_sub,
                                                          loi_numeric_stats2=loi_numeric_stats,
-                                                         backend=backend)
+                                                         backend=backend,
+                                                         SQLdb_path=SQLdb_path)
                                    return(out)
                                  })%>%
                                    purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
@@ -810,7 +824,7 @@ extract_raster_attributes<-function(
 #' @export
 #'
 .attr_fn<-function(df=NULL,
-                   db_path=":memory:",
+                   SQLdb_path=":memory:",
                    tbl_name=basename(tempfile(pattern = "SQL")),
                    point_id,
                    weighting_scheme2,
@@ -845,10 +859,10 @@ extract_raster_attributes<-function(
       dplyr::select(-tidyselect::any_of("coverage_fraction"))
   } else {
     if (backend=="SQLite") {
-      stopifnot(!is.null(db_path))
-      stopifnot(!is.null(tbl_name))
+      stopifnot(!is.null(SQLdb_path))
+      stopifnot(!is.null(SQLdb_path))
 
-      con<-DBI::dbConnect(RSQLite::SQLite(),db_path)
+      con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
 
       #df1<-DBI::dbWriteTable(con,tbl_name,df)
       df1<-dplyr::copy_to(con,df,name = tbl_name)
