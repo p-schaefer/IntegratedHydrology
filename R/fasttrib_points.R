@@ -860,7 +860,10 @@ extract_raster_attributes<-function(
   } else {
     if (backend=="SQLite") {
       stopifnot(!is.null(SQLdb_path))
-      stopifnot(!is.null(SQLdb_path))
+      if (SQLdb_path!=":memory:"){
+        if (!dir.exists(SQLdb_path)) dir.create(SQLdb_path)
+        SQLdb_path<-tempfile(tmpdir = SQLdb_path,pattern="ihydro",fileext = "sql")
+      }
 
       con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
 
@@ -1116,6 +1119,10 @@ extract_raster_attributes<-function(
 
   if (backend=="SQLite") {
     DBI::dbDisconnect(con)
+
+    if (SQLdb_path!=":memory:"){
+      file.remove(SQLdb_path)
+    }
   }
 
   return(final_out)
