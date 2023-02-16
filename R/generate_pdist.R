@@ -53,7 +53,7 @@ generate_pdist<-function(
     dplyr::rename(origin=origin_link_id) %>%
     dplyr::rename(destination=destination_link_id) %>%
     dplyr::group_by(origin) %>%
-    dbplyr::window_order(dbplyr::sql("USChnLn_Fr")) %>%
+    dbplyr::window_order(USChnLn_Fr) %>% # dbplyr::sql("USChnLn_Fr") # used to need this
     dplyr::mutate(directed_path_length=cumsum(link_lngth)) %>%
     dplyr::ungroup() %>%
     dplyr::select(origin,destination,directed_path_length) %>%
