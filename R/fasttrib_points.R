@@ -832,8 +832,8 @@ extract_raster_attributes<-function(
                    loi_cols2,
                    loi_numeric_stats2,
                    backend=c("data.table","SQLite")){
-  library(data.table)
-  library(dtplyr)
+  #library(data.table)
+  #library(dtplyr)
   #browser()
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
