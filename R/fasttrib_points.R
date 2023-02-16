@@ -38,7 +38,7 @@ fasttrib_points<-function(
     },
     temp_dir=NULL,
     verbose=F,
-    backend=c("data.table","SQLite"),
+    backend=c("SQLite","data.table"),
     SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
@@ -317,7 +317,8 @@ extract_raster_attributes<-function(
               )
 
             }
-          )))
+          )
+          ))
 
   })
 
@@ -400,7 +401,8 @@ extract_raster_attributes<-function(
                     SQLdb_path=SQLdb_path
                   )
                 }
-              )))
+              )
+              ))
       })
 
       out2<-ot2 %>%
@@ -832,12 +834,14 @@ extract_raster_attributes<-function(
                    loi_cols2,
                    loi_numeric_stats2,
                    backend=c("data.table","SQLite")){
-  #library(data.table)
-  #library(dtplyr)
+  # library(data.table)
+  # library(dtplyr)
+  # library(dplyr, warn.conflicts = FALSE)
   #browser()
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
   `%>%` <- magrittr::`%>%`
+  `:=` <- data.table::`:=`
 
   loi_meta2<-dplyr::filter(loi_meta2,
                            loi_var_nms %in% loi_cols2,
@@ -847,7 +851,9 @@ extract_raster_attributes<-function(
   backend<-match.arg(backend)
 
   df<-df %>%
-    dplyr::mutate(dplyr::across(tidyselect::where(is.numeric),~dplyr::if_else(is.nan(.),NA_real_,.)))
+    dplyr::mutate(dplyr::across(tidyselect::where(is.numeric),~dplyr::if_else(is.nan(.),NA_real_,.))) %>%
+    dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
+    dplyr::select(-tidyselect::any_of("coverage_fraction"))
 
 
   if (backend=="data.table") {
@@ -856,18 +862,21 @@ extract_raster_attributes<-function(
     df_class<-sapply(df,class)
 
     df<-df %>%
-      dtplyr::lazy_dt() %>%
-      dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
-      dplyr::select(-tidyselect::any_of("coverage_fraction"))
+      dtplyr::lazy_dt()
   } else {
     if (backend=="SQLite") {
       stopifnot(!is.null(SQLdb_path))
       if (SQLdb_path!=":memory:"){
         if (!dir.exists(SQLdb_path)) dir.create(SQLdb_path)
-        SQLdb_path<-tempfile(tmpdir = SQLdb_path,pattern="ihydro",fileext = "sql")
+        SQLdb_path<-tempfile(tmpdir = SQLdb_path,pattern="ihydro",fileext = ".sql")
       }
 
       con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
+
+      if (SQLdb_path!=":memory:"){
+        res <- dbSendQuery(con, paste0("PRAGMA temp_store_directory=",gsub(basename(SQLdb_path),"",SQLdb_path),";"))
+        res <- dbSendQuery(con, paste0("PRAGMA SQLITE_TMPDIR=",gsub(basename(SQLdb_path),"",SQLdb_path),";"))
+      }
 
       #df1<-DBI::dbWriteTable(con,tbl_name,df)
       df1<-dplyr::copy_to(con,df,name = tbl_name)
