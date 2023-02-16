@@ -874,8 +874,10 @@ extract_raster_attributes<-function(
       con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
 
       if (SQLdb_path!=":memory:"){
-        res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store_directory=",gsub(basename(SQLdb_path),"",SQLdb_path),";"))
-        res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TMPDIR=",gsub(basename(SQLdb_path),"",SQLdb_path),";"))
+        #res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TEMP_STORE = 0;"))
+        res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store = 1;"))
+        res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store_directory='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
+        res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TMPDIR='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
       }
 
       #df1<-DBI::dbWriteTable(con,tbl_name,df)
