@@ -38,7 +38,7 @@ fasttrib_points<-function(
     },
     temp_dir=NULL,
     verbose=F,
-    backend=c("SQLite","data.table"),
+    backend=c("SQLite","tibble","data.table"),
     SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
@@ -449,7 +449,7 @@ extract_raster_attributes<-function(
                    p,
                    temp_dir_sub,
                    n_cores,
-                   backend=c("data.table","SQLite"),
+                   backend=c("tibble","data.table","SQLite"),
                    SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
@@ -833,7 +833,8 @@ extract_raster_attributes<-function(
                    loi_meta2,
                    loi_cols2,
                    loi_numeric_stats2,
-                   backend=c("data.table","SQLite")){
+                   backend=c("tibble","data.table","SQLite")
+                   ){
   # library(data.table)
   # library(dtplyr)
   # library(dplyr, warn.conflicts = FALSE)
@@ -855,11 +856,10 @@ extract_raster_attributes<-function(
     dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
     dplyr::select(-tidyselect::any_of("coverage_fraction"))
 
+  df_class<-sapply(df,class)
 
   if (backend=="data.table") {
     stopifnot(!is.null(df))
-
-    df_class<-sapply(df,class)
 
     df<-df %>%
       dtplyr::lazy_dt()
@@ -885,7 +885,7 @@ extract_raster_attributes<-function(
 
       df<-dplyr::tbl(con,tbl_name)
 
-      df_class<-sapply(dplyr::collect(df,n=1),class)
+      #df_class<-sapply(dplyr::collect(df,n=1),class)
     }
   }
 
