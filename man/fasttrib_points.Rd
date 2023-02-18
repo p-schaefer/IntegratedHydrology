@@ -21,7 +21,8 @@ fasttrib_points(
  },
   temp_dir = NULL,
   verbose = F,
-  backend = c("data.table", "SQLite")
+  backend = c("tibble", "SQLite", "data.table"),
+  SQLdb_path = ":memory:"
 )
 }
 \arguments{
@@ -54,6 +55,8 @@ fasttrib_points(
 \item{verbose}{logical.}
 
 \item{backend}{character. One of "data.table" or "SQLite"}
+
+\item{SQLdb_path}{character. If backend = "SQLite" directory to store temporary SQL tables, or ":memory:" for an in-memory SQL table}
 }
 \value{
 A data.frame of weighted attributes for the requested areas

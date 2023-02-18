@@ -38,7 +38,7 @@ fasttrib_points<-function(
     },
     temp_dir=NULL,
     verbose=F,
-    backend=c("SQLite","tibble","data.table"),
+    backend=c("tibble","SQLite","data.table"),
     SQLdb_path=":memory:"
 ){
   backend<-match.arg(backend)
@@ -318,7 +318,7 @@ extract_raster_attributes<-function(
 
             }
           )
-          ))
+        ))
 
   })
 
@@ -396,13 +396,13 @@ extract_raster_attributes<-function(
                     loi_cols=loi_cols,
                     p=p,
                     temp_dir_sub=temp_dir_sub,
-                    n_cores=1,
+                    n_cores=n_cores,
                     backend=backend,
                     SQLdb_path=SQLdb_path
                   )
                 }
               )
-              ))
+            ))
       })
 
       out2<-ot2 %>%
@@ -458,50 +458,53 @@ extract_raster_attributes<-function(
   max_pixels_mem<-as.numeric(sys.mem)/12
   max_pixels_mem<-min(max_pixels_mem,3e+06) # this isn't quite working right
 
-  # The below section is for using exact_extract
-  # loi_numeric_stats[loi_numeric_stats=="sd"]<-"stdev"
-  # names(loi_numeric_stats)[names(loi_numeric_stats)=="sd"]<-"stdev"
-  #
-  # if (length(weighting_scheme[weighting_scheme!="lumped"])>0) {
-  #   #names(loi_numeric_stats)<-paste0("lumped_",names(loi_numeric_stats))
-  #   if ("mean" %in% loi_numeric_stats) loi_numeric_stats<-c(loi_numeric_stats,weighted_mean="weighted_mean")
-  #   if ("stdev" %in% loi_numeric_stats) loi_numeric_stats<-c(loi_numeric_stats,weighted_stdev="weighted_stdev")
-  # }
-  #
-  # nm_fn<-function(c_nm,weight_nm,loi_numeric_stats,cat=F,append_cols="link_id"){
-  #   loi_numeric_stats_loc<-lapply(loi_numeric_stats,function(x) grepl(paste0("^",x,"\\."),c_nm) )
-  #
-  #   c_nm_new<-gsub(paste0(paste0(loi_numeric_stats,"."),collapse = "|"),"",c_nm)
-  #
-  #   w_loc<-loi_numeric_stats_loc[grepl("weighted",names(loi_numeric_stats_loc))]
-  #
-  #   if (length(w_loc)>0){
-  #     w_loc<-purrr::reduce(w_loc,function(x,y) x|y)
-  #   } else {
-  #     w_loc<-rep(F,length(c_nm_new))
-  #   }
-  #
-  #   c_nm_new[w_loc]<-paste0(c_nm_new[w_loc],paste0("_",weight_nm))
-  #   c_nm_new[!w_loc & !c_nm_new %in% append_cols]<-paste0(c_nm_new[!w_loc & !c_nm_new %in% append_cols],paste0("_","lumped"))
-  #
-  #   names(loi_numeric_stats_loc)<-gsub("stdev","sd",names(loi_numeric_stats_loc))
-  #   if (cat) {
-  #     names(loi_numeric_stats_loc)<-gsub("mean","prop",names(loi_numeric_stats_loc))
-  #   }
-  #
-  #   for (i in names(loi_numeric_stats_loc)){
-  #     c_nm_new[loi_numeric_stats_loc[[i]]]<-paste0(c_nm_new[loi_numeric_stats_loc[[i]]],
-  #                                                  "_",
-  #                                                  gsub("weighted_","",i))
-  #   }
-  #
-  #   return(c_nm_new)
-  #
-  # }
+  if (F) {
+    # The below section is for using exact_extract
+    # loi_numeric_stats[loi_numeric_stats=="sd"]<-"stdev"
+    # names(loi_numeric_stats)[names(loi_numeric_stats)=="sd"]<-"stdev"
+    #
+    # if (length(weighting_scheme[weighting_scheme!="lumped"])>0) {
+    #   #names(loi_numeric_stats)<-paste0("lumped_",names(loi_numeric_stats))
+    #   if ("mean" %in% loi_numeric_stats) loi_numeric_stats<-c(loi_numeric_stats,weighted_mean="weighted_mean")
+    #   if ("stdev" %in% loi_numeric_stats) loi_numeric_stats<-c(loi_numeric_stats,weighted_stdev="weighted_stdev")
+    # }
+    #
+    # nm_fn<-function(c_nm,weight_nm,loi_numeric_stats,cat=F,append_cols="link_id"){
+    #   loi_numeric_stats_loc<-lapply(loi_numeric_stats,function(x) grepl(paste0("^",x,"\\."),c_nm) )
+    #
+    #   c_nm_new<-gsub(paste0(paste0(loi_numeric_stats,"."),collapse = "|"),"",c_nm)
+    #
+    #   w_loc<-loi_numeric_stats_loc[grepl("weighted",names(loi_numeric_stats_loc))]
+    #
+    #   if (length(w_loc)>0){
+    #     w_loc<-purrr::reduce(w_loc,function(x,y) x|y)
+    #   } else {
+    #     w_loc<-rep(F,length(c_nm_new))
+    #   }
+    #
+    #   c_nm_new[w_loc]<-paste0(c_nm_new[w_loc],paste0("_",weight_nm))
+    #   c_nm_new[!w_loc & !c_nm_new %in% append_cols]<-paste0(c_nm_new[!w_loc & !c_nm_new %in% append_cols],paste0("_","lumped"))
+    #
+    #   names(loi_numeric_stats_loc)<-gsub("stdev","sd",names(loi_numeric_stats_loc))
+    #   if (cat) {
+    #     names(loi_numeric_stats_loc)<-gsub("mean","prop",names(loi_numeric_stats_loc))
+    #   }
+    #
+    #   for (i in names(loi_numeric_stats_loc)){
+    #     c_nm_new[loi_numeric_stats_loc[[i]]]<-paste0(c_nm_new[loi_numeric_stats_loc[[i]]],
+    #                                                  "_",
+    #                                                  gsub("weighted_","",i))
+    #   }
+    #
+    #   return(c_nm_new)
+    #
+    # }
+  }
+
 
   sys.disk<-NULL
 
-  if ("SQLite" %in% backend){
+  if (F & "SQLite" %in% backend){ #not using this currently
     sys.disk <- system(paste0("df -BM ",temp_dir_sub),intern=T)
     sys.disk <- strsplit(sys.disk[length(sys.disk)], "[ ]+")[[1]]
     sys.disk <- as.numeric(gsub("\\D", "", sys.disk[4]))/1024
@@ -520,303 +523,454 @@ extract_raster_attributes<-function(
     iDWs_rasts<-terra::rast(iDW_file,weighting_scheme[weighting_scheme %in% c("iFLS","HAiFLS")])
   }
 
-  purrr::map2_dfr(x$data,x$unn_group,function(y,yy){
-    #browser()
+  purrr::pmap_dfr(
+    list(
+      y=x$data,
+      yy=x$unn_group,
+      loi_rasts=list(loi_rasts),
+      iDW_file=list(iDW_file),
+      iDWs_rasts=list(iDWs_rasts),
+      iDWo_rasts=list(iDWo_rasts),
+      loi_cols=list(loi_cols),
+      input=list(input),
+      weighting_scheme=list(weighting_scheme),
+      loi_meta=list(loi_meta),
+      loi_numeric_stats=list(loi_numeric_stats),
+      backend=list(backend),
+      SQLdb_path=list(SQLdb_path),
+      sys.mem=list(sys.mem),
+      temp_dir_sub=list(temp_dir_sub),
+      p=list(p)
+    ),
+    carrier::crate(
+      function(y,
+               yy,
+               loi_rasts,
+               iDW_file,
+               iDWs_rasts,
+               iDWo_rasts,
+               loi_cols,
+               input,
+               weighting_scheme,
+               loi_meta,
+               loi_numeric_stats,
+               backend,
+               SQLdb_path,
+               sys.mem,
+               temp_dir_sub,
+               p){
+        #browser()
 
-    input_poly<-ihydro::get_catchment(input,link_id=unique(y$pour_point_id))
+        input_poly<-ihydro::get_catchment(input,link_id=unique(y$pour_point_id))
 
-    if (length(weighting_scheme[weighting_scheme %in% c("iFLO","HAiFLO")])>0){
-      iDWo_rasts<-terra::rast(iDW_file,
-                              unlist(purrr:::map(unique(yy),
-                                                 ~paste0(
-                                                   paste0(
-                                                     weighting_scheme[weighting_scheme %in% c("iFLO","HAiFLO")],
-                                                     "_unn_group"
-                                                   ),
-                                                   .
-                                                 )))
-      )
+        if (length(weighting_scheme[weighting_scheme %in% c("iFLO","HAiFLO")])>0){
+          iDWo_rasts<-terra::rast(iDW_file,
+                                  unlist(purrr:::map(unique(yy),
+                                                     ~paste0(
+                                                       paste0(
+                                                         weighting_scheme[weighting_scheme %in% c("iFLO","HAiFLO")],
+                                                         "_unn_group"
+                                                       ),
+                                                       .
+                                                     )))
+          )
 
-      names(iDWo_rasts)<-gsub(paste0("_unn_group",yy),"",names(iDWo_rasts))
+          names(iDWo_rasts)<-gsub(paste0("_unn_group",yy),"",names(iDWo_rasts))
 
-    }
+        }
 
-    # The below section is for using exact_extract
-    # iDW_rasts<-c(iDWs_rasts,iDWo_rasts)
-    #
-    # num_out<-NULL
-    # cat_out<-NULL
-    #
-    # # Numeric Rasters
-    # if (length(loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"])>0){
-    #   num_out<-purrr::map(names(iDW_rasts),function(idw){
-    #     loi_numeric_stats_sub<-loi_numeric_stats
-    #
-    #     if (!("lumped" %in% weighting_scheme & idw == weighting_scheme[!weighting_scheme %in% "lumped"][[1]])) {
-    #       loi_numeric_stats_sub<-loi_numeric_stats_sub[grepl("^weighted_",loi_numeric_stats_sub)]
-    #     }
-    #
-    #     ot<-exactextractr::exact_extract(
-    #       x=terra::subset(loi_rasts,loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"]),
-    #       y=input_poly,
-    #       weights=terra::subset(iDW_rasts,idw),
-    #       append_cols="link_id",
-    #       fun=loi_numeric_stats_sub,
-    #       default_value=NA_real_,
-    #       default_weight=0,
-    #       max_cells_in_memory=max_pixels_mem,
-    #       progress=F
-    #     )
-    #
-    #     colnames(ot)<-nm_fn(c_nm=colnames(ot),
-    #                         weight_nm=idw,
-    #                         loi_numeric_stats=loi_numeric_stats_sub,
-    #                         cat=F
-    #     )
-    #
-    #     return(ot)
-    #
-    #   }) %>%
-    #     purrr::reduce(dplyr::left_join,by="link_id")
-    # }
-    #
-    # # Categoric Rasters
-    # if (length(loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"])>0){
-    #   cat_out<-purrr::map(names(iDW_rasts),function(idw){
-    #     loi_numeric_stats_sub<-loi_numeric_stats[grepl("mean",loi_numeric_stats)]
-    #
-    #     if (!("lumped" %in% weighting_scheme & idw == weighting_scheme[!weighting_scheme %in% "lumped"][[1]])) {
-    #       loi_numeric_stats_sub<-loi_numeric_stats_sub[grepl("^weighted_",loi_numeric_stats_sub)]
-    #     }
-    #
-    #     ot<-exactextractr::exact_extract(
-    #       x=terra::subset(loi_rasts,loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"]),
-    #       y=input_poly,
-    #       weights=terra::subset(iDW_rasts,idw),
-    #       append_cols="link_id",
-    #       fun=loi_numeric_stats_sub,
-    #       default_value=0,
-    #       default_weight=0,
-    #       max_cells_in_memory=max_pixels_mem,
-    #       progress=F
-    #     )
-    #
-    #     colnames(ot)<-nm_fn(c_nm=colnames(ot),
-    #                         weight_nm=idw,
-    #                         loi_numeric_stats=loi_numeric_stats_sub,
-    #                         cat=T
-    #     )
-    #
-    #     return(ot)
-    #
-    #   }) %>%
-    #     purrr::reduce(dplyr::left_join,by="link_id")
-    # }
-    #
-    # out<-list(num_out,cat_out)
-    # out<-out[!sapply(out,is.null)]
-    # out<-purrr::reduce(out,dplyr::full_join,by="link_id") %>%
-    #   dplyr::mutate(status="Complete",
-    #                 pour_point_id=link_id) %>%
-    #   dplyr::select(
-    #     tidyselect::any_of("pour_point_id"),
-    #     tidyselect::any_of("status"),
-    #     tidyselect::contains(loi_meta$loi_var_nms)
-    #   )
-    #
-    # p()
-    #
-    # return(out)
+        if (F){
+          # The below section is for using exact_extract
+          # iDW_rasts<-c(iDWs_rasts,iDWo_rasts)
+          #
+          # num_out<-NULL
+          # cat_out<-NULL
+          #
+          # # Numeric Rasters
+          # if (length(loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"])>0){
+          #   num_out<-purrr::map(names(iDW_rasts),function(idw){
+          #     loi_numeric_stats_sub<-loi_numeric_stats
+          #
+          #     if (!("lumped" %in% weighting_scheme & idw == weighting_scheme[!weighting_scheme %in% "lumped"][[1]])) {
+          #       loi_numeric_stats_sub<-loi_numeric_stats_sub[grepl("^weighted_",loi_numeric_stats_sub)]
+          #     }
+          #
+          #     ot<-exactextractr::exact_extract(
+          #       x=terra::subset(loi_rasts,loi_meta$loi_var_nms[loi_meta$loi_type=="num_rast"]),
+          #       y=input_poly,
+          #       weights=terra::subset(iDW_rasts,idw),
+          #       append_cols="link_id",
+          #       fun=loi_numeric_stats_sub,
+          #       default_value=NA_real_,
+          #       default_weight=0,
+          #       max_cells_in_memory=max_pixels_mem,
+          #       progress=F
+          #     )
+          #
+          #     colnames(ot)<-nm_fn(c_nm=colnames(ot),
+          #                         weight_nm=idw,
+          #                         loi_numeric_stats=loi_numeric_stats_sub,
+          #                         cat=F
+          #     )
+          #
+          #     return(ot)
+          #
+          #   }) %>%
+          #     purrr::reduce(dplyr::left_join,by="link_id")
+          # }
+          #
+          # # Categoric Rasters
+          # if (length(loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"])>0){
+          #   cat_out<-purrr::map(names(iDW_rasts),function(idw){
+          #     loi_numeric_stats_sub<-loi_numeric_stats[grepl("mean",loi_numeric_stats)]
+          #
+          #     if (!("lumped" %in% weighting_scheme & idw == weighting_scheme[!weighting_scheme %in% "lumped"][[1]])) {
+          #       loi_numeric_stats_sub<-loi_numeric_stats_sub[grepl("^weighted_",loi_numeric_stats_sub)]
+          #     }
+          #
+          #     ot<-exactextractr::exact_extract(
+          #       x=terra::subset(loi_rasts,loi_meta$loi_var_nms[loi_meta$loi_type=="cat_rast"]),
+          #       y=input_poly,
+          #       weights=terra::subset(iDW_rasts,idw),
+          #       append_cols="link_id",
+          #       fun=loi_numeric_stats_sub,
+          #       default_value=0,
+          #       default_weight=0,
+          #       max_cells_in_memory=max_pixels_mem,
+          #       progress=F
+          #     )
+          #
+          #     colnames(ot)<-nm_fn(c_nm=colnames(ot),
+          #                         weight_nm=idw,
+          #                         loi_numeric_stats=loi_numeric_stats_sub,
+          #                         cat=T
+          #     )
+          #
+          #     return(ot)
+          #
+          #   }) %>%
+          #     purrr::reduce(dplyr::left_join,by="link_id")
+          # }
+          #
+          # out<-list(num_out,cat_out)
+          # out<-out[!sapply(out,is.null)]
+          # out<-purrr::reduce(out,dplyr::full_join,by="link_id") %>%
+          #   dplyr::mutate(status="Complete",
+          #                 pour_point_id=link_id) %>%
+          #   dplyr::select(
+          #     tidyselect::any_of("pour_point_id"),
+          #     tidyselect::any_of("status"),
+          #     tidyselect::contains(loi_meta$loi_var_nms)
+          #   )
+          #
+          # p()
+          #
+          # return(out)
+        }
 
+        input_rasts<-c(loi_rasts,iDWs_rasts,iDWo_rasts)
 
+        loi_types<-table(loi_meta$loi_type[loi_meta$loi_var_nms %in% loi_cols])
+        num_rast_analysis_cols<-loi_types["num_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*3
+        cat_rast_analysis_cols<-loi_types["cat_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*2
+        analysis_cols<-sum(c(num_rast_analysis_cols,cat_rast_analysis_cols),na.rm=T)
 
-    input_rasts<-c(loi_rasts,iDWs_rasts,iDWo_rasts)
-
-    loi_types<-table(loi_meta$loi_type[loi_meta$loi_var_nms %in% loi_cols])
-    num_rast_analysis_cols<-loi_types["num_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*3
-    cat_rast_analysis_cols<-loi_types["cat_rast"]*length(weighting_scheme[weighting_scheme!="lumped"])*2
-    analysis_cols<-sum(c(num_rast_analysis_cols,cat_rast_analysis_cols),na.rm=T)
-
-    #Estimates the number of rows that could fit into memory without analysis
-    max.obj.fulldata<-memuse::howmany(sys.mem,
-                                      ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]))
-
-
-    # Summary Function --------------------------------------------------------
-    ot<-purrr::map_dfr(split(input_poly,seq_along(input_poly$link_id)),
-                       function(sub_poly) {
-                         #browser()
-                         sub_id<-sub_poly$link_id
-                         sub_poly_rast<-terra::rasterize(sub_poly,input_rasts)
-                         sub_poly_rast<-terra::cells(sub_poly_rast)
-
-
-                         #Estimates the number of rows that could fit into memory and do analysis
-                         max.obj.fullanalysis_row<-memuse::howmany(sys.mem,
-                                                                   ncol=analysis_cols)
-                         max.obj.fullanalysis_col<-memuse::howmany(sys.mem,
-                                                                   nrow=length(sub_poly_rast))
-
-                         # Estimate table size if reading entire dataframe into memory
-                         obj.size.fulldata<-memuse::howbig(nrow=length(sub_poly_rast),
-                                                           ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]),
-                                                           unit="GiB")
-
-                         # Estimate table size if reading entire dataframe into memory
-                         obj.size.fullanalysis<-memuse::howbig(nrow=length(sub_poly_rast),
-                                                               ncol=analysis_cols,
-                                                               unit="GiB")
-
-                         # Estimate table size if single loi and IDW into memory
-                         obj.size.single<-memuse::howbig(nrow=length(sub_poly_rast),
-                                                         ncol=5,
-                                                         unit="GiB")
-
-                         if (obj.size.single>sys.mem) { # object won't fit into memory
-                           # TODO: process rasters in chunks and write to sqlite, then do calculations there
-                           out<-tibble::tibble(pour_point_id=sub_id,status="Incomplete")
-
-                         } else {
-                           if (obj.size.fullanalysis<sys.mem) { # object will fit entirely into memory
-                             # browser()
-
-                             ot<-terra::extract(
-                               input_rasts,
-                               sub_poly_rast
-                             )
-
-                             out<-ihydro::.attr_fn(ot,
-                                                   point_id=sub_id,
-                                                   weighting_scheme2=weighting_scheme,
-                                                   loi_meta2=loi_meta,
-                                                   loi_cols2=loi_cols,
-                                                   loi_numeric_stats2=loi_numeric_stats,
-                                                   backend=backend,
-                                                   SQLdb_path=SQLdb_path)
-
-                           } else {
-                             if (max.obj.fullanalysis_col[2]>(length(weighting_scheme[weighting_scheme!="lumped"])*3)) { # all IDW plus at least some loi will fit into memory
-
-                               weighting_scheme2<-weighting_scheme
-                               if (all(weighting_scheme2=="lumped")) {
-                                 weighting_scheme2<-"lumped"
-                               } else {
-                                 weighting_scheme2<-weighting_scheme[weighting_scheme!="lumped"]
-                               }
-
-                               if (all(weighting_scheme2=="lumped")){
-                                 ot_idw<-data.frame(lumped=1)
-                               } else {
-                                 ot_idw<-terra::extract(
-                                   terra::subset(input_rasts,c(weighting_scheme2)[c(weighting_scheme2) %in% names(input_rasts)]),
-                                   sub_poly_rast
-                                 )
+        #Estimates the number of rows that could fit into memory without analysis
+        max.obj.fulldata<-memuse::howmany(sys.mem,
+                                          ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]))
 
 
-                                 if (ncol(ot_idw)==1) colnames(ot_idw)<-weighting_scheme2
-                               }
+        # Summary Function --------------------------------------------------------
+        ot<-purrr::pmap_dfr(
+          list(
+            sub_poly=split(input_poly,seq_along(input_poly$link_id)),
+            input_rasts=list(input_rasts),
+            loi_rasts=list(loi_rasts),
+            iDWs_rasts=list(iDWs_rasts),
+            iDWo_rasts=list(iDWo_rasts),
+            loi_cols=list(loi_cols),
+            input=list(input),
+            weighting_scheme=list(weighting_scheme),
+            loi_meta=list(loi_meta),
+            loi_numeric_stats=list(loi_numeric_stats),
+            backend=list(backend),
+            SQLdb_path=list(SQLdb_path),
+            sys.mem=list(sys.mem),
+            temp_dir_sub=list(temp_dir_sub),
+            loi_types=list(loi_types),
+            num_rast_analysis_cols=list(num_rast_analysis_cols),
+            cat_rast_analysis_cols=list(cat_rast_analysis_cols),
+            analysis_cols=list(analysis_cols),
+            max.obj.fulldata=list(max.obj.fulldata),
+            p=list(p)
+          ),
+          carrier::crate(
+            function(sub_poly,
+                     input_rasts,
+                     loi_rasts,
+                     iDWs_rasts,
+                     iDWo_rasts,
+                     loi_cols,
+                     input,
+                     weighting_scheme,
+                     loi_meta,
+                     loi_numeric_stats,
+                     backend,
+                     SQLdb_path,
+                     sys.mem,
+                     temp_dir_sub,
+                     loi_types,
+                     num_rast_analysis_cols,
+                     cat_rast_analysis_cols,
+                     analysis_cols,
+                     max.obj.fulldata,
+                     p) {
+              temp_fl<-tempfile(pattern ="ihdyro",tmpdir =temp_dir_sub, fileext = ".tif")
+              #browser()
+              sub_id<-sub_poly$link_id
+              sub_poly_rast<-terra::rasterize(sub_poly,input_rasts,filename=temp_fl)
+              sub_poly_rast<-terra::cells(sub_poly_rast)
 
-                               remaining_cols<-max.obj.fullanalysis_col[2]-(length(weighting_scheme[weighting_scheme!="lumped"])*3)
-                               remaining_cols_ratio<-remaining_cols/analysis_cols
+              #Estimates the number of rows that could fit into memory and do analysis
+              max.obj.fullanalysis_row<-memuse::howmany(sys.mem,
+                                                        ncol=analysis_cols)
+              max.obj.fullanalysis_col<-memuse::howmany(sys.mem,
+                                                        nrow=length(sub_poly_rast))
 
-                               if (remaining_cols_ratio>1){
-                                 remaining_cols<-length(loi_cols)
-                               } else {
-                                 remaining_cols<-floor(length(loi_cols)*remaining_cols_ratio*0.5)
-                               }
+              # Estimate table size if reading entire dataframe into memory
+              obj.size.fulldata<-memuse::howbig(nrow=length(sub_poly_rast),
+                                                ncol=length(loi_cols)+length(weighting_scheme[weighting_scheme!="lumped"]),
+                                                unit="GiB")
 
-                               loi_cols_split<-split(loi_cols,
-                                                     rep(1:length(loi_cols),
-                                                         length.out=length(loi_cols),
-                                                         each =remaining_cols)
-                               )
+              # Estimate table size if reading entire dataframe into memory
+              obj.size.fullanalysis<-memuse::howbig(nrow=length(sub_poly_rast),
+                                                    ncol=analysis_cols,
+                                                    unit="GiB")
 
-                               out<-purrr::map(loi_cols_split,function(loi_sub){
+              # Estimate table size if single loi and IDW into memory
+              obj.size.single<-memuse::howbig(nrow=length(sub_poly_rast),
+                                              ncol=5,
+                                              unit="GiB")
 
-                                 ot<-terra::extract(
-                                   terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
-                                   sub_poly_rast
-                                 )
+              if (obj.size.single>sys.mem) { # object won't fit into memory
+                # TODO: process rasters in chunks and write to sqlite, then do calculations there
+                out<-tibble::tibble(pour_point_id=sub_id,status="Incomplete")
 
-                                 if (ncol(ot)==1) colnames(ot)<-loi_sub
+              } else {
+                if (obj.size.fullanalysis<sys.mem) { # object will fit entirely into memory
+                  # browser()
 
-                                 out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
-                                                       point_id=sub_id,
-                                                       weighting_scheme2=weighting_scheme,
-                                                       loi_meta2=loi_meta,
-                                                       loi_cols2=loi_sub,
-                                                       loi_numeric_stats2=loi_numeric_stats,
-                                                       backend=backend,
-                                                       SQLdb_path=SQLdb_path)
+                  ot<-terra::extract(
+                    input_rasts,
+                    sub_poly_rast
+                  )
 
-                                 return(out)
-                               }) %>%
-                                 purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
+                  out<-ihydro::.attr_fn(ot,
+                                        point_id=sub_id,
+                                        weighting_scheme2=weighting_scheme,
+                                        loi_meta2=loi_meta,
+                                        loi_cols2=loi_cols,
+                                        loi_numeric_stats2=loi_numeric_stats,
+                                        backend=backend,
+                                        SQLdb_path=SQLdb_path)
 
-                             } else {
-                               # one IDW plus at one loi will fit into memory
+                } else {
+                  if (max.obj.fullanalysis_col[2]>(length(weighting_scheme[weighting_scheme!="lumped"])*3)) { # all IDW plus at least some loi will fit into memory
 
-                               weighting_scheme2<-weighting_scheme
-                               if (all(weighting_scheme2=="lumped")) {
-                                 weighting_scheme2<-"lumped"
-                               } else {
-                                 weighting_scheme2<-weighting_scheme[weighting_scheme!="lumped"]
-                               }
+                    weighting_scheme2<-weighting_scheme
+                    if (all(weighting_scheme2=="lumped")) {
+                      weighting_scheme2<-"lumped"
+                    } else {
+                      weighting_scheme2<-weighting_scheme[weighting_scheme!="lumped"]
+                    }
 
-                               out<- purrr::map(weighting_scheme2,function(sub_weighting_scheme){
-
-                                 if (sub_weighting_scheme=="lumped"){
-                                   ot_idw<-data.frame(lumped=1)
-                                 } else {
-                                   ot_idw<-terra::extract(
-                                     terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
-                                     sub_poly_rast
-                                   )
-
-                                   if (ncol(ot_idw)==1) colnames(ot_idw)<-sub_weighting_scheme
-                                 }
-
-
-                                 purrr::map(loi_cols,function(loi_sub){
-                                   ot<-terra::extract(
-                                     terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
-                                     sub_poly_rast
-                                   )
-
-                                   if (ncol(ot)==1) colnames(ot)<-loi_sub
-
-                                   with_lumped<-"lumped" %in% weighting_scheme
-
-                                   if (with_lumped & sub_weighting_scheme==weighting_scheme2[1]){
-                                     sub_weighting_scheme<-unique(c("lumped",sub_weighting_scheme))
-                                   }
-
-                                   out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
-                                                         point_id=sub_id,
-                                                         weighting_scheme2=sub_weighting_scheme,
-                                                         loi_meta2=loi_meta,
-                                                         loi_cols2=loi_sub,
-                                                         loi_numeric_stats2=loi_numeric_stats,
-                                                         backend=backend,
-                                                         SQLdb_path=SQLdb_path)
-                                   return(out)
-                                 })%>%
-                                   purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
-                               }) %>%
-                                 purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
-
-                             }
-                           }
-                         }
-
-                         return(out)
-
-                       })
+                    if (all(weighting_scheme2=="lumped")){
+                      ot_idw<-data.frame(lumped=1)
+                    } else {
+                      ot_idw<-terra::extract(
+                        terra::subset(input_rasts,c(weighting_scheme2)[c(weighting_scheme2) %in% names(input_rasts)]),
+                        sub_poly_rast
+                      )
 
 
-    p()
-    return(ot)
-  })
+                      if (ncol(ot_idw)==1) colnames(ot_idw)<-weighting_scheme2
+                    }
+
+                    remaining_cols<-max.obj.fullanalysis_col[2]-(length(weighting_scheme[weighting_scheme!="lumped"])*3)
+                    remaining_cols_ratio<-remaining_cols/analysis_cols
+
+                    if (remaining_cols_ratio>1){
+                      remaining_cols<-length(loi_cols)
+                    } else {
+                      remaining_cols<-floor(length(loi_cols)*remaining_cols_ratio*0.5)
+                    }
+
+                    loi_cols_split<-split(loi_cols,
+                                          rep(1:length(loi_cols),
+                                              length.out=length(loi_cols),
+                                              each =remaining_cols)
+                    )
+
+                    out<-purrr::pmap(
+                      list(
+                        loi_sub=loi_cols_split,
+                        input_rasts=list(input_rasts),
+                        sub_poly_rast=list(sub_poly_rast),
+                        sub_id=list(sub_id),
+                        weighting_scheme=list(weighting_scheme),
+                        loi_meta=list(loi_meta),
+                        loi_numeric_stats=list(loi_numeric_stats),
+                        backend=list(backend),
+                        SQLdb_path=list(SQLdb_path)
+                      ),
+                      carrier::crate(
+                        function(loi_sub,
+                                 input_rasts,
+                                 sub_poly_rast,
+                                 sub_id,
+                                 weighting_scheme,
+                                 loi_meta,
+                                 loi_numeric_stats,
+                                 backend,
+                                 SQLdb_path){
+
+                          ot<-terra::extract(
+                            terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
+                            sub_poly_rast
+                          )
+
+                          if (ncol(ot)==1) colnames(ot)<-loi_sub
+
+                          out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
+                                                point_id=sub_id,
+                                                weighting_scheme2=weighting_scheme,
+                                                loi_meta2=loi_meta,
+                                                loi_cols2=loi_sub,
+                                                loi_numeric_stats2=loi_numeric_stats,
+                                                backend=backend,
+                                                SQLdb_path=SQLdb_path)
+
+                          return(out)
+                        })) %>%
+                      purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
+
+                  } else {
+                    # one IDW plus at one loi will fit into memory
+
+                    weighting_scheme2<-weighting_scheme
+                    if (all(weighting_scheme2=="lumped")) {
+                      weighting_scheme2<-"lumped"
+                    } else {
+                      weighting_scheme2<-weighting_scheme[weighting_scheme!="lumped"]
+                    }
+
+                    out<- purrr::pmap(
+                      list(
+                        sub_weighting_scheme=weighting_scheme2,
+                        loi_cols=list(loi_cols),
+                        input_rasts=list(input_rasts),
+                        sub_poly_rast=list(sub_poly_rast),
+                        sub_id=list(sub_id),
+                        weighting_scheme=list(weighting_scheme),
+                        loi_meta=list(loi_meta),
+                        loi_numeric_stats=list(loi_numeric_stats),
+                        backend=list(backend),
+                        SQLdb_path=list(SQLdb_path)
+                      ),
+                      carrier::crate(
+                        function(sub_weighting_scheme,
+                                 loi_cols,
+                                 input_rasts,
+                                 sub_poly_rast,
+                                 sub_id,
+                                 weighting_scheme,
+                                 loi_meta,
+                                 loi_numeric_stats,
+                                 backend,
+                                 SQLdb_path) {
+
+                          if (sub_weighting_scheme=="lumped"){
+                            ot_idw<-data.frame(lumped=1)
+                          } else {
+                            ot_idw<-terra::extract(
+                              terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
+                              sub_poly_rast
+                            )
+
+                            if (ncol(ot_idw)==1) colnames(ot_idw)<-sub_weighting_scheme
+                          }
+
+
+                          purrr::pmap(
+                            list(
+                              loi_sub=loi_cols,
+                              ot_idw=list(ot_idw),
+                              sub_weighting_scheme=list(sub_weighting_scheme),
+                              input_rasts=list(input_rasts),
+                              sub_poly_rast=list(sub_poly_rast),
+                              sub_id=list(sub_id),
+                              weighting_scheme=list(weighting_scheme),
+                              loi_meta=list(loi_meta),
+                              loi_numeric_stats=list(loi_numeric_stats),
+                              backend=list(backend),
+                              SQLdb_path=list(SQLdb_path)
+                            ),
+                            carrier::crate(
+                              function(loi_sub,
+                                       ot_idw,
+                                       sub_weighting_scheme,
+                                       input_rasts,
+                                       sub_poly_rast,
+                                       sub_id,
+                                       weighting_scheme,
+                                       loi_meta,
+                                       loi_numeric_stats,
+                                       backend,
+                                       SQLdb_path){
+
+                                ot<-terra::extract(
+                                  terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
+                                  sub_poly_rast
+                                )
+
+                                if (ncol(ot)==1) colnames(ot)<-loi_sub
+
+                                with_lumped<-"lumped" %in% weighting_scheme
+
+                                if (with_lumped & sub_weighting_scheme==weighting_scheme2[1]){
+                                  sub_weighting_scheme<-unique(c("lumped",sub_weighting_scheme))
+                                }
+
+                                out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
+                                                      point_id=sub_id,
+                                                      weighting_scheme2=sub_weighting_scheme,
+                                                      loi_meta2=loi_meta,
+                                                      loi_cols2=loi_sub,
+                                                      loi_numeric_stats2=loi_numeric_stats,
+                                                      backend=backend,
+                                                      SQLdb_path=SQLdb_path)
+                                return(out)
+                              })) %>%
+                            purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
+                        })) %>%
+                      purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
+
+                  }
+                }
+              }
+
+              rm(sub_poly_rast)
+              file.remove(temp_fl)
+              #r<-terra::tmpFiles(current=FALSE, orphan=TRUE, old=FALSE, remove=TRUE)
+
+              return(out)
+
+            }))
+
+
+        p()
+        return(ot)
+      }))
 }
 
 #' Calculate loi attributes from input rasters
@@ -827,27 +981,23 @@ extract_raster_attributes<-function(
 #'
 .attr_fn<-function(df=NULL,
                    SQLdb_path=":memory:",
-                   tbl_name=basename(tempfile(pattern = "SQL")),
+                   tbl_name=basename(tempfile(pattern = "ihydro", fileext = ".sql")),
                    point_id,
                    weighting_scheme2,
                    loi_meta2,
                    loi_cols2,
                    loi_numeric_stats2,
                    backend=c("tibble","data.table","SQLite")
-                   ){
+){
   # library(data.table)
   # library(dtplyr)
   # library(dplyr, warn.conflicts = FALSE)
   #browser()
+  stopifnot(!is.null(df))
   options(dplyr.summarise.inform = FALSE)
   options(scipen = 999)
   `%>%` <- magrittr::`%>%`
   `:=` <- data.table::`:=`
-
-  loi_meta2<-dplyr::filter(loi_meta2,
-                           loi_var_nms %in% loi_cols2,
-                           loi_var_nms %in% colnames(df)
-                           ) #
 
   backend<-match.arg(backend)
 
@@ -857,36 +1007,42 @@ extract_raster_attributes<-function(
     dplyr::select(-tidyselect::any_of("coverage_fraction"))
 
   df_class<-sapply(df,class)
+  df_allNA<-sapply(df,function(x) !all(is.na(x)))
+  df_allNA<-names(df_allNA)[df_allNA]
+
+  df<-df[,df_allNA]
+
+  loi_cols2<-loi_cols2[loi_cols2 %in% colnames(df)]
+
+  loi_meta2<-dplyr::filter(loi_meta2,
+                           loi_var_nms %in% loi_cols2,
+                           loi_var_nms %in% colnames(df)
+  )
 
   if (backend=="data.table") {
-    stopifnot(!is.null(df))
 
     df<-df %>%
       dtplyr::lazy_dt()
-  } else {
-    if (backend=="SQLite") {
-      stopifnot(!is.null(SQLdb_path))
-      if (SQLdb_path!=":memory:"){
-        if (!dir.exists(SQLdb_path)) dir.create(SQLdb_path)
-        SQLdb_path<-tempfile(tmpdir = SQLdb_path,pattern="ihydro",fileext = ".sql")
-      }
-
-      con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
-
-      if (SQLdb_path!=":memory:"){
-        #res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TEMP_STORE = 0;"))
-        res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store = 1;"))
-        res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store_directory='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
-        res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TMPDIR='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
-      }
-
-      #df1<-DBI::dbWriteTable(con,tbl_name,df)
-      df1<-dplyr::copy_to(con,df,name = tbl_name)
-
-      df<-dplyr::tbl(con,tbl_name)
-
-      #df_class<-sapply(dplyr::collect(df,n=1),class)
+  }
+  if (backend=="SQLite") {
+    stopifnot(!is.null(SQLdb_path))
+    if (SQLdb_path!=":memory:"){
+      if (!dir.exists(SQLdb_path)) dir.create(SQLdb_path)
+      SQLdb_path<-tempfile(tmpdir = SQLdb_path,pattern="ihydro",fileext = ".sql")
     }
+
+    con<-DBI::dbConnect(RSQLite::SQLite(),SQLdb_path)
+
+    if (SQLdb_path!=":memory:"){
+      res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store = 1;"))
+      res <- DBI::dbSendQuery(con, paste0("PRAGMA temp_store_directory='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
+      res <- DBI::dbSendQuery(con, paste0("PRAGMA SQLITE_TMPDIR='",gsub(basename(SQLdb_path),"",SQLdb_path),"';"))
+    }
+
+    df1<-dplyr::copy_to(con,df,name = tbl_name)
+
+    df<-dplyr::tbl(con,tbl_name)
+
   }
 
 

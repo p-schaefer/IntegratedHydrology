@@ -16,7 +16,8 @@
   p,
   temp_dir_sub,
   n_cores,
-  backend = c("data.table", "SQLite")
+  backend = c("tibble", "data.table", "SQLite"),
+  SQLdb_path = ":memory:"
 )
 }
 \value{

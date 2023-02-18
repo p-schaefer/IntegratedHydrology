@@ -6,14 +6,14 @@
 \usage{
 .attr_fn(
   df = NULL,
-  db_path = ":memory:",
-  tbl_name = basename(tempfile(pattern = "SQL")),
+  SQLdb_path = ":memory:",
+  tbl_name = basename(tempfile(pattern = "ihydro", fileext = ".sql")),
   point_id,
   weighting_scheme2,
   loi_meta2,
   loi_cols2,
   loi_numeric_stats2,
-  backend = c("data.table", "SQLite")
+  backend = c("tibble", "data.table", "SQLite")
 )
 }
 \value{
