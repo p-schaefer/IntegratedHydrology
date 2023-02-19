@@ -1019,6 +1019,8 @@ extract_raster_attributes<-function(
                            loi_var_nms %in% colnames(df)
   )
 
+  weighting_scheme2<-weighting_scheme2[weighting_scheme2 %in% colnames(df)]
+
   if (backend=="data.table") {
 
     df<-df %>%
