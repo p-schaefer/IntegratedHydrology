@@ -1006,14 +1006,6 @@ extract_raster_attributes<-function(
     dplyr::filter(dplyr::if_any(tidyselect::any_of("coverage_fraction"),~.x>0.5)) %>%
     dplyr::select(-tidyselect::any_of("coverage_fraction"))
 
-  df_class<-sapply(df,class)
-  df_allNA<-sapply(df,function(x) !all(is.na(x)))
-  df_allNA<-names(df_allNA)[df_allNA]
-
-  df<-df[,df_allNA]
-
-  loi_cols2<-loi_cols2[loi_cols2 %in% colnames(df)]
-
   loi_meta2<-dplyr::filter(loi_meta2,
                            loi_var_nms %in% loi_cols2,
                            loi_var_nms %in% colnames(df)

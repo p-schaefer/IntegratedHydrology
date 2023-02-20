@@ -1,3 +1,6 @@
+# necessary temporarily: https://github.com/tidyverse/dtplyr/issues/398
+.datatable.aware <- TRUE
+
 # ihydro_layers<-function(x) UseMethod("ihydro_layers")
 # target_id_fun<-function(x) UseMethod("target_id_fun")
 # target_o_fun<-function(x) UseMethod("target_o_fun")
