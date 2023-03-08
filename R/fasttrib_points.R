@@ -728,7 +728,7 @@ extract_raster_attributes<-function(
               temp_fl<-tempfile(pattern ="ihdyro",tmpdir =temp_dir_sub, fileext = ".tif")
               #browser()
               sub_id<-sub_poly$link_id
-              sub_poly_rast<-terra::rasterize(sub_poly,input_rasts,filename=temp_fl)
+              sub_poly_rast<-terra::rasterize(terra::vect(sub_poly),input_rasts,fun=sum,field=1,filename=temp_fl)
               sub_poly_rast<-terra::cells(sub_poly_rast)
 
               #Estimates the number of rows that could fit into memory and do analysis
