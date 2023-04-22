@@ -419,14 +419,15 @@ prep_weights<-function(
 
             if (inherits(ot,"try-error")) {
               if (!attr(ot,"condition")$message %in% c("stoi","stol")){
-                ot<-terra::writeRaster(
-                  x,
-                  NAflag=-9999,
-                  output_filename$outfile,
-                  filetype = "GPKG",
-                  gdal = c("APPEND_SUBDATASET=YES",
-                           paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
-                  ))
+                stop(attr(ot,"condition")$message)
+                # ot<-terra::writeRaster(
+                #   x,
+                #   NAflag=-9999,
+                #   output_filename$outfile,
+                #   filetype = "GPKG",
+                #   gdal = c("APPEND_SUBDATASET=YES",
+                #            paste0("RASTER_TABLE=",gsub(".tif","",basename(y)),"")
+                #   ))
               }
             }
 
