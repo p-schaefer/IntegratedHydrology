@@ -418,7 +418,7 @@ prep_weights<-function(
             ),silent=T)
 
             if (inherits(ot,"try-error")) {
-              if (attr(ot,"condition")$message %in% c("stoi","stol")){
+              if (!attr(ot,"condition")$message %in% c("stoi","stol")){
                 ot<-terra::writeRaster(
                   x,
                   NAflag=-9999,
@@ -474,7 +474,7 @@ prep_weights<-function(
           ),silent=T)
 
           if (inherits(ot,"try-error")) {
-            if (attr(ot,"condition")$message %in% c("stoi","stol")){
+            if (!attr(ot,"condition")$message %in% c("stoi","stol")){
               stop(attr(ot,"condition")$message)
             }
           }
