@@ -349,7 +349,7 @@ process_loi<-function(
       ),silent=T)
 
       if (inherits(tott,"try-error")) {
-        if (attr(tott,"condition")$message != "stoi"){
+        if (attr(tott,"condition")$message %in% c("stoi","stol")){
           stop(attr(tott,"condition")$message)
           # tott<-terra::writeRaster(
           #   tot,
@@ -402,7 +402,7 @@ process_loi<-function(
     ),silent=T)
 
     if (inherits(tott,"try-error")) {
-      if (attr(tott,"condition")$message != "stoi"){
+      if (attr(tott,"condition")$message %in% c("stoi","stol")){
         stop(attr(tott,"condition")$message)
         # tott<-terra::writeRaster(
         #   tot,
