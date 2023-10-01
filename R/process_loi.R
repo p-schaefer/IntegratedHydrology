@@ -113,12 +113,14 @@ process_loi<-function(
     if (inherits(x,c("sf","sfc","sfg","SpatVector"))) {
       fp<-file.path(temp_dir,paste0(basename(tempfile()),".shp"))
       if (inherits(x,"SpatVector")) x<-sf::st_as_sf(x)
-      sf::write_sf(x,fp)
+        sf::write_sf(x,fp)
+        x<-fp
       #return(terra::wrap(terra::vect(x)))
     }
     if (inherits(x,c("SpatRaster"))) {
       fp<-file.path(temp_dir,paste0(basename(tempfile()),".tif"))
-      terra::writeRaster(x,fp)
+        terra::writeRaster(x,fp)
+        x<-fp
       #return(terra::wrap(x))
     }
     return(x)
@@ -129,12 +131,14 @@ process_loi<-function(
     if (inherits(x,c("sf","sfc","sfg","SpatVector"))) {
       fp<-file.path(temp_dir,paste0(basename(tempfile()),".shp"))
       if (inherits(x,"SpatVector")) x<-sf::st_as_sf(x)
-      sf::write_sf(x,fp)
+        sf::write_sf(x,fp)
+        x<-fp
       #return(terra::wrap(terra::vect(x)))
     }
     if (inherits(x,c("SpatRaster"))) {
       fp<-file.path(temp_dir,paste0(basename(tempfile()),".tif"))
-      terra::writeRaster(x,fp)
+        terra::writeRaster(x,fp)
+        x<-fp
       #return(terra::wrap(x))
     }
     return(x)
