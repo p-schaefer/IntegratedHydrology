@@ -814,6 +814,7 @@ extract_raster_attributes<-function(
                     out<-purrr::pmap(
                       list(
                         loi_sub=loi_cols_split,
+                        ot_idw=list(ot_idw),
                         input_rasts=list(input_rasts),
                         sub_poly_rast=list(sub_poly_rast),
                         sub_id=list(sub_id),
@@ -825,6 +826,7 @@ extract_raster_attributes<-function(
                       ),
                       carrier::crate(
                         function(loi_sub,
+                                 ot_idw,
                                  input_rasts,
                                  sub_poly_rast,
                                  sub_id,
