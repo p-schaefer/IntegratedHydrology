@@ -14,7 +14,7 @@
 #' @param inv_function function or named list of functions based on \code{weighting_scheme} names. Inverse function used in \code{terra::app()} to convert distances to inverse distances. Default: \code{(X * 0.001 + 1)^-1} assumes projection is in distance units of m and converts to distance units of km.
 #' @param temp_dir character. File path for intermediate products; these are deleted once the function runs successfully.
 #' @param verbose logical.
-#' @param backend character. One of "data.table" or "SQLite"
+#' @param backend character. One of "tibble", "data.table" or "SQLite"
 #' @param SQLdb_path character. If backend = "SQLite" directory to store temporary SQL tables, or ":memory:" for an in-memory SQL table
 #'
 #' @return A data.frame of weighted attributes for the requested areas
@@ -239,7 +239,7 @@ extract_raster_attributes<-function(
 
   options(scipen = 999)
   options(future.rng.onMisuse="ignore")
-  options(dplyr.summarise.inform = FALSE)
+  options(dplyrmarise.inform = FALSE)
   n_cores<-future::nbrOfWorkers()
   if (is.infinite(n_cores)) n_cores<-future::availableCores(logical = F)
   if (n_cores==0) n_cores<-1
