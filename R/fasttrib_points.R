@@ -523,7 +523,7 @@ extract_raster_attributes<-function(
     iDWs_rasts<-terra::rast(iDW_file,weighting_scheme[weighting_scheme %in% c("iFLS","HAiFLS")])
   }
 
-  purrr::pmap_dfr(
+purrr::pmap_dfr(
   list(
     y=x$data,
     yy=x$unn_group,
@@ -877,81 +877,80 @@ extract_raster_attributes<-function(
                   backend=list(backend),
                   SQLdb_path=list(SQLdb_path)
                 ),
-                carrier::crate(
-                  function(sub_weighting_scheme,
-                           loi_cols,
-                           input_rasts,
-                           sub_poly_rast,
-                           sub_id,
-                           weighting_scheme,
-                           loi_meta,
-                           loi_numeric_stats,
-                           backend,
-                           SQLdb_path) {
+                function(sub_weighting_scheme,
+                         loi_cols,
+                         input_rasts,
+                         sub_poly_rast,
+                         sub_id,
+                         weighting_scheme,
+                         loi_meta,
+                         loi_numeric_stats,
+                         backend,
+                         SQLdb_path) {
+                  
+                  if (sub_weighting_scheme=="lumped"){
+                    ot_idw<-data.frame(lumped=1)
+                  } else {
+                    ot_idw<-terra::extract(
+                      terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
+                      sub_poly_rast
+                    )
                     
-                    if (sub_weighting_scheme=="lumped"){
-                      ot_idw<-data.frame(lumped=1)
-                    } else {
-                      ot_idw<-terra::extract(
-                        terra::subset(input_rasts,c(sub_weighting_scheme)[c(sub_weighting_scheme) %in% names(input_rasts)]),
+                    if (ncol(ot_idw)==1) colnames(ot_idw)<-sub_weighting_scheme
+                  }
+                  
+                  
+                  purrr::pmap(
+                    list(
+                      loi_sub=loi_cols,
+                      ot_idw=list(ot_idw),
+                      sub_weighting_scheme=list(sub_weighting_scheme),
+                      input_rasts=list(input_rasts),
+                      sub_poly_rast=list(sub_poly_rast),
+                      sub_id=list(sub_id),
+                      weighting_scheme=list(weighting_scheme),
+                      loi_meta=list(loi_meta),
+                      loi_numeric_stats=list(loi_numeric_stats),
+                      backend=list(backend),
+                      SQLdb_path=list(SQLdb_path)
+                    ),
+                    function(loi_sub,
+                             ot_idw,
+                             sub_weighting_scheme,
+                             input_rasts,
+                             sub_poly_rast,
+                             sub_id,
+                             weighting_scheme,
+                             loi_meta,
+                             loi_numeric_stats,
+                             backend,
+                             SQLdb_path){
+                      
+                      ot<-terra::extract(
+                        terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
                         sub_poly_rast
                       )
                       
-                      if (ncol(ot_idw)==1) colnames(ot_idw)<-sub_weighting_scheme
-                    }
-                    
-                    
-                    purrr::pmap(
-                      list(
-                        loi_sub=loi_cols,
-                        ot_idw=list(ot_idw),
-                        sub_weighting_scheme=list(sub_weighting_scheme),
-                        input_rasts=list(input_rasts),
-                        sub_poly_rast=list(sub_poly_rast),
-                        sub_id=list(sub_id),
-                        weighting_scheme=list(weighting_scheme),
-                        loi_meta=list(loi_meta),
-                        loi_numeric_stats=list(loi_numeric_stats),
-                        backend=list(backend),
-                        SQLdb_path=list(SQLdb_path)
-                      ),
-                      function(loi_sub,
-                               ot_idw,
-                               sub_weighting_scheme,
-                               input_rasts,
-                               sub_poly_rast,
-                               sub_id,
-                               weighting_scheme,
-                               loi_meta,
-                               loi_numeric_stats,
-                               backend,
-                               SQLdb_path){
-                        
-                        ot<-terra::extract(
-                          terra::subset(input_rasts,c(loi_sub)[c(loi_sub) %in% names(input_rasts)]),
-                          sub_poly_rast
-                        )
-                        
-                        if (ncol(ot)==1) colnames(ot)<-loi_sub
-                        
-                        with_lumped<-"lumped" %in% weighting_scheme
-                        
-                        if (with_lumped & sub_weighting_scheme==weighting_scheme2[1]){
-                          sub_weighting_scheme<-unique(c("lumped",sub_weighting_scheme))
-                        }
-                        
-                        out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
-                                              point_id=sub_id,
-                                              weighting_scheme2=sub_weighting_scheme,
-                                              loi_meta2=loi_meta,
-                                              loi_cols2=loi_sub,
-                                              loi_numeric_stats2=loi_numeric_stats,
-                                              backend=backend,
-                                              SQLdb_path=SQLdb_path)
-                        return(out)
-                      })) %>%
-                  purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
-                  }) %>%
+                      if (ncol(ot)==1) colnames(ot)<-loi_sub
+                      
+                      with_lumped<-"lumped" %in% weighting_scheme
+                      
+                      if (with_lumped & sub_weighting_scheme==weighting_scheme2[1]){
+                        sub_weighting_scheme<-unique(c("lumped",sub_weighting_scheme))
+                      }
+                      
+                      out<-ihydro::.attr_fn(dplyr::bind_cols(ot,ot_idw),
+                                            point_id=sub_id,
+                                            weighting_scheme2=sub_weighting_scheme,
+                                            loi_meta2=loi_meta,
+                                            loi_cols2=loi_sub,
+                                            loi_numeric_stats2=loi_numeric_stats,
+                                            backend=backend,
+                                            SQLdb_path=SQLdb_path)
+                      return(out)
+                    }) %>%
+                    purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
+                }) %>%
                 purrr::reduce(dplyr::left_join,by=c("pour_point_id","status"))
               
             }
