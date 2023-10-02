@@ -681,7 +681,8 @@ extract_raster_attributes<-function(
 
 
         # Summary Function --------------------------------------------------------
-        ot<-purrr::pmap_dfr(
+        ot<-furrr::future_pmap_dfr(
+          .options = furrr::furrr_options(globals = F),
           list(
             sub_poly=split(input_poly,seq_along(input_poly$link_id)),
             input_rasts=list(input_rasts),
