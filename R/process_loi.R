@@ -331,7 +331,8 @@ process_loi<-function(
   while(!future::resolved(future_proc_status)){
     Sys.sleep(0.5)
     fl<-list.files(temp_dir_save,".tif",full.names = T)
-
+    fl<-fl[grepl(".tif$",fl)]
+      
     fl_un_time<-file.mtime(fl)
     fl<-fl[fl_un_time<Sys.time()-60]
 
@@ -383,6 +384,8 @@ process_loi<-function(
   }
 
   fl<-list.files(temp_dir_save,".tif",full.names = T)
+  fl<-fl[grepl(".tif$",fl)]
+
   for (x in fl) {
     tot<-terra::rast(x)
 
